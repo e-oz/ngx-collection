@@ -156,51 +156,35 @@ Collection Service has 4 main methods to mutate a collection: `create()`, `read(
 Call `create` to add a new item to a collection:
 
 ```ts
-export class BookStore extends ComponentStore<BookStoreState> {
-  
-  public readonly create = this.effect(_ => _.pipe(
-    exhaustMap(() => this.booksCollection.create({
-      request: this.booksService.saveBook(bookData),
-      onSuccess: () => this.messageService.success('Created'),
-      onError: () => this.messageService.error('Error'),
-    }))
-  ));
-}
+this.booksCollection.create({
+  request: this.booksService.saveBook(bookData),
+  onSuccess: () => this.messageService.success('Created'),
+  onError: () => this.messageService.error('Error'),
+})
 ```
 
 #### Read
 `read()` will load the list of items: 
 ```ts
-export class BookStore extends ComponentStore<BookStoreState> {
-  
-  private readonly loadBooks = this.effect(_ => _.pipe(
-    switchMap(() => this.booksCollection.read({
-      request: this.booksService.getBooks(),
-      onError: () => this.messageService.error('Can not load the list of books')
-    }))
-  ));
-}
+this.booksCollection.read({
+    request: this.booksService.getBooks(),
+    onError: () => this.messageService.error('Can not load the list of books')
+  })
 ```
 
 #### Update
 Use `update()` to modify some particular item in your collection:
 ```ts
-export class BookStore extends ComponentStore<BookStoreState> {
-
-  public readonly edit = this.effect<Book>(_ => _.pipe(
-    switchMap((bookItem) => this.booksCollection.update({
-      request: this.booksService.saveBook(bookData),
-      item: bookItem,
-      onSuccess: () => this.messageService.success('Saved'),
-      onError: () => this.messageService.error('Error'),
-    }))
-  ));
-}
-
+this.booksCollection.update({
+  request: this.booksService.saveBook(bookData),
+  item: bookItem,
+  onSuccess: () => this.messageService.success('Saved'),
+  onError: () => this.messageService.error('Error'),
+})
 ```
 
 #### Delete
-The usage of `delete()` is obvious, let's use a bit more complicated code for this example:
+The usage of `delete()` is obvious, let's use a bit more wordy example:
 ```ts
 export class BookStore extends ComponentStore<BookStoreState> {
 
@@ -239,7 +223,7 @@ The equality of items will be checked using the comparator that you can replace 
 
 The comparator will compare items using `===` first, then it will use id fields.
 
-You can check the id fields list of the default comparator in [comparator.ts](comparator.ts) file.
+You can check the id fields list of the default comparator in [comparator.ts](projects/ngx-collection/src/lib/comparator.ts) file.
 
 ## Request parameters
 
@@ -293,13 +277,13 @@ If you can not provide this object, you might send any object containing the id 
 
 This library provides 2 Angular pipes to ease the usage of collection statuses:  
 
-* [UniqueStatusPipe](./src/lib/status.pipes.ts)
-* [StatusesPipe](./src/lib/status.pipes.ts)
+* [UniqueStatusPipe](projects/ngx-collection/src/lib/status.pipes.ts)
+* [StatusesPipe](projects/ngx-collection/src/lib/status.pipes.ts)
 
-# FetchedItems<T>
+# Interface `FetchedItems<T>`
 
 `Collection.read()` method expects a specific type from the request execution result: not just a list of items, but a wrapper, containing a list of items:  
-[FetchedItems](./src/lib/interfaces.ts)   
+[FetchedItems](projects/ngx-collection/src/lib/interfaces.ts)   
 
 If your service returns a list of items, you can add `map()` pipe to convert it this way:
 
