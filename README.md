@@ -14,6 +14,13 @@ Out of the box, without any additional code, you'll be able to control your "loa
 
 Service is built on top of [NgRx ComponentStore](https://ngrx.io/guide/component-store), all the selectors (including view models) are generated using `ComponentStore.select()`.
 
+# Installation
+
+Yarn: `yarn add ngx-collection`  
+
+[NPM](https://www.npmjs.com/package/ngx-collection): `npm i ngx-collection`
+
+
 # Usage
 This service is designed to be used in 2 ways:  
 
