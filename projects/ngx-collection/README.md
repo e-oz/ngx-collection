@@ -288,3 +288,25 @@ If you can not provide this object, you might send any object containing the id 
     })
   ));
 ```
+
+# Pipes
+
+This library provides 2 Angular pipes to ease the usage of collection statuses:  
+
+* [UniqueStatusPipe](./src/lib/status.pipes.ts)
+* [StatusesPipe](./src/lib/status.pipes.ts)
+
+# FetchedItems<T>
+
+`Collection.read()` method expects a specific type from the request execution result: not just a list of items, but a wrapper, containing a list of items:  
+[FetchedItems](./src/lib/interfaces.ts)   
+
+If your service returns a list of items, you can add `map()` pipe to convert it this way:
+
+```ts
+return this.booksService.getBooks().pipe(
+  map((books) => ({items: books} as FetchedItems<Book>))
+);
+```
+
+It is required to don't lose meta information, such as the total count of items (usually needed for pagination).
