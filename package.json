@@ -1,6 +1,6 @@
 {
   "name": "ngx-collection",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "license": "MIT",
   "author": {
     "name": "Evgeniy OZ",
@@ -12,9 +12,7 @@
   },
   "scripts": {
     "ng": "ng",
-    "start": "ng serve",
-    "build": "ng build",
-    "watch": "ng build --watch --configuration development"
+    "build": "ng build"
   },
   "private": false,
   "peerDependencies": {

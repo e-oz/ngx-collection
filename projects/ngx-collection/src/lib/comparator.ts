@@ -5,7 +5,7 @@ export interface ObjectsComparator {
 }
 
 export class Comparator implements ObjectsComparator {
-  constructor(private fields: string[] = ['uuId']) {}
+  constructor(private fields: string[] = ['id', 'uuId', 'uuid']) {}
 
   equal(obj1: unknown, obj2: unknown, byField?: string): boolean {
     if (obj1 === obj2) {

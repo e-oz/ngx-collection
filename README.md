@@ -2,45 +2,38 @@ Collection
 ==========
 Collection State Management Service
 
-# Purpose
+# Introduction
 
-This service will ease collection mutations, caused by create/read/update/delete (CRUD) actions - a common case for the collections in web applications.
+Using this service, you can easily and safely mutate collections of items and monitor their state.  
 
-Field `items` is supposed to replace a similar field in the state of your state management service.
+All the actions are immutable - items and collections will not be modified: new items and new collections will be created on every mutation.  
 
-Items will be correctly inserted, updated, and removed, data in items will not be mutated, and the state will be completely immutable.
+For monitoring the state, you can use one of the predefined selectors, or view model.  
 
-Additionally, you can use fields isCreating, isUpdating, and others - service guarantees that these statuses will be updated correctly even in case of an error or empty stream termination.
+Out of the box, without any additional code, you'll be able to control your "loading" spinners, temporarily disable buttons, display success/error messages, and much more. 
 
-Also, fields `updatingItems` and `deletingItems` can be used to asynchronously detect if some particular item is currently being updated or removed - using this, you can disable "Save" or "Delete" button for just the affected item, not for the whole list (if it's needed).
-
-Optionally, you can use `hasItemIn()` method for a better check - items equality will be checked not only using `===`, but also using id fields (by comparator).    
-This method can be used with any item and any list.
-
-# Items comparison
-The equality of items in `update` and `delete` operations will be checked using the comparator that you can replace, using `setComparator()` method.
-
-The comparator will compare items using `===` first, then it will use id fields.
-
-You can check the id fields list of the default comparator in [comparator.ts](comparator.ts) file.
+Service is built on top of [NgRx ComponentStore](https://ngrx.io/guide/component-store), all the selectors (including view models) are generated using `ComponentStore.select()`.
 
 # Usage
-Use `inject()` function to inject this service.   
-This service is not a global singleton and will be destroyed with the component.
+This service is designed to be used in 2 ways:  
 
-### In your Component Store:
+1. Local collection - temporary instance, with lifecycle bound to a component;
+2. Shared collection - a global singleton.
 
-```ts
-export class ExampleStore extends ComponentStore<ExampleState> {
-  readonly examplesCollection = inject(CollectionService<Example>);
-}
-```
+## Examples
 
-### In your component:
+It is possible to use this service right in your component, but it is a good practice to move all the state management out of a component to a "store".
+Because of that, examples will rely on [ComponentStore](https://ngrx.io/guide/component-store) usage.
 
+### Local collection
+A local collection will be destroyed with a component.
+
+#### In your Component:
+To use a local collection instance, you need to add it to the "providers" array of your component (or module):
 ```ts
 @Component({
   selector: 'example',
+  standalone: true,
   ///...
   providers: [
     ExampleStore, 
@@ -50,30 +43,199 @@ export class ExampleStore extends ComponentStore<ExampleState> {
 export class ExampleComponent {
   
   // Usage of `inject()` is required here (to make CollectionService instance accessible in the ExampleStore).
-  // Declare it before usage of "store" field.
+  // Declare it before usage of the "store" field.
   protected readonly store = inject(ExampleStore);
 
-  // here you can use "store" field already
-  protected readonly examplesState$ = this.store.examplesCollection.state$;
+  // here you can use the "store" field already
+  protected readonly vm$ = this.store.examplesCollection.getViewModel();
 
 }
 ```
 
-## View Model
+#### In your Component Store:
 
-The most simple way to watch the state of the collection is to use `collection.vm$ | async` in your template.
+```ts
+export class ExampleStore extends ComponentStore<ExampleState> {
+  readonly examplesCollection = inject(CollectionService<Example>);
+}
+```
+
+### Shared collection
+
+If you want to share some collection of items between multiple components, you can create a shared collection.
+
+One of the usage examples: you have some list of the items (ListComponent), and every item is rendered using a component (ListItemComponent).   
+In this case, if ListComponent and ListItemComponent will use the same shared collection, then changes made in of them will be instantly reflected in another.
+
+To make a shared collection, create a new class extended from this service and add `@Injectable({providedIn: 'root'})`:  
+
+```ts
+@Injectable({providedIn: 'root'})
+export class BooksCollectionService extends CollectionService<Book> {
+  // to use a global instance, do not add this service to the "providers" array 
+  // otherwise, a new (local) instance will be injected.
+}
+```
+
+#### In your Component:
+
+```ts
+@Component({
+  selector: 'book',
+  standalone: true,
+  ///...
+  providers: [BookStore], // BooksCollectionService should not be added here
+})
+export class BookComponent {
+  protected readonly store = inject(BookStore);
+  protected readonly vm$ = this.store.booksCollection.getViewModel();
+}
+```
+
+#### In your Component Store:
+
+```ts
+export class BookStore extends ComponentStore<BookStoreState> {
+  readonly booksCollection = inject(BooksCollectionService);
+}
+```
+
+
+### View Model
+
+The most simple way to watch the state of a collection is to use `collection.getViewModel() | async` in your template.
+
+ViewModel contains a lot of useful fields:  
+
+* `items`[]
+* `isCreating`
+* `isReading`
+* `isUpdating`
+* `isDeleting`
+* `isMutating`
+* `isSaving`
+* `updatingItems`[]
+* `deletingItems`[]
+
+and some others.
+
 
 Alternatively, you can use `collection.state$` or any other public field and method of the Collection Service class.
 
+If your component is rendering one of the collection's items, you can use `getItemViewModel()` method to monitor the state changes of your item.  
+
+Item's view model is more simple:  
+
+* `isDeleting`
+* `isRefreshing`
+* `isUpdating`
+* `isMutating`
+* `isProcessing`
+
+In both models, `mutating` = (`updating` OR `deleting`).
+
+### Mutations
+
+Collection Service has 4 main methods to mutate a collection: `create()`, `read()`, `update()`, `delete()`.  
+
+#### Create
+Call `create` to add a new item to a collection:
+
+```ts
+export class BookStore extends ComponentStore<BookStoreState> {
+  
+  public readonly create = this.effect(_ => _.pipe(
+    exhaustMap(() => this.booksCollection.create({
+      request: this.booksService.saveBook(bookData),
+      onSuccess: () => this.messageService.success('Created'),
+      onError: () => this.messageService.error('Error'),
+    }))
+  ));
+}
+```
+
+#### Read
+`read()` will load the list of items: 
+```ts
+export class BookStore extends ComponentStore<BookStoreState> {
+  
+  private readonly loadBooks = this.effect(_ => _.pipe(
+    switchMap(() => this.booksCollection.read({
+      request: this.booksService.getBooks(),
+      onError: () => this.messageService.error('Can not load the list of books')
+    }))
+  ));
+}
+```
+
+#### Update
+Use `update()` to modify some particular item in your collection:
+```ts
+export class BookStore extends ComponentStore<BookStoreState> {
+
+  public readonly edit = this.effect<Book>(_ => _.pipe(
+    switchMap((bookItem) => this.booksCollection.update({
+      request: this.booksService.saveBook(bookData),
+      item: bookItem,
+      onSuccess: () => this.messageService.success('Saved'),
+      onError: () => this.messageService.error('Error'),
+    }))
+  ));
+}
+
+```
+
+#### Delete
+The usage of `delete()` is obvious, let's use a bit more complicated code for this example:
+```ts
+export class BookStore extends ComponentStore<BookStoreState> {
+
+  public readonly remove = this.effect<Book>(_ => _.pipe(
+    exhaustMap((book) => {
+      if (!book) {
+        return EMPTY;
+      }
+      return openModalConfirm({
+        title: 'Book Removal',
+        question: 'Do you want to delete this book?',
+      }).afterClosed().pipe(
+        exhaustMap((result) => {
+          if (result) {
+            return this.booksCollection.delete({
+              request: book.uuId ? this.booksService.removeBook(book.uuId) : of(null),
+              item: book,
+              onSuccess: () => this.messageService.success('Removed'),
+              onError: () => this.messageService.error('Error'),
+            });
+          }
+          return EMPTY;
+        })
+      );
+    })
+  ));
+}
+```
+
+## Statuses
+You can set statuses for the items: statuses can be unique per collection (for example: "focused"), or not (for example: "selected").  
+Statuses are not predefined - you can use your list of statuses, the service only should know if a given status is unique or not unique.
+
+## Items comparison
+The equality of items will be checked using the comparator that you can replace using `setComparator()` method.
+
+The comparator will compare items using `===` first, then it will use id fields.
+
+You can check the id fields list of the default comparator in [comparator.ts](comparator.ts) file.
+
 ## Request parameters
 
-### reuqest
+### request
 
-In every parameters object, `reuqest` is an observable you are using to send the request to API:
+In every params object, `request` is an observable you are using to send the request to API:
 
 ```ts
   return this.exampleCollection.update({
-    reuqest: this.exampleService.saveExample(data),
+    request: this.exampleService.saveExample(data),
     item: exampleItem,
     onSuccess: () => this.messageService.success('Saved'),
     onError: () => this.messageService.error('Error'),
@@ -89,7 +251,7 @@ You are receiving this item from the `items` field of the collection state.
   remove = this.effect<Example>(_ => _.pipe(
     exhaustMap((example) => {
       return this.examplesCollection.delete({
-        reuqest: example.uuId ? this.exampleService.removeExample(example.uuId) : of(null),
+        request: example.uuId ? this.exampleService.removeExample(example.uuId) : of(null),
         item: example,
         onSuccess: () => this.messageService.success('Removed'),
         onError: () => this.messageService.error('Error'),
@@ -98,13 +260,13 @@ You are receiving this item from the `items` field of the collection state.
   ));
 ```
 
-If you can not provide this object, you can send any object containing the id field (with a matching id). See "Items comparison" for details.
+If you can not provide this object, you might send any object containing the id field (with a matching id). See "Items comparison" for details.
 
 ```ts
   remove = this.effect<string>(_ => _.pipe(
     exhaustMap((uuId) => {
       return this.examplesCollection.delete({
-        reuqest: uuId ? this.exampleService.removeExample(uuId) : of(null),
+        request: uuId ? this.exampleService.removeExample(uuId) : of(null),
         item: {uuId: uuId},
         onSuccess: () => this.messageService.success('Removed'),
         onError: () => this.messageService.error('Error'),
