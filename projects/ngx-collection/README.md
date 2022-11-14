@@ -225,6 +225,23 @@ The comparator will compare items using `===` first, then it will use id fields.
 
 You can check the id fields list of the default comparator in [comparator.ts](projects/ngx-collection/src/lib/comparator.ts) file.
 
+## Duplicates prevention
+
+Collection Service will not allow duplicates in the collection.   
+
+Item will be checked before adding to the collection in methods `create()`, `read()`, `update()`, and `refresh()`.
+
+To find a duplicate, items will be compared by comparator - objects equality check is a vital part of this service, and with duplicates this functionality will be broken.    
+
+A collection might have duplicates because of some data error or because of wrong fields in the comparator - you can redefine them.  
+
+If a duplicate is detected, the item will not be added to the collection and an error will be printed to the console (if `window.console` does exist).  
+You can call `setThrowOnDuplicates('some message')` to make Collection Service throw an exception with the message you expect.
+
+Method `read()` by default will put returned items to the collection even if they have duplicates, but `console.error` will be raised (if `window.console` exists), 
+because in this case you have a chance to damage your data in future `update()`.    
+You can call `setAllowFetchedDuplicates(false)` to instruct `read()` to not accept items lists with duplicates. 
+
 ## Request parameters
 
 ### request
@@ -282,15 +299,7 @@ This library provides 2 Angular pipes to ease the usage of collection statuses:
 
 # Interface `FetchedItems<T>`
 
-`Collection.read()` method expects a specific type from the request execution result: not just a list of items, but a wrapper, containing a list of items:  
+`Collection.read()` method additionally supports a specific type from the request execution result: not just a list of items, but a wrapper, containing a list of items:  
 [FetchedItems](projects/ngx-collection/src/lib/interfaces.ts)   
 
-If your service returns a list of items, you can add `map()` pipe to convert it this way:
-
-```ts
-return this.booksService.getBooks().pipe(
-  map((books) => ({items: books} as FetchedItems<Book>))
-);
-```
-
-It is required to don't lose meta information, such as the total count of items (usually needed for pagination).
+You can (optionally) use this or a similar structure to don't lose meta information, such as the total count of items (usually needed for pagination).

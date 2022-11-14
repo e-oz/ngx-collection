@@ -24,7 +24,7 @@ export interface CreateParams<T> {
 }
 
 export interface ReadParams<T> {
-  readonly request: Observable<FetchedItems<T>>;
+  readonly request: Observable<FetchedItems<T> | T[]>;
   readonly onSuccess?: (items: T[]) => void;
   readonly onError?: (error: unknown) => void;
   readonly keepExistingOnError?: boolean;
@@ -92,6 +92,8 @@ export class CollectionService<T, UniqueStatus = any, Status = any> extends Comp
   public readonly status$ = this.select(s => s.status);
 
   protected comparator: ObjectsComparator = new Comparator();
+  protected throwOnDuplicates?: string;
+  protected allowFetchedDuplicates: boolean = true;
 
   protected addToUpdatingItems(item: T) {
     this.patchState((s) => ({
@@ -138,12 +140,24 @@ export class CollectionService<T, UniqueStatus = any, Status = any> extends Comp
   }
 
   protected duplicateNotAdded(item: T, items: T[]) {
+    if (this.throwOnDuplicates) {
+      throw new Error(this.throwOnDuplicates);
+    }
     if (console) {
       console.error('Duplicate can not be added to collection:', item, items);
-      const duplicates = this.getDuplicates();
+      const duplicates = this.getDuplicates(items);
       if (duplicates) {
         console.error('Duplicates are found in collection:', duplicates);
       }
+    }
+  }
+
+  protected duplicatesFetched(duplicates: DuplicatesMap<T>) {
+    if (this.throwOnDuplicates) {
+      throw new Error(this.throwOnDuplicates);
+    }
+    if (console) {
+      console.error('Duplicates found in the list of read items:', duplicates);
     }
   }
 
@@ -191,10 +205,22 @@ export class CollectionService<T, UniqueStatus = any, Status = any> extends Comp
       finalize(() => this.patchState({isReading: false})),
       tapResponse(
         (fetched) => {
-          if (fetched != null) {
-            this.patchState({items: fetched.items, totalCountFetched: fetched.totalCount});
-            params.onSuccess?.(fetched.items);
+          const items = fetched == null ? ([] as T[]) : (Array.isArray(fetched) ? fetched : fetched.items);
+          if (items.length > 0) {
+            const duplicates = this.getDuplicates(items);
+            if (duplicates) {
+              this.duplicatesFetched(duplicates);
+              if (!this.allowFetchedDuplicates) {
+                params.onError?.({status: 409});
+                return;
+              }
+            }
           }
+          this.patchState({
+            items,
+            totalCountFetched: Array.isArray(fetched) ? undefined : fetched.totalCount,
+          });
+          params.onSuccess?.(items);
         },
         (error) => {
           if (!params.keepExistingOnError) {
@@ -391,8 +417,7 @@ export class CollectionService<T, UniqueStatus = any, Status = any> extends Comp
     this.comparator = comparator;
   }
 
-  public getDuplicates(): DuplicatesMap<T> | null {
-    const items = this.get().items;
+  public getDuplicates(items: T[]): DuplicatesMap<T> | null {
     const duplicates: DuplicatesMap<T> = {};
     const indexes: number[] = [];
     items.forEach((i, ii) => {
@@ -416,5 +441,13 @@ export class CollectionService<T, UniqueStatus = any, Status = any> extends Comp
       }
     });
     return Object.keys(duplicates).length ? duplicates : null;
+  }
+
+  public setThrowOnDuplicates(message: string | undefined) {
+    this.throwOnDuplicates = message;
+  }
+
+  public setAllowFetchedDuplicates(allowFetchedDuplicates: boolean) {
+    this.allowFetchedDuplicates = allowFetchedDuplicates;
   }
 }
