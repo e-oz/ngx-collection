@@ -1,4 +1,4 @@
-import { Observable, finalize, map, first, catchError, EMPTY, switchMap } from 'rxjs';
+import { Observable, finalize, map, first, catchError, EMPTY, switchMap, startWith } from 'rxjs';
 import { Injectable } from '@angular/core';
 import { ComponentStore, tapResponse } from '@ngrx/component-store';
 import { concatLatestFrom } from '@ngrx/effects';
@@ -386,29 +386,34 @@ export class CollectionService<T, UniqueStatus = any, Status = any> extends Comp
 
   public getItemViewModel(itemSource: Observable<T | undefined>) {
     return this.select({
-      isDeleting: this.deletingItems$.pipe(
-        concatLatestFrom(() => itemSource),
-        map(([items, item]) => !!item && this.hasItemIn(item, items))
+      isDeleting: this.select(
+        this.deletingItems$,
+        itemSource.pipe(startWith(undefined)),
+        (items, item) => !!item && this.hasItemIn(item, items)
       ),
-      isRefreshing: this.refreshingItems$.pipe(
-        concatLatestFrom(() => itemSource),
-        map(([items, item]) => !!item && this.hasItemIn(item, items))
+      isRefreshing: this.select(
+        this.refreshingItems$,
+        itemSource.pipe(startWith(undefined)),
+        (items, item) => !!item && this.hasItemIn(item, items)
       ),
-      isUpdating: this.updatingItems$.pipe(
-        concatLatestFrom(() => itemSource),
-        map(([items, item]) => !!item && this.hasItemIn(item, items))
+      isUpdating: this.select(
+        this.updatingItems$,
+        itemSource.pipe(startWith(undefined)),
+        (items, item) => !!item && this.hasItemIn(item, items)
       ),
-      isMutating: this.mutatingItems$.pipe(
-        concatLatestFrom(() => itemSource),
-        map(([items, item]) => !!item && this.hasItemIn(item, items))
+      isMutating: this.select(
+        this.mutatingItems$,
+        itemSource.pipe(startWith(undefined)),
+        (items, item) => !!item && this.hasItemIn(item, items)
       ),
-      isProcessing: this.isProcessing$.pipe(
-        concatLatestFrom(() => [this.refreshingItems$, this.mutatingItems$, itemSource]),
-        map(
-          ([isProcessing, refreshingItems, mutatingItems, item]) => !!item
-            && isProcessing
-            && (this.hasItemIn(item, refreshingItems) || this.hasItemIn(item, mutatingItems))
-        )
+      isProcessing: this.select(
+        this.isProcessing$,
+        this.refreshingItems$,
+        this.mutatingItems$,
+        itemSource.pipe(startWith(undefined)),
+        (isProcessing, refreshingItems, mutatingItems, item) => !!item
+          && isProcessing
+          && (this.hasItemIn(item, refreshingItems) || this.hasItemIn(item, mutatingItems))
       ),
     });
   }
@@ -449,5 +454,9 @@ export class CollectionService<T, UniqueStatus = any, Status = any> extends Comp
 
   public setAllowFetchedDuplicates(allowFetchedDuplicates: boolean) {
     this.allowFetchedDuplicates = allowFetchedDuplicates;
+  }
+
+  public getTrackByFieldFn(field: string) {
+    return (i: number, item: any) => (!!item && typeof item === 'object' && item.hasOwnProperty(field) && item[field]) ? item[field] : i;
   }
 }

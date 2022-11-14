@@ -18,9 +18,15 @@ Service is built on top of [NgRx ComponentStore](https://ngrx.io/guide/component
 
 Requires Angular 15 and [NgRx ComponentStore](https://ngrx.io/guide/component-store) 15  
 
-Yarn: `yarn add ngx-collection`  
+Yarn: 
+```
+yarn add ngx-collection
+```  
 
-[NPM](https://www.npmjs.com/package/ngx-collection): `npm i ngx-collection`
+[NPM](https://www.npmjs.com/package/ngx-collection): 
+```
+npm i ngx-collection
+```
 
 In your code:
 
