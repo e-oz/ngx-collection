@@ -1,5 +1,5 @@
 import { Observable, finalize, map, first, catchError, EMPTY, switchMap, startWith } from 'rxjs';
-import { Injectable } from '@angular/core';
+import { Injectable, Inject, Optional } from '@angular/core';
 import { ComponentStore, tapResponse } from '@ngrx/component-store';
 import { concatLatestFrom } from '@ngrx/effects';
 import { FetchedItems } from './interfaces';
@@ -53,6 +53,12 @@ export interface RefreshParams<T> {
 }
 
 export type DuplicatesMap<T> = Record<number, Record<number, T>>;
+
+export interface CollectionServiceOptions {
+  comparatorFields?: string[];
+  throwOnDuplicates?: string;
+  allowFetchedDuplicates?: boolean;
+}
 
 @Injectable()
 export class CollectionService<T, UniqueStatus = any, Status = any> extends ComponentStore<CollectionState<T, UniqueStatus, Status>> {
@@ -161,7 +167,23 @@ export class CollectionService<T, UniqueStatus = any, Status = any> extends Comp
     }
   }
 
-  constructor() {
+  protected setOptions(options?: CollectionServiceOptions) {
+    if (options != null) {
+      if (options.comparatorFields != null) {
+        this.comparator = new Comparator(options.comparatorFields);
+      }
+      if (options.throwOnDuplicates) {
+        this.throwOnDuplicates = options.throwOnDuplicates;
+      }
+      if (typeof options.allowFetchedDuplicates === 'boolean') {
+        this.allowFetchedDuplicates = options.allowFetchedDuplicates;
+      }
+    }
+  }
+
+  constructor(
+    @Inject('COLLECTION_SERVICE_OPTIONS') @Optional() options?: CollectionServiceOptions
+  ) {
     super({
       items: [],
       updatingItems: [],
@@ -172,6 +194,7 @@ export class CollectionService<T, UniqueStatus = any, Status = any> extends Comp
       statuses: new Map<T, Status>(),
       status: new Map<UniqueStatus, T>(),
     });
+    this.setOptions(options);
   }
 
   public create(params: CreateParams<T>) {
@@ -424,19 +447,15 @@ export class CollectionService<T, UniqueStatus = any, Status = any> extends Comp
 
   public getDuplicates(items: T[]): DuplicatesMap<T> | null {
     const duplicates: DuplicatesMap<T> = {};
-    const indexes: number[] = [];
+    const indexes = new Set<number>();
     items.forEach((i, ii) => {
-      if (!indexes.includes(ii)) {
+      if (!indexes.has(ii)) {
         const iDupes: Record<number, T> = {};
         items.forEach((j, ij) => {
-          if (ij !== ii && this.comparator.equal(i, j)) {
+          if (ij !== ii && !indexes.has(ij) && this.comparator.equal(i, j)) {
             iDupes[ij] = j;
-            if (!indexes.includes(ii)) {
-              indexes.push(ii);
-            }
-            if (!indexes.includes(ij)) {
-              indexes.push(ij);
-            }
+            indexes.add(ii);
+            indexes.add(ij);
           }
         });
         if (Object.keys(iDupes).length) {

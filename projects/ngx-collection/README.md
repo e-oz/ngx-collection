@@ -309,3 +309,211 @@ This library provides 2 Angular pipes to ease the usage of collection statuses:
 [FetchedItems](projects/ngx-collection/src/lib/interfaces.ts)   
 
 You can (optionally) use this or a similar structure to don't lose meta information, such as the total count of items (usually needed for pagination).
+
+# Global configuration
+You can (optionally) declare Collection Service configuration details in your module or component providers:
+```ts
+providers: [
+  {
+    provide: 'COLLECTION_SERVICE_OPTIONS',
+    useValue: {
+      allowFetchedDuplicates: environment.production,
+    }
+  },
+]
+```
+Token `COLLECTION_SERVICE_OPTIONS` is just a string to don't break lazy-loading (if you are using it).  
+
+Options structure:
+```ts
+interface CollectionServiceOptions {
+  comparatorFields?: string[];
+  throwOnDuplicates?: string;
+  allowFetchedDuplicates?: boolean; // if not set: true
+}
+```
+
+# API
+
+## create
+Add a new item to the collection.  
+#### Parameters object
+```ts
+interface CreateParams<T> {
+  request: Observable<T>;
+  onSuccess?: (item: T) => void;
+  onError?: (error: unknown) => void;
+}
+```
+
+---
+
+## read
+Create a new collection from provided items.  
+#### Parameters object
+```ts
+interface ReadParams<T> {
+  request: Observable<FetchedItems<T> | T[]>;
+  onSuccess?: (items: T[]) => void;
+  onError?: (error: unknown) => void;
+  keepExistingOnError?: boolean;
+}
+```
+
+---
+
+## update
+Replace the existing item with the new one. If no existing item is found, a new one will be added.  
+
+You can optionally set `refreshRequest` to provide an observable that will be used to get the new item:  
+*  If `refreshRequest` is set, `request` returned item will be ignored (but the request itself will be sent), and the result of the `refreshRequest` will become a new value of an item.  
+  Item will be removed from `updatingItems`, `mutatingItems` only after executing both requests - to prevent spinners from flickering.
+
+#### Parameters object
+```ts
+interface UpdateParams<T> {
+  request: Observable<T>;
+  refreshRequest?: Observable<T>;
+  item: T;
+  onSuccess?: (item: T) => void;
+  onError?: (error: unknown) => void;
+}
+```
+
+---
+
+## delete
+Remove an item from the collection.
+#### Parameters object
+```ts
+interface DeleteParams<T, R = unknown> {
+  request: Observable<R>;
+  item: T;
+  onSuccess?: (response: R) => void;
+  onError?: (error: unknown) => void;
+}
+```
+
+---
+
+## refresh
+Item will be updated without adding it to `updating` or `mutating` lists.      
+Item will be added to the `refreshing` list, triggering modifications of related state fields.    
+Designed to be used for "reloading" the item data without triggering "disabled" statuses of controls.  
+#### Parameters object
+```ts
+interface RefreshParams<T> {
+  request: Observable<T>;
+  item: T;
+  onSuccess?: (item: T) => void;
+  onError?: (error: unknown) => void;
+}
+```
+
+---
+
+## setUniqueStatus
+Set the status for an item.  
+Only one item in the collection can have this status.  
+Designed to be used with statuses like 'focused', 'expanded', and so on.  
+#### Parameters
+* `status` - any value (including objects, will be used as a key in a Map)
+* `item`
+* `active` - if the status is active for this particular item. `boolean`, optional, `true` by default. If set to `false`, __and__ this status currently is assigned to this item, then the status will be removed.
+
+---
+
+## deleteUniqueStatus
+Removes unique status.  
+No items will be associated with this status after this call.
+#### Parameters
+* `status` - any value
+
+---
+
+## setItemStatus
+Set the status of the item.  
+#### Parameters
+* `item`
+* `status` - can be anything.
+
+---
+
+## getViewModel
+Get ViewModel dictionary of observables.
+```ts
+{
+  items: T[],
+  totalCountFetched: number | undefined,
+  isCreating: boolean,
+  isReading: boolean,
+  isUpdating: boolean,
+  isDeleting: boolean,
+  isMutating: boolean,
+  isSaving: boolean,
+  isProcessing: boolean,
+  updatingItems: T[],
+  deletingItems: T[],
+  mutatingItems: T[],
+  refreshingItems: T[],
+  statuses: Map<T, Status>,
+  status: Map<UniqueStatus, T>,
+}
+```
+Designed to be used with async pipe:
+```angular2html
+<ng-container *ngIf="viewModel$ | async as $">
+  <spinner *ngIf="$.isReading"></spinner>
+</ng-container>
+```
+
+---
+
+## getItemViewModel
+Get ViewModel for an item.
+#### Parameters
+* `itemSource: Observable<T | undefined>` 
+#### Returns
+Dictionary of observables:
+```ts
+{
+  isDeleting: boolean,
+  isRefreshing: boolean,
+  isUpdating: boolean,
+  isMutating: boolean,
+  isProcessing: boolean,
+}
+```
+
+---
+
+## getTrackByFieldFn
+`ngFor` helper.
+#### Parameters
+* `field: string` - field name
+#### Returns
+Returns a function you can use with "trackBy" in ngFor:  
+```angular2html
+<div *ngFor="let item of $.items; trackBy: collection.getTrackByFieldFn('uuId')"></div>
+```
+
+---
+
+## hasItemIn
+Template helper.  
+Checks if some item belongs to some array of items - a comparator of this collection will be used.
+#### Parameters
+* `item`
+* `array`
+
+Example of usage:
+```angular2html
+<mat-chip-option
+    *ngFor="let role of $.allRoles" 
+    [value]="role"
+    [selected]="collection.hasItemIn(role, $.roles)"
+    [selectable]="false"
+>
+<span>{{role.name}}</span>
+</mat-chip-option>
+```
