@@ -5,7 +5,7 @@ import { concatLatestFrom } from '@ngrx/effects';
 import { FetchedItems } from './interfaces';
 import { Comparator, ObjectsComparator } from './comparator';
 
-export interface CollectionState<T, UniqueStatus = any, Statuses = any> {
+export interface CollectionState<T, UniqueStatus = any, Status = any> {
   readonly items: T[];
   readonly totalCountFetched?: number;
   readonly isCreating: boolean;
@@ -14,7 +14,7 @@ export interface CollectionState<T, UniqueStatus = any, Statuses = any> {
   readonly deletingItems: T[];
   readonly refreshingItems: T[];
   readonly status: Map<UniqueStatus, T>;
-  readonly statuses: Map<T, Statuses>;
+  readonly statuses: Map<T, Set<Status>>;
 }
 
 export interface CreateParams<T> {
@@ -191,7 +191,7 @@ export class CollectionService<T, UniqueStatus = any, Status = any> extends Comp
       refreshingItems: [],
       isReading: false,
       isCreating: false,
-      statuses: new Map<T, Status>(),
+      statuses: new Map<T, Set<Status>>(),
       status: new Map<UniqueStatus, T>(),
     });
     this.setOptions(options);
@@ -382,8 +382,24 @@ export class CollectionService<T, UniqueStatus = any, Status = any> extends Comp
   public setItemStatus(item: T, status: Status) {
     this.patchState((s) => {
       const newMap = new Map(s.statuses);
-      newMap.set(item, status);
+      const itemStatuses = newMap.get(item) ?? new Set<Status>();
+      itemStatuses.add(status);
+      newMap.set(item, itemStatuses);
       return {statuses: newMap};
+    });
+  }
+
+  public deleteItemStatus(item: T, status: Status) {
+    this.patchState((s) => {
+      const newMap = new Map(s.statuses);
+      const itemStatuses = newMap.get(item);
+      if (itemStatuses) {
+        itemStatuses.delete(status);
+        newMap.set(item, itemStatuses);
+        return {statuses: newMap};
+      } else {
+        return s;
+      }
     });
   }
 

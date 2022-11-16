@@ -4,11 +4,11 @@ Collection State Management Service
 
 # Introduction
 
-Using this service, you can easily and safely mutate collections of items and monitor their state.  
+Using this service, you can easily and safely mutate collections of items and monitor their state.
 
-All the actions are immutable - items and collections will not be modified: new items and new collections will be created on every mutation.  
+All the actions are immutable - items and collections will not be modified: new items and new collections will be created on every mutation.
 
-For monitoring the state, you can use one of the predefined selectors, or view model.  
+For monitoring the state, you can use one of the predefined selectors, or view model.
 
 Out of the box, without any additional code, you'll be able to control your "loading" spinners, temporarily disable buttons, display success/error messages, and much more. 
 
@@ -433,6 +433,15 @@ No items will be associated with this status after this call.
 
 ## setItemStatus
 Set the status of the item.  
+#### Parameters
+* `item`
+* `status` - can be anything.
+
+---
+
+
+## deleteItemStatus
+Removes the status of the item.  
 #### Parameters
 * `item`
 * `status` - can be anything.

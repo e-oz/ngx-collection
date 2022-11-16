@@ -17,7 +17,7 @@ export class UniqueStatusPipe implements PipeTransform {
   pure: true,
 })
 export class StatusesPipe implements PipeTransform {
-  transform<T, Statuses>(statuses: Map<T, Statuses>, item: T): Statuses | undefined {
-    return statuses.get(item);
+  transform<T, Status>(statuses: Map<T, Set<Status>>, item: T, status: Status): boolean {
+    return statuses.get(item)?.has(status) || false;
   }
 }

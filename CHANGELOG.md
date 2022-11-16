@@ -1,3 +1,8 @@
+## 1.0.10
+* Update dependencies to Angular 15 release version
+* Add file with test to the repo
+* Add `deleteItemStatus` method
+
 ## 1.0.9
 You can (optionally) declare Collection Service configuration details in your module or component providers:
 ```ts
