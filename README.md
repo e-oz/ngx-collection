@@ -96,6 +96,7 @@ export class BooksCollectionService extends CollectionService<Book> {
   // otherwise, a new (local) instance will be injected.
 }
 ```
+For your convenience, there is `protected init()` method that you can override, to don't deal with `constructor()` overriding if you want some special initialization logic.
 
 #### In your Component:
 
@@ -281,7 +282,7 @@ You are receiving this item from the `items` field of the collection state.
   ));
 ```
 
-If you can not provide this object, you might send any object containing the id field (with a matching id). See "Items comparison" for details.
+You can send just part of the item object, but this part should contain at least one of the comparator's fields (id fields). See "Items comparison" for details.
 
 ```ts
   remove = this.effect<string>(_ => _.pipe(
@@ -298,7 +299,7 @@ If you can not provide this object, you might send any object containing the id 
 
 # Pipes
 
-This library provides 2 Angular pipes to ease the usage of collection statuses:  
+This library provides two Angular pipes to ease the usage of collection statuses:  
 
 * [UniqueStatusPipe](projects/ngx-collection/src/lib/status.pipes.ts)
 * [StatusesPipe](projects/ngx-collection/src/lib/status.pipes.ts)
@@ -327,15 +328,29 @@ Token `COLLECTION_SERVICE_OPTIONS` is just a string to don't break lazy-loading 
 Options structure:
 ```ts
 interface CollectionServiceOptions {
+  // List of "id" fields
   comparatorFields?: string[];
+  
+  // If set, duplicates detection will throw an exception with this value as an argument
   throwOnDuplicates?: string;
-  allowFetchedDuplicates?: boolean; // if not set: true
+  
+  // if not set: true
+  allowFetchedDuplicates?: boolean;
+  
+  // in case of duplicate detection, `onError` callback function (if provided) will be called with this value as an argument
+  onDuplicateErrCallbackParam?: any; 
 }
 ```
 
+
+---
+
+
 # API
 
-## create
+## Main methods
+
+### create()
 Add a new item to the collection.  
 #### Parameters object
 ```ts
@@ -348,7 +363,7 @@ interface CreateParams<T> {
 
 ---
 
-## read
+### read()
 Create a new collection from provided items.  
 #### Parameters object
 ```ts
@@ -362,7 +377,7 @@ interface ReadParams<T> {
 
 ---
 
-## update
+### update()
 Replace the existing item with the new one. If no existing item is found, a new one will be added.  
 
 You can optionally set `refreshRequest` to provide an observable that will be used to get the new item:  
@@ -382,7 +397,7 @@ interface UpdateParams<T> {
 
 ---
 
-## delete
+### delete()
 Remove an item from the collection.
 #### Parameters object
 ```ts
@@ -394,10 +409,10 @@ interface DeleteParams<T, R = unknown> {
 }
 ```
 
----
+## Additional Methods
 
-## refresh
-Item will be updated without adding it to `updating` or `mutating` lists.      
+### refresh()
+Item will be updated without adding it to `updating` or `mutating` lists, and __without__ toggling `isReading` state field of the collection.         
 Item will be added to the `refreshing` list, triggering modifications of related state fields.    
 Designed to be used for "reloading" the item data without triggering "disabled" statuses of controls.  
 #### Parameters object
@@ -412,7 +427,38 @@ interface RefreshParams<T> {
 
 ---
 
-## setUniqueStatus
+### readOne()
+Read and update/add one item.   
+Will toggle `isReading` state field of the collection.  
+Designed to be used in components with no guarantee that the item is already fetched from the server (and, therefore, needs to fetch the item first).  
+#### Parameters object
+```ts
+interface ReadOneParams<T> {
+  request: Observable<T>;
+  onSuccess?: (item: T) => void;
+  onError?: (error: unknown) => void;
+}
+```
+
+---
+
+### readMany()
+Read and add a set of items to the collection.   
+Existing items will be updated.   
+Will toggle `isReading` state field of the collection.
+Designed to be used for pagination or infinite scroll.
+#### Parameters object
+```ts
+interface ReadManyParams<T> {
+  request: Observable<FetchedItems<T> | T[]>;
+  onSuccess?: (items: T[]) => void;
+  onError?: (error: unknown) => void;
+}
+```
+
+---
+
+### setUniqueStatus()
 Set the status for an item.  
 Only one item in the collection can have this status.  
 Designed to be used with statuses like 'focused', 'expanded', and so on.  
@@ -423,7 +469,7 @@ Designed to be used with statuses like 'focused', 'expanded', and so on.
 
 ---
 
-## deleteUniqueStatus
+### deleteUniqueStatus()
 Removes unique status.  
 No items will be associated with this status after this call.
 #### Parameters
@@ -431,7 +477,7 @@ No items will be associated with this status after this call.
 
 ---
 
-## setItemStatus
+### setItemStatus()
 Set the status of the item.  
 #### Parameters
 * `item`
@@ -440,7 +486,7 @@ Set the status of the item.
 ---
 
 
-## deleteItemStatus
+### deleteItemStatus()
 Removes the status of the item.  
 #### Parameters
 * `item`
@@ -448,7 +494,7 @@ Removes the status of the item.
 
 ---
 
-## getViewModel
+### getViewModel()
 Get ViewModel dictionary of observables.
 ```ts
 {
@@ -478,7 +524,7 @@ Designed to be used with async pipe:
 
 ---
 
-## getItemViewModel
+### getItemViewModel()
 Get ViewModel for an item.
 #### Parameters
 * `itemSource: Observable<T | undefined>` 
@@ -496,20 +542,35 @@ Dictionary of observables:
 
 ---
 
-## getTrackByFieldFn
-`ngFor` helper.
+### getItem()
+Creates an item selector.  
+#### Parameters
+* `filter` - (partial) item to be compared with. Accepts observables.
+
+---
+
+### getItemByField()
+Creates an item selector.  
+#### Parameters
+* `field` - one field or array of the fields, that item can have (type-checked).
+* `fieldValue` - value (type-checked), accepts observables.
+
+
+## Helpers
+
+### getTrackByFieldFn
+Returns a function you can use with "trackBy" in `ngFor`
 #### Parameters
 * `field: string` - field name
-#### Returns
-Returns a function you can use with "trackBy" in ngFor:  
+
+Usage example:
 ```angular2html
 <div *ngFor="let item of $.items; trackBy: collection.getTrackByFieldFn('uuId')"></div>
 ```
 
 ---
 
-## hasItemIn
-Template helper.  
+### hasItemIn
 Checks if some item belongs to some array of items - a comparator of this collection will be used.
 #### Parameters
 * `item`

@@ -1,3 +1,9 @@
+## 1.1.0
+* `onDuplicateErrCallbackParam` added to configuration options.
+* type restriction for `item` parameter is relaxed to Partial<T>. It was possible to use partial objects before, but it was not obvious from signatures.
+* New methods `readOne()`, `readMany()`, `getItem()`, `getItemByField()` have been added and documented.
+* Removed synchronous check from `setUniqueStatus()` when `active = false`. It was the only synchronous call in code.  
+
 ## 1.0.10
 * Update dependencies to Angular 15 release version
 * Add file with test to the repo

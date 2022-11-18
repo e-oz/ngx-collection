@@ -33,6 +33,10 @@ function setup() {
   };
 }
 
+function emit<T>(result: T) {
+  return timer(1).pipe(map(() => result));
+}
+
 describe('Collection Service', () => {
   it('create', () => {
     const {coll, vm} = setup();
@@ -41,7 +45,7 @@ describe('Collection Service', () => {
     expect(readState(vm)).toMatchObject<ViewModel>({isCreating: false, isProcessing: false, isMutating: false});
 
     coll.create({
-      request: timer(1).pipe(map(() => newItem))
+      request: emit(newItem)
     }).subscribe();
 
     expect(readState(vm)).toMatchObject<ViewModel>({isCreating: true, isProcessing: true, isMutating: true});
@@ -72,7 +76,7 @@ describe('Collection Service', () => {
     expect(readState(vm)).toMatchObject<ViewModel>({isReading: false, isProcessing: false, isMutating: false});
 
     coll.read({
-      request: timer(1).pipe(map(() => ([{id: 1, name: 'A'}, {id: 2, name: 'B'}])))
+      request: emit([{id: 1, name: 'A'}, {id: 2, name: 'B'}]),
     }).subscribe();
 
     expect(readState(vm)).toMatchObject<ViewModel>({isReading: true, isProcessing: true, isMutating: false});
@@ -90,10 +94,107 @@ describe('Collection Service', () => {
     coll.setAllowFetchedDuplicates(false);
 
     coll.read({
+      request: of({items: [{id: 1, name: 'AN'}, {id: 2, name: 'BN'}, {id: 2, name: 'BNX'}]}),
+      keepExistingOnError: true,
+    }).subscribe();
+
+    expect(readState(coll.items$)).toStrictEqual([{id: 1, name: 'AN'}, {id: 2, name: 'BN'}]);
+
+    coll.read({
       request: of({items: [{id: 1, name: 'AN'}, {id: 2, name: 'BN'}, {id: 2, name: 'BNX'}]})
     }).subscribe();
 
     expect(readState(coll.items$)).toStrictEqual([]);
+  });
+
+  it('read one', () => {
+    const {coll, vm} = setup();
+    const item: Item = {id: 0, name: 'A'};
+    const item1: Item = {id: 1, name: 'B'};
+    const item2: Item = {id: 2, name: 'C'};
+    const item3: Item = {id: 3, name: 'D'};
+    const item3v2: Item = {id: 3, name: 'E'};
+
+    coll.read({request: of([item1, item2, item3])}).subscribe();
+
+    expect(readState(vm)).toMatchObject<ViewModel>({
+      isReading: false,
+      isProcessing: false,
+      isMutating: false,
+      items: [item1, item2, item3],
+    });
+
+    coll.readOne({
+      request: emit(item),
+    }).subscribe();
+
+    expect(readState(vm)).toMatchObject<ViewModel>({isReading: true, isProcessing: true, isMutating: false});
+
+    jest.runOnlyPendingTimers();
+
+    expect(readState(vm)).toMatchObject<ViewModel>({
+      isReading: false,
+      isProcessing: false,
+      isMutating: false,
+      items: [item1, item2, item3, item],
+    });
+
+    coll.readOne({
+      request: emit(item3v2),
+    }).subscribe();
+
+    jest.runOnlyPendingTimers();
+
+    expect(readState(vm)).toMatchObject<ViewModel>({
+      isReading: false,
+      isProcessing: false,
+      isMutating: false,
+      items: [item1, item2, item3v2, item],
+    });
+  });
+
+  it('read many', () => {
+    const {coll, vm} = setup();
+    const items: Item[] = [{id: 0, name: 'A'}, {id: 1, name: 'B'}, {id: 2, name: 'C'}];
+    const newItems: Item[] = [{id: 3, name: 'D'}, {id: 4, name: 'E'}];
+    const newItemsV2 = {items: [{id: 3, name: 'D!'}, {id: 4, name: 'E!'}]};
+
+    coll.read({request: of(items)}).subscribe();
+
+    expect(readState(vm)).toMatchObject<ViewModel>({
+      isReading: false,
+      isProcessing: false,
+      isMutating: false,
+      items: items,
+    });
+
+    coll.readMany({
+      request: emit(newItems),
+    }).subscribe();
+
+    expect(readState(vm)).toMatchObject<ViewModel>({isReading: true, isProcessing: true, isMutating: false});
+
+    jest.runOnlyPendingTimers();
+
+    expect(readState(vm)).toMatchObject<ViewModel>({
+      isReading: false,
+      isProcessing: false,
+      isMutating: false,
+      items: [...items, ...newItems],
+    });
+
+    coll.readMany({
+      request: emit(newItemsV2),
+    }).subscribe();
+
+    jest.runOnlyPendingTimers();
+
+    expect(readState(vm)).toMatchObject<ViewModel>({
+      isReading: false,
+      isProcessing: false,
+      isMutating: false,
+      items: [...items, ...newItemsV2.items],
+    });
   });
 
   it('update', () => {
@@ -117,7 +218,7 @@ describe('Collection Service', () => {
     expect(readState(coll.updatingItems$).length).toEqual(0);
 
     coll.update({
-      request: timer(1).pipe(map(() => newItem2)),
+      request: emit(newItem2),
       item: item2,
     }).subscribe();
 
@@ -150,7 +251,7 @@ describe('Collection Service', () => {
     expect(readState(ivm)).toMatchObject<ItemViewModel>({isProcessing: false, isMutating: false, isDeleting: false, isRefreshing: false, isUpdating: false});
 
     coll.delete({
-      request: timer(1).pipe(map(() => item2)),
+      request: emit(item2),
       item: item2,
     }).subscribe();
 
@@ -246,6 +347,79 @@ describe('Collection Service', () => {
     expect(readState(vm).status.get('reserved')).toStrictEqual(item2);
     coll.setUniqueStatus('reserved', item1);
     expect(readState(vm).status.get('reserved')).toStrictEqual(item1);
+  });
+
+  it('getItem', () => {
+    const {coll} = setup();
+
+    expect(readState(coll.getItem({id: 1}))).toStrictEqual(undefined);
+
+    const item1 = {id: 1, name: 'A'};
+    const item2 = {id: 2, name: 'B'};
+    const item3 = {id: 3, name: 'C'};
+
+    coll.read({
+      request: emit([item1, item2, item3])
+    }).subscribe();
+
+    expect(readState(coll.getItem({id: 1}))).toStrictEqual(undefined);
+
+    jest.runOnlyPendingTimers();
+
+    expect(readState(coll.getItem({id: 1}))).toStrictEqual(item1);
+
+    const itemSource$ = coll.getItem(emit(item2));
+
+    expect(readState(itemSource$)).toStrictEqual(undefined);
+
+    jest.runOnlyPendingTimers();
+
+    expect(readState(itemSource$)).toStrictEqual(item2);
+  });
+
+  it('getItemByField', () => {
+    const {coll} = setup();
+
+    expect(readState(coll.getItemByField('id', 1))).toStrictEqual(undefined);
+
+    const item1 = {id: 0, name: '!'};
+    const item2 = {id: -1, name: '?'};
+    const item3 = {id: 1, name: '*'};
+
+    coll.read({
+      request: emit([item1, item2, item3])
+    }).subscribe();
+
+    expect(readState(coll.getItemByField('id', 1))).toStrictEqual(undefined);
+
+    jest.runOnlyPendingTimers();
+
+    expect(readState(coll.getItemByField('id', 0))).toStrictEqual(item1);
+    expect(readState(coll.getItemByField(['id', 'name'], -1))).toStrictEqual(item2);
+    expect(readState(coll.getItemByField(['id', 'name'], '*'))).toStrictEqual(item3);
+
+    const itemSource$ = coll.getItemByField('id', emit(0));
+
+    expect(readState(itemSource$)).toStrictEqual(undefined);
+
+    jest.runOnlyPendingTimers();
+
+    expect(readState(itemSource$)).toStrictEqual(item1);
+  });
+
+  it('getDuplicates', () => {
+    const {coll} = setup();
+
+    const item1 = {id: 1, name: 'A'};
+    const item2 = {id: 2, name: 'B'};
+    const item3 = {id: 3, name: 'C'};
+    const item2d = {id: 1, name: '!A'};
+
+    expect(coll.getDuplicates([item1, item2, item3])).toStrictEqual(null);
+
+    const expected = new Map();
+    expected.set(1, {1: item2, 3: item2d});
+    expect(coll.getDuplicates([item1, item2, item3, item2d])).toMatchObject(expected);
   });
 });
 

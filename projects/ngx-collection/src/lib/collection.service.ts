@@ -1,4 +1,4 @@
-import { Observable, finalize, map, first, catchError, EMPTY, switchMap, startWith } from 'rxjs';
+import { Observable, finalize, map, first, catchError, EMPTY, switchMap, startWith, isObservable } from 'rxjs';
 import { Injectable, Inject, Optional } from '@angular/core';
 import { ComponentStore, tapResponse } from '@ngrx/component-store';
 import { concatLatestFrom } from '@ngrx/effects';
@@ -30,24 +30,36 @@ export interface ReadParams<T> {
   readonly keepExistingOnError?: boolean;
 }
 
+export interface ReadOneParams<T> {
+  readonly request: Observable<T>;
+  readonly onSuccess?: (item: T) => void;
+  readonly onError?: (error: unknown) => void;
+}
+
+export interface ReadManyParams<T> {
+  readonly request: Observable<FetchedItems<T> | T[]>;
+  readonly onSuccess?: (items: T[]) => void;
+  readonly onError?: (error: unknown) => void;
+}
+
 export interface UpdateParams<T> {
   readonly request: Observable<T>;
   readonly refreshRequest?: Observable<T>;
-  readonly item: T;
+  readonly item: Partial<T>;
   readonly onSuccess?: (item: T) => void;
   readonly onError?: (error: unknown) => void;
 }
 
 export interface DeleteParams<T, R = unknown> {
   readonly request: Observable<R>;
-  readonly item: T;
+  readonly item: Partial<T>;
   readonly onSuccess?: (response: R) => void;
   readonly onError?: (error: unknown) => void;
 }
 
 export interface RefreshParams<T> {
   readonly request: Observable<T>;
-  readonly item: T;
+  readonly item: Partial<T>;
   readonly onSuccess?: (item: T) => void;
   readonly onError?: (error: unknown) => void;
 }
@@ -58,6 +70,7 @@ export interface CollectionServiceOptions {
   comparatorFields?: string[];
   throwOnDuplicates?: string;
   allowFetchedDuplicates?: boolean;
+  onDuplicateErrCallbackParam?: any;
 }
 
 @Injectable()
@@ -100,49 +113,96 @@ export class CollectionService<T, UniqueStatus = any, Status = any> extends Comp
   protected comparator: ObjectsComparator = new Comparator();
   protected throwOnDuplicates?: string;
   protected allowFetchedDuplicates: boolean = true;
+  protected onDuplicateErrCallbackParam = {status: 409};
 
-  protected addToUpdatingItems(item: T) {
+  protected addToUpdatingItems(item: Partial<T>) {
     this.patchState((s) => ({
-      updatingItems: this.hasItemIn(item, s.updatingItems) ? s.updatingItems : [...s.updatingItems, item]
+      updatingItems: this.hasItemIn(item, s.updatingItems) ? s.updatingItems : [
+        ...s.updatingItems,
+        this.getItemByPartial(item, s.items) ?? item as T,
+      ]
     }));
   }
 
-  protected removeFromUpdatingItems(item: T) {
+  protected removeFromUpdatingItems(item: Partial<T>) {
     this.patchState((s) => ({
       updatingItems: s.updatingItems.filter(i => !this.comparator.equal(i, item))
     }));
   }
 
-  protected addToDeletingItems(item: T) {
+  protected addToDeletingItems(item: Partial<T>) {
     this.patchState((s) => ({
-      deletingItems: this.hasItemIn(item, s.deletingItems) ? s.deletingItems : [...s.deletingItems, item]
+      deletingItems: this.hasItemIn(item, s.deletingItems) ? s.deletingItems : [
+        ...s.deletingItems,
+        this.getItemByPartial(item, s.items) ?? item as T,
+      ]
     }));
   }
 
-  protected removeFromDeletingItems(item: T) {
+  protected removeFromDeletingItems(item: Partial<T>) {
     this.patchState((s) => ({
       deletingItems: s.deletingItems.filter(i => !this.comparator.equal(i, item))
     }));
   }
 
-  protected addToRefreshingItems(item: T) {
+  protected addToRefreshingItems(item: Partial<T>) {
     this.patchState((s) => ({
-      refreshingItems: this.hasItemIn(item, s.refreshingItems) ? s.refreshingItems : [...s.refreshingItems, item]
+      refreshingItems: this.hasItemIn(item, s.refreshingItems) ? s.refreshingItems : [
+        ...s.refreshingItems,
+        this.getItemByPartial(item, s.items) ?? item as T,
+      ]
     }));
   }
 
-  protected removeFromRefreshingItems(item: T) {
+  protected removeFromRefreshingItems(item: Partial<T>) {
     this.patchState((s) => ({
       refreshingItems: s.refreshingItems.filter(i => !this.comparator.equal(i, item))
     }));
   }
 
-  protected has(item: T, items?: T[], excludeIndex?: number) {
-    const _items = items ?? this.get().items;
+  protected has(item: Partial<T>, items: T[], excludeIndex?: number) {
     if (excludeIndex != null) {
-      return !!(_items.find((i, j) => j === excludeIndex ? false : this.comparator.equal(item, i)));
+      return !!(items.find((i, j) => j === excludeIndex ? false : this.comparator.equal(item, i)));
     }
-    return !!(_items.find((i) => this.comparator.equal(item, i)));
+    return !!(items.find((i) => this.comparator.equal(item, i)));
+  }
+
+  protected getItemByPartial(partItem: Partial<T>, items: T[]) {
+    return items.find(i => this.comparator.equal(i, partItem));
+  }
+
+  protected upsertOne(item: T, items: T[]): T[] | 'duplicate' {
+    let firstIndex: number = -1;
+    let duplicateIndex: number = -1;
+    for (let i = 0; i < items.length; i++) {
+      if (this.comparator.equal(item, items[i])) {
+        if (firstIndex < 0) {
+          firstIndex = i;
+        } else {
+          duplicateIndex = i;
+          break;
+        }
+      }
+    }
+    if (firstIndex < 0) {
+      items.push(item);
+    } else {
+      if (duplicateIndex < 0) {
+        items[firstIndex] = item;
+      } else {
+        return 'duplicate';
+      }
+    }
+    return items;
+  }
+
+  protected upsertMany(items: T[], toItems: T[]): T[] | { duplicate: T } {
+    for (let i = 0; i < items.length; i++) {
+      if (this.upsertOne(items[i], toItems) === 'duplicate') {
+        return {duplicate: items[i]};
+      }
+    }
+    return toItems;
   }
 
   protected duplicateNotAdded(item: T, items: T[]) {
@@ -178,6 +238,9 @@ export class CollectionService<T, UniqueStatus = any, Status = any> extends Comp
       if (typeof options.allowFetchedDuplicates === 'boolean') {
         this.allowFetchedDuplicates = options.allowFetchedDuplicates;
       }
+      if (options.onDuplicateErrCallbackParam != null) {
+        this.onDuplicateErrCallbackParam = options.onDuplicateErrCallbackParam;
+      }
     }
   }
 
@@ -195,6 +258,11 @@ export class CollectionService<T, UniqueStatus = any, Status = any> extends Comp
       status: new Map<UniqueStatus, T>(),
     });
     this.setOptions(options);
+    this.init();
+  }
+
+  protected init() {
+
   }
 
   public create(params: CreateParams<T>) {
@@ -211,7 +279,7 @@ export class CollectionService<T, UniqueStatus = any, Status = any> extends Comp
               params.onSuccess?.(item);
             } else {
               this.duplicateNotAdded(item, items);
-              params.onError?.({status: 409});
+              params.onError?.(this.onDuplicateErrCallbackParam);
             }
           }
         },
@@ -234,7 +302,10 @@ export class CollectionService<T, UniqueStatus = any, Status = any> extends Comp
             if (duplicates) {
               this.duplicatesFetched(duplicates);
               if (!this.allowFetchedDuplicates) {
-                params.onError?.({status: 409});
+                if (!params.keepExistingOnError) {
+                  this.patchState({items: [], totalCountFetched: undefined});
+                }
+                params.onError?.(this.onDuplicateErrCallbackParam);
                 return;
               }
             }
@@ -272,21 +343,16 @@ export class CollectionService<T, UniqueStatus = any, Status = any> extends Comp
           return this.items$.pipe(
             first(),
             map((items) => {
-              const newItems = [...items];
-              const index = newItems.findIndex(i => this.comparator.equal(i, params.item));
-              if (index < 0) {
-                newItems.push(newItem);
-              } else {
-                if (!this.has(newItem, newItems, index)) {
-                  newItems[index] = newItem;
+              if (newItem != null) {
+                const newItems = [...items];
+                if (this.upsertOne(newItem, newItems) === 'duplicate') {
+                  this.duplicateNotAdded(newItem, items);
+                  params.onError?.(this.onDuplicateErrCallbackParam);
                 } else {
-                  this.duplicateNotAdded(newItem, newItems);
-                  params.onError?.({status: 409});
-                  return newItem;
+                  this.patchState({items: newItems});
+                  params.onSuccess?.(newItem);
                 }
               }
-              this.patchState({items: newItems});
-              params.onSuccess?.(newItem);
               return newItem;
             })
           );
@@ -328,20 +394,65 @@ export class CollectionService<T, UniqueStatus = any, Status = any> extends Comp
         ([newItem, items]) => {
           if (newItem != null) {
             const newItems = [...items];
-            const index = newItems.findIndex(i => this.comparator.equal(i, params.item));
-            if (index < 0) {
-              newItems.push(newItem);
+            if (this.upsertOne(newItem, newItems) === 'duplicate') {
+              this.duplicateNotAdded(newItem, items);
+              params.onError?.(this.onDuplicateErrCallbackParam);
             } else {
-              if (!this.has(newItem, newItems, index)) {
-                newItems[index] = newItem;
-              } else {
-                console?.error('Duplicate found in collection', newItem, newItems);
-                params.onError?.({status: 409});
-                return;
-              }
+              this.patchState({items: newItems});
+              params.onSuccess?.(newItem);
             }
-            this.patchState({items: newItems});
-            params.onSuccess?.(newItem);
+          }
+        },
+        (error) => params.onError?.(error)
+      ),
+      map(([r]) => r)
+    );
+  }
+
+  public readOne(params: ReadOneParams<T>) {
+    this.patchState({isReading: true});
+    return params.request.pipe(
+      first(),
+      finalize(() => this.patchState({isReading: false})),
+      concatLatestFrom(() => this.items$),
+      tapResponse(
+        ([newItem, items]) => {
+          if (newItem != null) {
+            const newItems = [...items];
+            if (this.upsertOne(newItem, newItems) === 'duplicate') {
+              this.duplicateNotAdded(newItem, items);
+              params.onError?.(this.onDuplicateErrCallbackParam);
+            } else {
+              this.patchState({items: newItems});
+              params.onSuccess?.(newItem);
+            }
+          }
+        },
+        (error) => params.onError?.(error)
+      ),
+      map(([r]) => r)
+    );
+  }
+
+  public readMany(params: ReadManyParams<T>) {
+    this.patchState({isReading: true});
+    return params.request.pipe(
+      first(),
+      finalize(() => this.patchState({isReading: false})),
+      concatLatestFrom(() => this.items$),
+      tapResponse(
+        ([fetched, items]) => {
+          const readItems = fetched == null ? ([] as T[]) : (Array.isArray(fetched) ? fetched : fetched.items);
+          if (readItems.length > 0) {
+            const newItems = [...items];
+            const result = this.upsertMany(readItems, newItems);
+            if (!Array.isArray(result) && result.duplicate) {
+              this.duplicateNotAdded(result.duplicate, items);
+              params.onError?.(this.onDuplicateErrCallbackParam);
+            } else {
+              this.patchState({items: newItems});
+              params.onSuccess?.(newItems);
+            }
           }
         },
         (error) => params.onError?.(error)
@@ -351,17 +462,24 @@ export class CollectionService<T, UniqueStatus = any, Status = any> extends Comp
   }
 
   public hasItemIn<I = T>(item: I, arr: I[]) {
+    if (!Array.isArray(arr)) {
+      return false;
+    }
     return arr.includes(item) || ((arr.findIndex(i => this.comparator.equal(i, item))) > -1);
   }
 
   public setUniqueStatus(status: UniqueStatus, item: T, active: boolean = true) {
     if (!active) {
-      const current = this.get().status.get(status);
-      if (current != null && this.comparator.equal(item, current)) {
-        this.deleteUniqueStatus(status);
-      } else {
-        return;
-      }
+      this.patchState((s) => {
+        const current = s.status.get(status);
+        if (current != null && this.comparator.equal(item, current)) {
+          const newMap = new Map(s.status);
+          newMap.delete(status);
+          return {status: newMap};
+        } else {
+          return s;
+        }
+      });
     } else {
       this.patchState((s) => {
         const newMap = new Map(s.status);
@@ -457,6 +575,43 @@ export class CollectionService<T, UniqueStatus = any, Status = any> extends Comp
     });
   }
 
+  public getItem(filter: Partial<T> | Observable<Partial<T>>): Observable<T | undefined> {
+    if (isObservable(filter)) {
+      return this.select(
+        filter.pipe(startWith(undefined)),
+        this.items$,
+        (item, items) => item ? this.getItemByPartial(item, items) : undefined
+      );
+    } else {
+      return this.select(
+        this.items$,
+        (items) => this.getItemByPartial(filter, items)
+      );
+    }
+  }
+
+  public getItemByField<K extends keyof T>(field: K | K[], fieldValue: T[K] | Observable<T[K]>): Observable<T | undefined> {
+    const fields = Array.isArray(field) ? field : [field];
+    if (isObservable(fieldValue)) {
+      return this.select(
+        fieldValue.pipe(startWith(undefined)),
+        this.items$,
+        (fieldValue, items) => fieldValue != null ?
+          items.find((i) =>
+            fields.find((f) => i[f] === fieldValue) !== undefined
+          )
+          : undefined
+      );
+    } else {
+      return this.select(
+        this.items$,
+        (items) => items.find((i) =>
+          fields.find((f) => i[f] === fieldValue) !== undefined
+        )
+      );
+    }
+  }
+
   public setComparator(comparator: ObjectsComparator) {
     this.comparator = comparator;
   }
@@ -489,6 +644,10 @@ export class CollectionService<T, UniqueStatus = any, Status = any> extends Comp
 
   public setAllowFetchedDuplicates(allowFetchedDuplicates: boolean) {
     this.allowFetchedDuplicates = allowFetchedDuplicates;
+  }
+
+  public setOnDuplicateErrCallbackParam(onDuplicateErrCallbackParam: any) {
+    this.onDuplicateErrCallbackParam = onDuplicateErrCallbackParam;
   }
 
   public getTrackByFieldFn(field: string) {
