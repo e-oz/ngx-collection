@@ -439,9 +439,9 @@ export class CollectionService<T, UniqueStatus = any, Status = any> extends Comp
     return params.request.pipe(
       first(),
       finalize(() => this.patchState({isReading: false})),
-      concatLatestFrom(() => this.items$),
+      concatLatestFrom(() => this.state$),
       tapResponse(
-        ([fetched, items]) => {
+        ([fetched, {items, totalCountFetched}]) => {
           const readItems = fetched == null ? ([] as T[]) : (Array.isArray(fetched) ? fetched : fetched.items);
           if (readItems.length > 0) {
             const newItems = [...items];
@@ -450,7 +450,10 @@ export class CollectionService<T, UniqueStatus = any, Status = any> extends Comp
               this.duplicateNotAdded(result.duplicate, items);
               params.onError?.(this.onDuplicateErrCallbackParam);
             } else {
-              this.patchState({items: newItems});
+              this.patchState({
+                items: newItems,
+                totalCountFetched: Array.isArray(fetched) ? totalCountFetched : fetched.totalCount,
+              });
               params.onSuccess?.(newItems);
             }
           }

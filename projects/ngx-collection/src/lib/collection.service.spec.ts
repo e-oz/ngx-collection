@@ -86,25 +86,37 @@ describe('Collection Service', () => {
     expect(readState(coll.items$)).toStrictEqual([{id: 1, name: 'A'}, {id: 2, name: 'B'}]);
 
     coll.read({
-      request: of({items: [{id: 1, name: 'AN'}, {id: 2, name: 'BN'}]})
+      request: of({items: [{id: 1, name: 'AN'}, {id: 2, name: 'BN'}], totalCount: 12})
     }).subscribe();
 
     expect(readState(coll.items$)).toStrictEqual([{id: 1, name: 'AN'}, {id: 2, name: 'BN'}]);
+    expect(readState(vm).totalCountFetched).toStrictEqual(12);
 
     coll.setAllowFetchedDuplicates(false);
+    coll.setThrowOnDuplicates(undefined);
 
     coll.read({
-      request: of({items: [{id: 1, name: 'AN'}, {id: 2, name: 'BN'}, {id: 2, name: 'BNX'}]}),
+      request: of({items: [{id: 1, name: 'AN'}, {id: 2, name: 'BN'}, {id: 2, name: 'BNX'}], totalCount: 10000}),
       keepExistingOnError: true,
     }).subscribe();
 
     expect(readState(coll.items$)).toStrictEqual([{id: 1, name: 'AN'}, {id: 2, name: 'BN'}]);
+    expect(readState(vm).totalCountFetched).toStrictEqual(12);
+
+    coll.read({
+      request: of({items: [{id: 1, name: 'AN'}, {id: 2, name: 'BN'}, {id: 2, name: 'BNX'}], totalCount: 10000}),
+      keepExistingOnError: false,
+    }).subscribe();
+
+    expect(readState(coll.items$)).toStrictEqual([]);
+    expect(readState(vm).totalCountFetched).toStrictEqual(undefined);
 
     coll.read({
       request: of({items: [{id: 1, name: 'AN'}, {id: 2, name: 'BN'}, {id: 2, name: 'BNX'}]})
     }).subscribe();
 
     expect(readState(coll.items$)).toStrictEqual([]);
+    expect(readState(vm).totalCountFetched).toStrictEqual(undefined);
   });
 
   it('read one', () => {
@@ -157,7 +169,7 @@ describe('Collection Service', () => {
     const {coll, vm} = setup();
     const items: Item[] = [{id: 0, name: 'A'}, {id: 1, name: 'B'}, {id: 2, name: 'C'}];
     const newItems: Item[] = [{id: 3, name: 'D'}, {id: 4, name: 'E'}];
-    const newItemsV2 = {items: [{id: 3, name: 'D!'}, {id: 4, name: 'E!'}]};
+    const newItemsV2 = {items: [{id: 3, name: 'D!'}, {id: 4, name: 'E!'}], totalCount: 4815162342};
 
     coll.read({request: of(items)}).subscribe();
 
@@ -194,6 +206,7 @@ describe('Collection Service', () => {
       isProcessing: false,
       isMutating: false,
       items: [...items, ...newItemsV2.items],
+      totalCountFetched: 4815162342,
     });
   });
 

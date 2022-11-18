@@ -1,3 +1,6 @@
+## 1.1.1
+* `readMany()` should update `totalCountFetched` if provided
+
 ## 1.1.0
 * `onDuplicateErrCallbackParam` added to configuration options.
 * type restriction for `item` parameter is relaxed to Partial<T>. It was possible to use partial objects before, but it was not obvious from signatures.
