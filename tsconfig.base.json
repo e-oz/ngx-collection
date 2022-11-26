@@ -1,8 +1,7 @@
-/* To learn more about this file see: https://angular.io/config/tsconfig. */
 {
   "compileOnSave": false,
   "compilerOptions": {
-    "baseUrl": "./",
+    "baseUrl": ".",
     "outDir": "./dist/out-tsc",
     "forceConsistentCasingInFileNames": true,
     "strict": true,
@@ -13,7 +12,7 @@
     "sourceMap": true,
     "paths": {
       "ngx-collection": [
-        "dist/ngx-collection"
+        "projects/ngx-collection"
       ]
     },
     "declaration": false,
@@ -27,12 +26,17 @@
     "lib": [
       "ES2022",
       "dom"
-    ]
+    ],
+    "rootDir": "."
   },
   "angularCompilerOptions": {
     "enableI18nLegacyMessageIdFormat": false,
     "strictInjectionParameters": true,
     "strictInputAccessModifiers": true,
     "strictTemplates": true
-  }
+  },
+  "exclude": [
+    "node_modules",
+    "tmp"
+  ]
 }

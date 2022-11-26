@@ -1,31 +1,6 @@
 {
-  "$schema": "./node_modules/@angular/cli/lib/config/schema.json",
-  "version": 1,
-  "newProjectRoot": "projects",
+  "version": 2,
   "projects": {
-    "ngx-collection": {
-      "projectType": "library",
-      "root": "projects/ngx-collection",
-      "sourceRoot": "projects/ngx-collection/src",
-      "prefix": "lib",
-      "architect": {
-        "build": {
-          "builder": "@angular-devkit/build-angular:ng-packagr",
-          "options": {
-            "project": "projects/ngx-collection/ng-package.json"
-          },
-          "configurations": {
-            "production": {
-              "tsConfig": "projects/ngx-collection/tsconfig.lib.prod.json"
-            },
-            "development": {
-              "tsConfig": "projects/ngx-collection/tsconfig.lib.json"
-            }
-          },
-          "defaultConfiguration": "production"
-        }
-      }
-    }
-
+    "ngx-collection": "libs/ngx-collection"
   }
 }

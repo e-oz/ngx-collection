@@ -1,3 +1,22 @@
+### 1.2.0
+* New (additional) methods: 
+  * `createMany()`
+  * `refreshMany()`
+  * `updateMany()`
+  * `deleteMany()`
+* `request` parameter will now accept an array of requests (to `forkJoin()` them) in:
+  * `createMany()`
+  * `readMany()`
+  * `refreshMany()`
+  * `updateMany()`
+  * `deleteMany()`  
+  Requests with suffix `*many` will run in parallel (using `forkJoin()`). If you need to run them differently, you can use regular methods with the [creation operator](https://rxjs.dev/guide/operators#creation-operators-1) of your choice.
+* A function can be used as a value for the `comparator` field in configuration options or as an argument for `setComparator()` method;
+* New method for override: `postInit()` - will be called in the next microtask after `constructor()`.   
+  You can override and use it to call the methods declared in the subclass and still don't bother about `constructor()` overriding;
+* `getTrackByFieldFn()` helper will not use fields with empty values;
+* Jest has been configured to run tests in this repo - pull requests are welcome!
+
 ## 1.1.1
 * `readMany()` should update `totalCountFetched` if provided
 

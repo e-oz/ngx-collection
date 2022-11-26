@@ -1,20 +1,22 @@
 import { isEmptyObject, isEmptyValue } from './helpers';
 
+export type ObjectsComparatorFn<T = any> = (obj1: T, obj2: T) => boolean;
+
 export interface ObjectsComparator {
-  equal: (obj1: unknown, obj2: unknown) => boolean;
+  equal: ObjectsComparatorFn;
 }
 
 export class Comparator implements ObjectsComparator {
-  constructor(private fields: string[] = ['id', 'uuId', 'uuid']) {}
+  constructor(private fields: string[] = ['uuId', 'id']) {}
 
-  equal(obj1: unknown, obj2: unknown, byField?: string): boolean {
+  equal(obj1: unknown, obj2: unknown, byFields?: string[]): boolean {
     if (obj1 === obj2) {
       return true;
     }
     if (obj1 == null || obj1 !== obj1 || obj2 == null || obj2 !== obj2 || (typeof obj1 !== 'object') || (typeof obj2 !== 'object')) {
       return false;
     }
-    const fields = byField ? [byField] : this.fields;
+    const fields = byFields?.length ? byFields : this.fields;
     if (fields.length) {
       for (const field of fields) {
         if (obj1.hasOwnProperty(field) && obj2.hasOwnProperty(field)) {
