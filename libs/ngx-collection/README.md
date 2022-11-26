@@ -411,16 +411,13 @@ interface DeleteParams<T, R = unknown> {
 
 ## Additional Methods
 
-### refresh()
-Item will be updated without adding it to `updating` or `mutating` lists, and __without__ toggling `isReading` state field of the collection.         
-Item will be added to the `refreshing` list, triggering modifications of related state fields.    
-Designed to be used for "reloading" the item data without triggering "disabled" statuses of controls.  
+### createMany()  
+Like `create()`, but will run multiple requests in parallel.  
 #### Parameters object
 ```ts
-interface RefreshParams<T> {
-  request: Observable<T>;
-  item: T;
-  onSuccess?: (item: T) => void;
+interface CreateManyParams<T> {
+  request: Observable<FetchedItems<T> | T[]> | Observable<T>[];
+  onSuccess?: (items: T[]) => void;
   onError?: (error: unknown) => void;
 }
 ```
@@ -430,7 +427,7 @@ interface RefreshParams<T> {
 ### readOne()
 Read and update/add one item.   
 Will toggle `isReading` state field of the collection.  
-Designed to be used in components with no guarantee that the item is already fetched from the server (and, therefore, needs to fetch the item first).  
+Designed to be used in components with no guarantee that the item is already fetched from the server (and, therefore, needs to fetch the item first).
 #### Parameters object
 ```ts
 interface ReadOneParams<T> {
@@ -452,6 +449,66 @@ Designed to be used for pagination or infinite scroll.
 interface ReadManyParams<T> {
   request: Observable<FetchedItems<T> | T[]>;
   onSuccess?: (items: T[]) => void;
+  onError?: (error: unknown) => void;
+}
+```
+
+---
+
+### refresh()
+Item will be updated without adding it to `updating` or `mutating` lists, and __without__ toggling `isReading` state field of the collection.         
+Item will be added to the `refreshing` list, triggering modifications of related state fields.    
+Designed to be used for "reloading" the item data without triggering "disabled" statuses of controls.  
+#### Parameters object
+```ts
+interface RefreshParams<T> {
+  request: Observable<T>;
+  item: T;
+  onSuccess?: (item: T) => void;
+  onError?: (error: unknown) => void;
+}
+```
+
+---
+
+### refreshMany()  
+Like `refresh()`, but for multiple items. Requests will run in parallel.
+#### Parameters object
+```ts
+interface RefreshManyParams<T> {
+  request: Observable<FetchedItems<T> | T[]> | Observable<T>[];
+  items: Partial<T>[];
+  onSuccess?: (item: T[]) => void;
+  onError?: (error: unknown) => void;
+}
+```
+
+---
+
+### updateMany()  
+Like `update()`, but for multiple items. Requests will run in parallel.  
+Consecutive `refreshRequest` (if set) will be executed using `refreshMany()`.  
+#### Parameters object
+```ts
+interface UpdateManyParams<T> {
+  request: Observable<T[]> | Observable<T>[];
+  refreshRequest?: Observable<FetchedItems<T> | T[]>;
+  items: Partial<T>[];
+  onSuccess?: (item: T[]) => void;
+  onError?: (error: unknown) => void;
+}
+```
+
+---
+
+### deleteMany()  
+Like `delete()`, but will run multiple queries in parallel.  
+#### Parameters object
+```ts
+interface DeleteManyParams<T, R = unknown> {
+  request: Observable<R> | Observable<R>[];
+  items: Partial<T>[];
+  onSuccess?: (response: R[]) => void;
   onError?: (error: unknown) => void;
 }
 ```

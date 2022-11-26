@@ -1,0 +1,33 @@
+{
+  "name": "ngx-collection",
+  "projectType": "library",
+  "sourceRoot": "libs/ngx-collection/src",
+  "prefix": "lib",
+  "targets": {
+    "build": {
+      "executor": "@nrwl/angular:package",
+      "options": {
+        "project": "libs/ngx-collection/ng-package.json"
+      },
+      "configurations": {
+        "production": {
+          "tsConfig": "libs/ngx-collection/tsconfig.lib.prod.json"
+        },
+        "development": {
+          "tsConfig": "libs/ngx-collection/tsconfig.lib.json"
+        }
+      },
+      "defaultConfiguration": "production"
+    },
+    "test": {
+      "executor": "@nrwl/jest:jest",
+      "outputs": [
+        "{workspaceRoot}/coverage/{projectRoot}"
+      ],
+      "options": {
+        "jestConfig": "libs/ngx-collection/jest.config.ts",
+        "passWithNoTests": true
+      }
+    }
+  }
+}
