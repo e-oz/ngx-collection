@@ -4,6 +4,7 @@
     "outDir": "../../dist/out-tsc",
     "declaration": true,
     "declarationMap": true,
+    "emitDecoratorMetadata": true,
     "inlineSources": true,
     "types": []
   },

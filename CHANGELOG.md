@@ -1,3 +1,7 @@
+### 1.2.1
+* Optimize speed of duplicate detection in `read()`
+* Add `"emitDecoratorMetadata": true` to tsconfig
+
 ### 1.2.0
 * New (additional) methods: 
   * `createMany()`

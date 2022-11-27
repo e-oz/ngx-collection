@@ -717,6 +717,18 @@ describe('Collection Service', () => {
     expect(dColl.hasDuplicates(
       [0, 1, 2, 3, 4, 5, 2]
     )).toStrictEqual(2);
+    expect(dColl.hasDuplicates(
+      [0, 0, 2, 3, 4, 5, 2]
+    )).toStrictEqual(0);
+    expect(dColl.hasDuplicates(
+      [0, 1, 1, 3, 4, 5, 2]
+    )).toStrictEqual(1);
+    expect(dColl.hasDuplicates(
+      [0, 1, 2, 3, 4, 5, 5]
+    )).toStrictEqual(5);
+    expect(dColl.hasDuplicates(
+      [0, 1, 2, 3, 2, 4, 5]
+    )).toStrictEqual(2);
   });
 
   it('custom comparator fn with multiple fields', () => {

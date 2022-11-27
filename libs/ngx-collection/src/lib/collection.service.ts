@@ -263,16 +263,10 @@ export class CollectionService<T, UniqueStatus = any, Status = any> extends Comp
     if (!Array.isArray(items) || items.length < 2) {
       return null;
     }
-    const indexes = new Set<number>();
     for (let i = 0; i < items.length; i++) {
-      if (!indexes.has(i)) {
-        indexes.add(i);
-        for (let j = i + 1; j < items.length; j++) {
-          if (!indexes.has(j)) {
-            if (this.comparator.equal(items[i], items[j])) {
-              return items[j];
-            }
-          }
+      for (let j = i + 1; j < items.length; j++) {
+        if (this.comparator.equal(items[i], items[j])) {
+          return items[j];
         }
       }
     }
@@ -302,15 +296,6 @@ export class CollectionService<T, UniqueStatus = any, Status = any> extends Comp
       if (duplicates) {
         console.error('Duplicates are found in collection:', duplicates);
       }
-    }
-  }
-
-  protected duplicatesFetched(duplicates: DuplicatesMap<T>) {
-    if (this.throwOnDuplicates) {
-      throw new Error(this.throwOnDuplicates);
-    }
-    if (console) {
-      console.error('Duplicates found in the list of read items:', duplicates);
     }
   }
 
@@ -431,9 +416,9 @@ export class CollectionService<T, UniqueStatus = any, Status = any> extends Comp
         (fetched) => {
           const items = fetched == null ? ([] as T[]) : (Array.isArray(fetched) ? fetched : fetched.items);
           if (items.length > 0) {
-            const duplicates = this.getDuplicates(items);
-            if (duplicates) {
-              this.duplicatesFetched(duplicates);
+            const duplicate = this.hasDuplicates(items);
+            if (duplicate != null) {
+              this.duplicateNotAdded(duplicate, items);
               if (!this.allowFetchedDuplicates) {
                 if (!params.keepExistingOnError) {
                   this.patchState({items: [], totalCountFetched: undefined});

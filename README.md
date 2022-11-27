@@ -4,13 +4,13 @@ Collection State Management Service
 
 # Introduction
 
-Using this service, you can easily and safely mutate collections of items and monitor their state.
+Using this service, you can easily and safely mutate collections of items and monitor their state (and state of their mutations).  
 
-All the actions are immutable - items and collections will not be modified: new items and new collections will be created on every mutation.
+All the actions are immutable - items and collections will not be modified: new items and new collections will be created on every mutation.  
 
-For monitoring the state, you can use one of the predefined selectors, or view model.
+For monitoring the state, you can use one of the predefined selectors, or view model.  
 
-Out of the box, without any additional code, you'll be able to control your "loading" spinners, temporarily disable buttons, display success/error messages, and much more. 
+Out of the box, without any additional code, you'll be able to control your "loading" spinners, temporarily disable buttons, display success/error messages, and much more.   
 
 Service is built on top of [NgRx ComponentStore](https://ngrx.io/guide/component-store), all the selectors (including view models) are generated using `ComponentStore.select()`.
 
@@ -330,6 +330,9 @@ Options structure:
 interface CollectionServiceOptions {
   // List of "id" fields
   comparatorFields?: string[];
+
+  // Custom comparator - will override `comparatorFields` if set
+  comparator?: ObjectsComparator | ObjectsComparatorFn;
   
   // If set, duplicates detection will throw an exception with this value as an argument
   throwOnDuplicates?: string;
