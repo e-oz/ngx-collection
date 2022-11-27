@@ -311,21 +311,8 @@ This library provides two Angular pipes to ease the usage of collection statuses
 
 You can (optionally) use this or a similar structure to don't lose meta information, such as the total count of items (usually needed for pagination).
 
-# Global configuration
-You can (optionally) declare Collection Service configuration details in your module or component providers:
-```ts
-providers: [
-  {
-    provide: 'COLLECTION_SERVICE_OPTIONS',
-    useValue: {
-      allowFetchedDuplicates: environment.production,
-    }
-  },
-]
-```
-Token `COLLECTION_SERVICE_OPTIONS` is just a string to don't break lazy-loading (if you are using it).  
-
-Options structure:
+# Configuration
+To configure your collection, you can call `setOptions()` method with an argument of this type:  
 ```ts
 interface CollectionServiceOptions {
   // List of "id" fields

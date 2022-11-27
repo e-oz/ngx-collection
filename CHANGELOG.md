@@ -1,3 +1,7 @@
+### 1.2.5
+* Make constructors empty (for some reason Angular complains that constructors with arguments are not compatible with dependency injection, although it only happens if code is published to npm).
+* make `setOptions()` public.
+
 ### 1.2.1
 * Optimize speed of duplicate detection in `read()`
 * Add `"emitDecoratorMetadata": true` to tsconfig

@@ -5,13 +5,8 @@
     "declarationMap": false,
     "emitDecoratorMetadata": true,
     "experimentalDecorators": true,
-    "module": "commonjs"
   },
   "angularCompilerOptions": {
-    "annotationsAs": "decorators",
-    "compilationMode": "full",
-    "skipTemplateCodegen": true,
-    "strictMetadataEmit": true,
-    "strictInjectionParameters": true,
+    "compilationMode": "partial"
   }
 }

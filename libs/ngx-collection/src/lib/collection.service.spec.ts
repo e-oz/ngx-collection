@@ -1,5 +1,6 @@
 import { CollectionService } from './collection.service';
 import { of, Observable, timer, map } from 'rxjs';
+import { Comparator } from './comparator';
 
 beforeEach(() => {
   jest.useFakeTimers();
@@ -24,7 +25,9 @@ function readState<T>(stream: Observable<T>): T {
 }
 
 function setup() {
-  const coll = new CollectionService<Item>({throwOnDuplicates: 'duplicate', comparatorFields: ['id']});
+  const coll = new CollectionService<Item>();
+  coll.setThrowOnDuplicates('duplicate');
+  coll.setComparator(new Comparator(['id']));
   const vm = coll.getViewModel();
 
   return {
@@ -711,9 +714,8 @@ describe('Collection Service', () => {
       }
     }
 
-    const dColl = new DColl({
-      comparator: (a, b) => a === b
-    });
+    const dColl = new DColl();
+    dColl.setComparator((a, b) => a === b);
     expect(dColl.hasDuplicates(
       [0, 1, 2, 3, 4, 5, 2]
     )).toStrictEqual(2);
@@ -732,7 +734,8 @@ describe('Collection Service', () => {
   });
 
   it('custom comparator fn with multiple fields', () => {
-    const coll = new CollectionService<Item>({
+    const coll = new CollectionService<Item>();
+    coll.setOptions({
       comparator: (item1: Item, item2: Item) => (item1.id + item1.name) === (item2.id + item2.name),
       allowFetchedDuplicates: false,
       onDuplicateErrCallbackParam: 'DRY'

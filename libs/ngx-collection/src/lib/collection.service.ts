@@ -1,5 +1,5 @@
 import { Observable, finalize, map, first, catchError, EMPTY, switchMap, startWith, isObservable, forkJoin } from 'rxjs';
-import { Injectable, Inject, Optional } from '@angular/core';
+import { Injectable } from '@angular/core';
 import { ComponentStore, tapResponse } from '@ngrx/component-store';
 import { concatLatestFrom } from '@ngrx/effects';
 import { FetchedItems } from './interfaces';
@@ -299,30 +299,7 @@ export class CollectionService<T, UniqueStatus = any, Status = any> extends Comp
     }
   }
 
-  protected setOptions(options?: CollectionServiceOptions) {
-    if (options != null) {
-      if (options.comparator) {
-        this.setComparator(options.comparator);
-      } else {
-        if (options.comparatorFields != null) {
-          this.comparator = new Comparator(options.comparatorFields);
-        }
-      }
-      if (options.throwOnDuplicates) {
-        this.throwOnDuplicates = options.throwOnDuplicates;
-      }
-      if (typeof options.allowFetchedDuplicates === 'boolean') {
-        this.allowFetchedDuplicates = options.allowFetchedDuplicates;
-      }
-      if (options.onDuplicateErrCallbackParam != null) {
-        this.onDuplicateErrCallbackParam = options.onDuplicateErrCallbackParam;
-      }
-    }
-  }
-
-  constructor(
-    @Inject('COLLECTION_SERVICE_OPTIONS') @Optional() options?: CollectionServiceOptions
-  ) {
+  constructor() {
     super({
       items: [],
       updatingItems: [],
@@ -333,7 +310,6 @@ export class CollectionService<T, UniqueStatus = any, Status = any> extends Comp
       statuses: new Map<T, Set<Status>>(),
       status: new Map<UniqueStatus, T>(),
     });
-    this.setOptions(options);
     this.init();
     Promise.resolve().then(()=> this.postInit());
   }
@@ -886,5 +862,26 @@ export class CollectionService<T, UniqueStatus = any, Status = any> extends Comp
       && item.hasOwnProperty(field)
       && !isEmptyValue(item[field])
     ) ? item[field] : i;
+  }
+
+  setOptions(options?: CollectionServiceOptions) {
+    if (options != null) {
+      if (options.comparator) {
+        this.setComparator(options.comparator);
+      } else {
+        if (options.comparatorFields != null) {
+          this.comparator = new Comparator(options.comparatorFields);
+        }
+      }
+      if (options.throwOnDuplicates) {
+        this.throwOnDuplicates = options.throwOnDuplicates;
+      }
+      if (typeof options.allowFetchedDuplicates === 'boolean') {
+        this.allowFetchedDuplicates = options.allowFetchedDuplicates;
+      }
+      if (options.onDuplicateErrCallbackParam != null) {
+        this.onDuplicateErrCallbackParam = options.onDuplicateErrCallbackParam;
+      }
+    }
   }
 }
