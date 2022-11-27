@@ -3,9 +3,15 @@
   "extends": "./tsconfig.lib.json",
   "compilerOptions": {
     "declarationMap": false,
-    "emitDecoratorMetadata": true
+    "emitDecoratorMetadata": true,
+    "experimentalDecorators": true,
+    "module": "commonjs"
   },
   "angularCompilerOptions": {
-    "compilationMode": "partial"
+    "annotationsAs": "decorators",
+    "compilationMode": "full",
+    "skipTemplateCodegen": true,
+    "strictMetadataEmit": true,
+    "strictInjectionParameters": true,
   }
 }
