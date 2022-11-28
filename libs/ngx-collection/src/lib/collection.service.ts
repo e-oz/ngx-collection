@@ -864,7 +864,7 @@ export class CollectionService<T, UniqueStatus = any, Status = any> extends Comp
     ) ? item[field] : i;
   }
 
-  setOptions(options?: CollectionServiceOptions) {
+  public setOptions(options?: CollectionServiceOptions) {
     if (options != null) {
       if (options.comparator) {
         this.setComparator(options.comparator);

@@ -14,6 +14,13 @@ Out of the box, without any additional code, you'll be able to control your "loa
 
 Service is built on top of [NgRx ComponentStore](https://ngrx.io/guide/component-store), all the selectors (including view models) are generated using `ComponentStore.select()`.
 
+# Example App
+
+## 🖼️ [StackBlitz](https://stackblitz.com/edit/ngx-collection-example?file=src%2Fapp%2Fcollections%2Fpaintings.collection.ts)  
+
+Here you can see how little code you need to gently manipulate your collection of art! 
+
+
 # Installation
 
 Requires Angular 15 and [NgRx ComponentStore](https://ngrx.io/guide/component-store) 15  
@@ -312,26 +319,7 @@ This library provides two Angular pipes to ease the usage of collection statuses
 You can (optionally) use this or a similar structure to don't lose meta information, such as the total count of items (usually needed for pagination).
 
 # Configuration
-To configure your collection, you can call `setOptions()` method with an argument of this type:  
-```ts
-interface CollectionServiceOptions {
-  // List of "id" fields
-  comparatorFields?: string[];
-
-  // Custom comparator - will override `comparatorFields` if set
-  comparator?: ObjectsComparator | ObjectsComparatorFn;
-  
-  // If set, duplicates detection will throw an exception with this value as an argument
-  throwOnDuplicates?: string;
-  
-  // if not set: true
-  allowFetchedDuplicates?: boolean;
-  
-  // in case of duplicate detection, `onError` callback function (if provided) will be called with this value as an argument
-  onDuplicateErrCallbackParam?: any; 
-}
-```
-
+To configure your collection, you can call `setOptions()` method.
 
 ---
 
@@ -602,10 +590,34 @@ Creates an item selector.
 * `field` - one field or array of the fields, that item can have (type-checked).
 * `fieldValue` - value (type-checked), accepts observables.
 
+---
+
+### setOptions()
+Set multiple options at once. Useful during initialization.
+#### Parameters object
+```ts
+interface CollectionServiceOptions {
+  // List of "id" fields
+  comparatorFields?: string[];
+
+  // Custom comparator - will override `comparatorFields` if set
+  comparator?: ObjectsComparator | ObjectsComparatorFn;
+
+  // If set, duplicates detection will throw an exception with this value as an argument
+  throwOnDuplicates?: string;
+
+  // if not set: true
+  allowFetchedDuplicates?: boolean;
+
+  // in case of duplicate detection, `onError` callback function (if provided) will be called with this value as an argument
+  onDuplicateErrCallbackParam?: any;
+}
+```
+
 
 ## Helpers
 
-### getTrackByFieldFn
+### getTrackByFieldFn()
 Returns a function you can use with "trackBy" in `ngFor`
 #### Parameters
 * `field: string` - field name
@@ -617,7 +629,7 @@ Usage example:
 
 ---
 
-### hasItemIn
+### hasItemIn()
 Checks if some item belongs to some array of items - a comparator of this collection will be used.
 #### Parameters
 * `item`
