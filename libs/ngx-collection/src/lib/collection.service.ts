@@ -1,5 +1,5 @@
 import { Observable, finalize, map, first, catchError, EMPTY, switchMap, startWith, isObservable, forkJoin } from 'rxjs';
-import { Injectable } from '@angular/core';
+import { Injectable, Inject, Optional } from '@angular/core';
 import { ComponentStore, tapResponse } from '@ngrx/component-store';
 import { concatLatestFrom } from '@ngrx/effects';
 import { FetchedItems } from './interfaces';
@@ -299,7 +299,9 @@ export class CollectionService<T, UniqueStatus = any, Status = any> extends Comp
     }
   }
 
-  constructor() {
+  constructor(
+    @Inject('COLLECTION_SERVICE_OPTIONS') @Optional() options?: CollectionServiceOptions
+  ) {
     super({
       items: [],
       updatingItems: [],
@@ -310,6 +312,7 @@ export class CollectionService<T, UniqueStatus = any, Status = any> extends Comp
       statuses: new Map<T, Set<Status>>(),
       status: new Map<UniqueStatus, T>(),
     });
+    this.setOptions(options);
     this.init();
     Promise.resolve().then(()=> this.postInit());
   }

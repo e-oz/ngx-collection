@@ -1,3 +1,6 @@
+### 1.2.7
+* Restore global configuration feature (`COLLECTION_SERVICE_OPTIONS` token)
+
 ### 1.2.5
 * Make constructors empty (for some reason Angular complains that constructors with arguments are not compatible with dependency injection, although it only happens if code is published to npm).
 * make `setOptions()` public.

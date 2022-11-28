@@ -94,13 +94,18 @@ If you want to share some collection of items between multiple components, you c
 One of the usage examples: you have some list of the items (ListComponent), and every item is rendered using a component (ListItemComponent).   
 In this case, if ListComponent and ListItemComponent will use the same shared collection, then changes made in of them will be instantly reflected in another.
 
-To make a shared collection, create a new class extended from this service and add `@Injectable({providedIn: 'root'})`:  
+To make a shared collection, create a new class extended from this service and add `@Injectable({providedIn: 'root'})`:
 
 ```ts
 @Injectable({providedIn: 'root'})
 export class BooksCollectionService extends CollectionService<Book> {
   // to use a global instance, do not add this service to the "providers" array 
   // otherwise, a new (local) instance will be injected.
+  
+  constructor() {
+    // at least an empty constructor should be created to make class compatible with Angular Dependency Injection
+    super();
+  }  
 }
 ```
 For your convenience, there is `protected init()` method that you can override, to don't deal with `constructor()` overriding if you want some special initialization logic.
@@ -318,8 +323,39 @@ This library provides two Angular pipes to ease the usage of collection statuses
 
 You can (optionally) use this or a similar structure to don't lose meta information, such as the total count of items (usually needed for pagination).
 
-# Configuration
-To configure your collection, you can call `setOptions()` method.
+# Global configuration
+You can (optionally) declare Collection Service configuration details in your module or component providers:
+```ts
+providers: [
+  {
+    provide: 'COLLECTION_SERVICE_OPTIONS',
+    useValue: {
+      allowFetchedDuplicates: environment.production,
+    }
+  },
+]
+```
+Token `COLLECTION_SERVICE_OPTIONS` is just a string to don't break lazy-loading (if you are using it).
+
+Options structure:
+```ts
+interface CollectionServiceOptions {
+  // List of "id" fields
+  comparatorFields?: string[];
+
+  // Custom comparator - will override `comparatorFields` if set
+  comparator?: ObjectsComparator | ObjectsComparatorFn;
+  
+  // If set, duplicates detection will throw an exception with this value as an argument
+  throwOnDuplicates?: string;
+  
+  // if not set: true
+  allowFetchedDuplicates?: boolean;
+  
+  // in case of duplicate detection, `onError` callback function (if provided) will be called with this value as an argument
+  onDuplicateErrCallbackParam?: any; 
+}
+```
 
 ---
 
