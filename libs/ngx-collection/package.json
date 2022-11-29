@@ -1,6 +1,6 @@
 {
   "name": "ngx-collection",
-  "version": "1.2.7",
+  "version": "1.2.8",
   "license": "MIT",
   "author": {
     "name": "Evgeniy OZ",
@@ -14,9 +14,9 @@
   "private": false,
   "peerDependencies": {
     "@angular/core": "^15.0.1",
-    "@ngrx/component-store": "^15.0.0-rc.0",
-    "@ngrx/effects": "^15.0.0-rc.0",
-    "@ngrx/store": "^15.0.0-rc.0",
+    "@ngrx/component-store": "^15.0.0",
+    "@ngrx/effects": "^15.0.0",
+    "@ngrx/store": "^15.0.0",
     "rxjs": "^7.5.7"
   },
   "devDependencies": {

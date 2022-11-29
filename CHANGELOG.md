@@ -1,3 +1,8 @@
+### 1.2.8
+* User `errReporter` to report errors, and don't use `console` by default.
+* `Comparator` class (and `comparatorFields` parameter) now understand composite fields.
+* Update NgRx dependencies to v15 (stable).
+
 ### 1.2.7
 * Restore global configuration feature (`COLLECTION_SERVICE_OPTIONS` token)
 

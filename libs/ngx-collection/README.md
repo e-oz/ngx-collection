@@ -242,7 +242,36 @@ The equality of items will be checked using the comparator that you can replace 
 
 The comparator will compare items using `===` first, then it will use id fields.
 
-You can check the id fields list of the default comparator in [comparator.ts](projects/ngx-collection/src/lib/comparator.ts) file.
+You can check the default id fields list of the default comparator in [comparator.ts](projects/ngx-collection/src/lib/comparator.ts) file.
+
+You can easily configure this using Angular DI:
+```ts
+    {
+      provide: 'COLLECTION_SERVICE_OPTIONS',
+      useValue: {
+        comparatorFields: ['uuId', 'url'],
+      }
+    },
+```
+
+or by re-instantiating a Comparator:
+
+```ts
+export class NotificationsCollectionService extends CollectionService<Notification> {
+  override init() {
+    this.setComparator(new Comparator(['signature']))
+  }
+}
+```
+
+or by providing your own Comparator - it can be a class, implementing `ObjectsComparator` interface, or a function, implementing `ObjectsComparatorFn`.
+
+## Comparator fields
+
+In default comparator, every item in the list of fields can be:  
+1. `string` - if both objects have this field, and values are equal, objects are equal.   
+   If both objects have this field, and values are not equal - objects are not equal and __comparison stops__.  
+2. `string[]` - composite field: if both objects have every field enlisted, and every value is equal, objects are equal.  
 
 ## Duplicates prevention
 
@@ -254,10 +283,10 @@ To find a duplicate, items will be compared by comparator - objects equality che
 
 A collection might have duplicates because of some data error or because of wrong fields in the comparator - you can redefine them.  
 
-If a duplicate is detected, the item will not be added to the collection and an error will be printed to the console (if `window.console` does exist).  
+If a duplicate is detected, the item will not be added to the collection and an error will be sent to the `errReporter` (if `errReporter` is set).  
 You can call `setThrowOnDuplicates('some message')` to make Collection Service throw an exception with the message you expect.
 
-Method `read()` by default will put returned items to the collection even if they have duplicates, but `console.error` will be raised (if `window.console` exists), 
+Method `read()` by default will put returned items to the collection even if they have duplicates, but `errReporter` will be called (if `errReporter` is set), 
 because in this case you have a chance to damage your data in future `update()`.    
 You can call `setAllowFetchedDuplicates(false)` to instruct `read()` to not accept items lists with duplicates. 
 
@@ -331,6 +360,7 @@ providers: [
     provide: 'COLLECTION_SERVICE_OPTIONS',
     useValue: {
       allowFetchedDuplicates: environment.production,
+      errReporter: environment.production ? undefined : console.error
     }
   },
 ]
@@ -353,7 +383,10 @@ interface CollectionServiceOptions {
   allowFetchedDuplicates?: boolean;
   
   // in case of duplicate detection, `onError` callback function (if provided) will be called with this value as an argument
-  onDuplicateErrCallbackParam?: any; 
+  onDuplicateErrCallbackParam?: any;
+
+  // print errors. Example: ` errReporter: environment.production ? undefined : console.error `
+  errReporter?: (...args: any[]) => any;
 }
 ```
 
@@ -647,6 +680,9 @@ interface CollectionServiceOptions {
 
   // in case of duplicate detection, `onError` callback function (if provided) will be called with this value as an argument
   onDuplicateErrCallbackParam?: any;
+
+  // print errors. Example: ` errReporter: environment.production ? undefined : console.error `
+  errReporter?: (...args: any[]) => any;
 }
 ```
 

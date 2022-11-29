@@ -96,11 +96,12 @@ export interface RefreshManyParams<T> {
 export type DuplicatesMap<T> = Record<number, Record<number, T>>;
 
 export interface CollectionServiceOptions {
-  comparatorFields?: string[];
+  comparatorFields?: (string | string[])[];
   comparator?: ObjectsComparator | ObjectsComparatorFn;
   throwOnDuplicates?: string;
   allowFetchedDuplicates?: boolean;
   onDuplicateErrCallbackParam?: any;
+  errReporter?: (...args: any[]) => any;
 }
 
 @Injectable()
@@ -144,6 +145,7 @@ export class CollectionService<T, UniqueStatus = any, Status = any> extends Comp
   protected throwOnDuplicates?: string;
   protected allowFetchedDuplicates: boolean = true;
   protected onDuplicateErrCallbackParam = {status: 409};
+  protected errReporter?: (...args: any[]) => any;
 
   protected addToUpdatingItems(item: Partial<T> | Partial<T>[]) {
     this.patchState((s) => {
@@ -290,11 +292,11 @@ export class CollectionService<T, UniqueStatus = any, Status = any> extends Comp
     if (this.throwOnDuplicates) {
       throw new Error(this.throwOnDuplicates);
     }
-    if (console) {
-      console.error('Duplicate can not be added to collection:', item, items);
+    if (this.errReporter) {
+      this.errReporter('Duplicate can not be added to collection:', item, items);
       const duplicates = this.getDuplicates(items);
       if (duplicates) {
-        console.error('Duplicates are found in collection:', duplicates);
+        this.errReporter('Duplicates are found in collection:', duplicates);
       }
     }
   }
@@ -314,7 +316,7 @@ export class CollectionService<T, UniqueStatus = any, Status = any> extends Comp
     });
     this.setOptions(options);
     this.init();
-    Promise.resolve().then(()=> this.postInit());
+    Promise.resolve().then(() => this.postInit());
   }
 
   protected init() {
@@ -884,6 +886,9 @@ export class CollectionService<T, UniqueStatus = any, Status = any> extends Comp
       }
       if (options.onDuplicateErrCallbackParam != null) {
         this.onDuplicateErrCallbackParam = options.onDuplicateErrCallbackParam;
+      }
+      if (options.errReporter != null && typeof options.errReporter === 'function') {
+        this.errReporter = options.errReporter;
       }
     }
   }
