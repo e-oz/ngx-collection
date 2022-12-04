@@ -254,11 +254,20 @@ You can easily configure this using Angular DI:
     },
 ```
 
-or by re-instantiating a Comparator:
+or in constructor:
+
+```ts
+const collection = new CollectionService<Item>({comparatorFields: ['uuId', 'url']});
+```
+
+or using `setOptions()`, or by re-instantiating a Comparator:
 
 ```ts
 export class NotificationsCollectionService extends CollectionService<Notification> {
   override init() {
+    this.setOptions({comparatorFields: ['uuId', 'url']});
+    
+    // another way:
     this.setComparator(new Comparator(['signature']))
   }
 }
@@ -271,7 +280,9 @@ or by providing your own Comparator - it can be a class, implementing `ObjectsCo
 In default comparator, every item in the list of fields can be:  
 1. `string` - if both objects have this field, and values are equal, objects are equal.   
    If both objects have this field, and values are not equal - objects are not equal and __comparison stops__.  
-2. `string[]` - composite field: if both objects have every field enlisted, and every value is equal, objects are equal.  
+2. `string[]` - composite field: if both objects have every field enlisted, and every value is equal, objects are equal.
+
+Every field in the list will be treated as path, if it has a dot in it - this way you can compare nested fields.
 
 ## Duplicates prevention
 

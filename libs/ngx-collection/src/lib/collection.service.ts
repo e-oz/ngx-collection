@@ -301,6 +301,26 @@ export class CollectionService<T, UniqueStatus = any, Status = any> extends Comp
     }
   }
 
+  protected callCb(cb: ((_: any) => any) | undefined, param: any) {
+    if (cb != null) {
+      try {
+        cb(param);
+      } catch (e) {
+        this.callErrReporter(e);
+      }
+    }
+  }
+
+  protected callErrReporter(...args: any) {
+    if (this.errReporter) {
+      try {
+        this.errReporter(...args);
+      } catch (e) {
+        console?.error('errReporter threw an exception', e);
+      }
+    }
+  }
+
   constructor(
     @Inject('COLLECTION_SERVICE_OPTIONS') @Optional() options?: CollectionServiceOptions
   ) {
@@ -330,22 +350,22 @@ export class CollectionService<T, UniqueStatus = any, Status = any> extends Comp
   public create(params: CreateParams<T>) {
     this.patchState({isCreating: true});
     return params.request.pipe(
-      first(),
       finalize(() => this.patchState({isCreating: false})),
+      first(),
       concatLatestFrom(() => this.items$),
       tapResponse(
         ([item, items]) => {
           if (item != null) {
             if (!this.hasItemIn(item, items)) {
               this.patchState({items: [...items, item]});
-              params.onSuccess?.(item);
+              this.callCb(params.onSuccess, item);
             } else {
               this.duplicateNotAdded(item, items);
-              params.onError?.(this.onDuplicateErrCallbackParam);
+              this.callCb(params.onError, this.onDuplicateErrCallbackParam);
             }
           }
         },
-        (error) => params.onError?.(error)
+        (error) => this.callCb(params.onError, error)
       ),
       map(([r]) => r)
     );
@@ -355,25 +375,25 @@ export class CollectionService<T, UniqueStatus = any, Status = any> extends Comp
     this.patchState({isCreating: true});
     const request = Array.isArray(params.request) ? forkJoin(params.request) : params.request;
     return request.pipe(
-      first(),
       finalize(() => this.patchState({isCreating: false})),
+      first(),
       concatLatestFrom(() => this.items$),
       tapResponse(
         ([fetched, items]) => {
           if (fetched != null) {
             const fetchedItems = Array.isArray(fetched) ? fetched : fetched.items;
             if (fetchedItems.length > 0) {
-              const newItems = [...items];
+              const newItems = items.slice();
               const result = this.upsertMany(fetchedItems, newItems);
               if (!Array.isArray(result) && result.duplicate) {
                 this.duplicateNotAdded(result.duplicate, result.preExisting ? fetchedItems : items);
-                params.onError?.(this.onDuplicateErrCallbackParam);
+                this.callCb(params.onError, this.onDuplicateErrCallbackParam);
               } else {
                 this.patchState((s) => ({
                   items: [...items, ...fetchedItems],
                   totalCountFetched: Array.isArray(fetched) ? s.totalCountFetched : fetched.totalCount
                 }));
-                params.onSuccess?.(fetchedItems);
+                this.callCb(params.onSuccess, fetchedItems);
               }
             } else {
               if (!Array.isArray(fetched) && fetched.totalCount !== undefined) {
@@ -382,7 +402,7 @@ export class CollectionService<T, UniqueStatus = any, Status = any> extends Comp
             }
           }
         },
-        (error) => params.onError?.(error)
+        (error) => this.callCb(params.onError, error)
       ),
       map(([r]) => r)
     );
@@ -391,8 +411,8 @@ export class CollectionService<T, UniqueStatus = any, Status = any> extends Comp
   public read(params: ReadParams<T>) {
     this.patchState({isReading: true});
     return params.request.pipe(
-      first(),
       finalize(() => this.patchState({isReading: false})),
+      first(),
       tapResponse(
         (fetched) => {
           const items = fetched == null ? ([] as T[]) : (Array.isArray(fetched) ? fetched : fetched.items);
@@ -404,7 +424,7 @@ export class CollectionService<T, UniqueStatus = any, Status = any> extends Comp
                 if (!params.keepExistingOnError) {
                   this.patchState({items: [], totalCountFetched: undefined});
                 }
-                params.onError?.(this.onDuplicateErrCallbackParam);
+                this.callCb(params.onError, this.onDuplicateErrCallbackParam);
                 return;
               }
             }
@@ -413,13 +433,13 @@ export class CollectionService<T, UniqueStatus = any, Status = any> extends Comp
             items,
             totalCountFetched: Array.isArray(fetched) ? undefined : fetched.totalCount,
           });
-          params.onSuccess?.(items);
+          this.callCb(params.onSuccess, items);
         },
         (error) => {
           if (!params.keepExistingOnError) {
             this.patchState({items: [], totalCountFetched: undefined});
           }
-          params.onError?.(error);
+          this.callCb(params.onError, error);
         }
       )
     );
@@ -428,8 +448,8 @@ export class CollectionService<T, UniqueStatus = any, Status = any> extends Comp
   public update(params: UpdateParams<T>) {
     this.addToUpdatingItems(params.item);
     return params.request.pipe(
-      first(),
       finalize(() => this.removeFromUpdatingItems(params.item)),
+      first(),
       switchMap((newItem) => {
         if (params.refreshRequest) {
           return this.refresh({
@@ -443,13 +463,13 @@ export class CollectionService<T, UniqueStatus = any, Status = any> extends Comp
             first(),
             map((items) => {
               if (newItem != null) {
-                const newItems = [...items];
+                const newItems = items.slice();
                 if (this.upsertOne(newItem, newItems) === 'duplicate') {
                   this.duplicateNotAdded(newItem, items);
-                  params.onError?.(this.onDuplicateErrCallbackParam);
+                  this.callCb(params.onError, this.onDuplicateErrCallbackParam);
                 } else {
                   this.patchState({items: newItems});
-                  params.onSuccess?.(newItem);
+                  this.callCb(params.onSuccess, newItem);
                 }
               }
               return newItem;
@@ -458,7 +478,7 @@ export class CollectionService<T, UniqueStatus = any, Status = any> extends Comp
         }
       }),
       catchError((error) => {
-        params.onError?.(error);
+        this.callCb(params.onError, error);
         return EMPTY;
       })
     );
@@ -467,17 +487,17 @@ export class CollectionService<T, UniqueStatus = any, Status = any> extends Comp
   public delete<R = unknown>(params: DeleteParams<T, R>) {
     this.addToDeletingItems(params.item);
     return params.request.pipe(
-      first(),
       finalize(() => this.removeFromDeletingItems(params.item)),
+      first(),
       concatLatestFrom(() => this.items$),
       tapResponse(
         ([response, items]) => {
           this.patchState({
             items: items.filter(item => !this.comparator.equal(item, params.item))
           });
-          params.onSuccess?.(response);
+          this.callCb(params.onSuccess, response);
         },
-        (error) => params.onError?.(error)
+        (error) => this.callCb(params.onError, error)
       ),
       map(([r]) => r)
     );
@@ -486,23 +506,23 @@ export class CollectionService<T, UniqueStatus = any, Status = any> extends Comp
   public refresh(params: RefreshParams<T>) {
     this.addToRefreshingItems(params.item);
     return params.request.pipe(
-      first(),
       finalize(() => this.removeFromRefreshingItems(params.item)),
+      first(),
       concatLatestFrom(() => this.items$),
       tapResponse(
         ([newItem, items]) => {
           if (newItem != null) {
-            const newItems = [...items];
+            const newItems = items.slice();
             if (this.upsertOne(newItem, newItems) === 'duplicate') {
               this.duplicateNotAdded(newItem, items);
-              params.onError?.(this.onDuplicateErrCallbackParam);
+              this.callCb(params.onError, this.onDuplicateErrCallbackParam);
             } else {
               this.patchState({items: newItems});
-              params.onSuccess?.(newItem);
+              this.callCb(params.onSuccess, newItem);
             }
           }
         },
-        (error) => params.onError?.(error)
+        (error) => this.callCb(params.onError, error)
       ),
       map(([r]) => r)
     );
@@ -512,25 +532,25 @@ export class CollectionService<T, UniqueStatus = any, Status = any> extends Comp
     this.addToRefreshingItems(params.items);
     const request = Array.isArray(params.request) ? forkJoin(params.request) : params.request;
     return request.pipe(
-      first(),
       finalize(() => this.removeFromRefreshingItems(params.items)),
+      first(),
       concatLatestFrom(() => this.items$),
       tapResponse(
         ([fetched, items]) => {
           if (fetched != null) {
             const fetchedItems = Array.isArray(fetched) ? fetched : fetched.items;
             if (fetchedItems.length > 0) {
-              const newItems = [...items];
+              const newItems = items.slice();
               const result = this.upsertMany(fetchedItems, newItems);
               if (!Array.isArray(result) && result.duplicate) {
                 this.duplicateNotAdded(result.duplicate, result.preExisting ? fetchedItems : items);
-                params.onError?.(this.onDuplicateErrCallbackParam);
+                this.callCb(params.onError, this.onDuplicateErrCallbackParam);
               } else {
                 this.patchState((s) => ({
                   items: newItems,
                   totalCountFetched: Array.isArray(fetched) ? s.totalCountFetched : fetched.totalCount,
                 }));
-                params.onSuccess?.(newItems);
+                this.callCb(params.onSuccess, newItems);
               }
             } else {
               if (!Array.isArray(fetched) && fetched.totalCount !== undefined) {
@@ -539,7 +559,7 @@ export class CollectionService<T, UniqueStatus = any, Status = any> extends Comp
             }
           }
         },
-        (error) => params.onError?.(error)
+        (error) => this.callCb(params.onError, error)
       ),
       map(([r]) => r)
     );
@@ -548,23 +568,23 @@ export class CollectionService<T, UniqueStatus = any, Status = any> extends Comp
   public readOne(params: ReadOneParams<T>) {
     this.patchState({isReading: true});
     return params.request.pipe(
-      first(),
       finalize(() => this.patchState({isReading: false})),
+      first(),
       concatLatestFrom(() => this.items$),
       tapResponse(
         ([newItem, items]) => {
           if (newItem != null) {
-            const newItems = [...items];
+            const newItems = items.slice();
             if (this.upsertOne(newItem, newItems) === 'duplicate') {
               this.duplicateNotAdded(newItem, items);
-              params.onError?.(this.onDuplicateErrCallbackParam);
+              this.callCb(params.onError, this.onDuplicateErrCallbackParam);
             } else {
               this.patchState({items: newItems});
-              params.onSuccess?.(newItem);
+              this.callCb(params.onSuccess, newItem);
             }
           }
         },
-        (error) => params.onError?.(error)
+        (error) => this.callCb(params.onError, error)
       ),
       map(([r]) => r)
     );
@@ -574,24 +594,24 @@ export class CollectionService<T, UniqueStatus = any, Status = any> extends Comp
     this.patchState({isReading: true});
     const request = Array.isArray(params.request) ? forkJoin(params.request) : params.request;
     return request.pipe(
-      first(),
       finalize(() => this.patchState({isReading: false})),
+      first(),
       concatLatestFrom(() => this.state$),
       tapResponse(
         ([fetched, {items, totalCountFetched}]) => {
           const readItems = fetched == null ? ([] as T[]) : (Array.isArray(fetched) ? fetched : fetched.items);
           if (readItems.length > 0) {
-            const newItems = [...items];
+            const newItems = items.slice();
             const result = this.upsertMany(readItems, newItems);
             if (!Array.isArray(result) && result.duplicate) {
               this.duplicateNotAdded(result.duplicate, result.preExisting ? readItems : items);
-              params.onError?.(this.onDuplicateErrCallbackParam);
+              this.callCb(params.onError, this.onDuplicateErrCallbackParam);
             } else {
               this.patchState({
                 items: newItems,
                 totalCountFetched: Array.isArray(fetched) ? totalCountFetched : fetched.totalCount,
               });
-              params.onSuccess?.(newItems);
+              this.callCb(params.onSuccess, newItems);
             }
           } else {
             if (!Array.isArray(fetched) && fetched.totalCount !== undefined) {
@@ -599,7 +619,7 @@ export class CollectionService<T, UniqueStatus = any, Status = any> extends Comp
             }
           }
         },
-        (error) => params.onError?.(error)
+        (error) => this.callCb(params.onError, error)
       ),
       map(([r]) => r)
     );
@@ -609,8 +629,8 @@ export class CollectionService<T, UniqueStatus = any, Status = any> extends Comp
     this.addToUpdatingItems(params.items);
     const request = Array.isArray(params.request) ? forkJoin(params.request) : params.request;
     return request.pipe(
-      first(),
       finalize(() => this.removeFromUpdatingItems(params.items)),
+      first(),
       switchMap((updatedItems) => {
         if (params.refreshRequest) {
           return this.refreshMany({
@@ -624,14 +644,14 @@ export class CollectionService<T, UniqueStatus = any, Status = any> extends Comp
             first(),
             map((items) => {
               if (updatedItems != null) {
-                const newItems = [...items];
+                const newItems = items.slice();
                 const result = this.upsertMany(updatedItems, newItems);
                 if (!Array.isArray(result) && result.duplicate) {
                   this.duplicateNotAdded(result.duplicate, result.preExisting ? updatedItems : items);
-                  params.onError?.(this.onDuplicateErrCallbackParam);
+                  this.callCb(params.onError, this.onDuplicateErrCallbackParam);
                 } else {
                   this.patchState({items: newItems});
-                  params.onSuccess?.(updatedItems);
+                  this.callCb(params.onSuccess, updatedItems);
                 }
               }
               return updatedItems;
@@ -640,7 +660,7 @@ export class CollectionService<T, UniqueStatus = any, Status = any> extends Comp
         }
       }),
       catchError((error) => {
-        params.onError?.(error);
+        this.callCb(params.onError, error);
         return EMPTY;
       })
     );
@@ -649,17 +669,17 @@ export class CollectionService<T, UniqueStatus = any, Status = any> extends Comp
   public deleteMany<R = unknown>(params: DeleteManyParams<T, R>) {
     this.addToDeletingItems(params.items);
     return forkJoin(Array.isArray(params.request) ? params.request : [params.request]).pipe(
-      first(),
       finalize(() => this.removeFromDeletingItems(params.items)),
+      first(),
       concatLatestFrom(() => this.items$),
       tapResponse(
         ([response, items]) => {
           this.patchState({
             items: items.filter(item => !this.has(item, params.items))
           });
-          params.onSuccess?.(response);
+          this.callCb(params.onSuccess, response);
         },
-        (error) => params.onError?.(error)
+        (error) => this.callCb(params.onError, error)
       ),
       map(([r]) => r)
     );
@@ -829,24 +849,25 @@ export class CollectionService<T, UniqueStatus = any, Status = any> extends Comp
       return null;
     }
     const duplicates: DuplicatesMap<T> = {};
-    const indexes = new Set<number>();
-    items.forEach((i, ii) => {
-      if (!indexes.has(ii)) {
-        const iDupes: Record<number, T> = {};
-        items.forEach((j, ij) => {
-          if (ij !== ii && !indexes.has(ij) && this.comparator.equal(i, j)) {
-            iDupes[ij] = j;
-            indexes.add(ii);
-            indexes.add(ij);
-          }
-        });
-        if (Object.keys(iDupes).length) {
-          iDupes[ii] = i;
-          duplicates[ii] = iDupes;
+    let hasDupes = false;
+    for (let ii = 0; ii < items.length; ii++) {
+      const iDupes: Record<number, T> = {};
+      let itemHasDupes = false;
+      const i = items[ii];
+      for (let ij = ii + 1; ij < items.length; ij++) {
+        const j = items[ij];
+        if (this.comparator.equal(i, j)) {
+          iDupes[ij] = j;
+          itemHasDupes = true;
         }
       }
-    });
-    return Object.keys(duplicates).length ? duplicates : null;
+      if (itemHasDupes) {
+        hasDupes = true;
+        iDupes[ii] = i;
+        duplicates[ii] = iDupes;
+      }
+    }
+    return hasDupes ? duplicates : null;
   }
 
   public setThrowOnDuplicates(message: string | undefined) {
@@ -862,11 +883,18 @@ export class CollectionService<T, UniqueStatus = any, Status = any> extends Comp
   }
 
   public getTrackByFieldFn(field: string) {
-    return (i: number, item: any) => (!!item
-      && typeof item === 'object'
-      && item.hasOwnProperty(field)
-      && !isEmptyValue(item[field])
-    ) ? item[field] : i;
+    return (i: number, item: any) => {
+      try {
+        return (!!item
+          && typeof item === 'object'
+          && Object.hasOwn(item, field)
+          && !isEmptyValue(item[field])
+        ) ? item[field] : i;
+      } catch (e) {
+        this.errReporter?.(e);
+        return i;
+      }
+    };
   }
 
   public setOptions(options?: CollectionServiceOptions) {

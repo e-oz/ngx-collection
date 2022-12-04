@@ -1,3 +1,9 @@
+### 1.2.9
+
+* Comparator now accepts dot-separated paths;
+* onSuccess/onError callbacks are wrapped with `try...catch` now (will try to use `errReporter` in case of exception);
+* errReporter is wrapped with `try...catch` now (in case of exception raised by `errReporter`, will try to use `console.error`, if exist).
+
 ### 1.2.8
 * User `errReporter` to report errors, and don't use `console` by default.
 * `Comparator` class (and `comparatorFields` parameter) now understand composite fields.

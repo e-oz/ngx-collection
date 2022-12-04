@@ -6,7 +6,7 @@ export function isEmptyValue(variable: unknown): boolean {
     return false;
   }
   if (typeof variable === 'object') {
-    if (variable instanceof Array) {
+    if (Array.isArray(variable)) {
       return variable.length === 0 || (variable.length === 1 && isEmptyObject(variable[0]));
     }
     return false;
@@ -15,12 +15,12 @@ export function isEmptyValue(variable: unknown): boolean {
 }
 
 export function isEmptyObject(variable: unknown): boolean {
-  if (isEmptyValue(variable)) {
+  if (variable == null || isEmptyValue(variable)) {
     return true;
   }
   if (typeof variable === 'object') {
     try {
-      const props = Object.getOwnPropertyNames(variable);
+      const props = Object.keys(variable);
       if (!props || !props.length) {
         return true;
       }
@@ -30,3 +30,33 @@ export function isEmptyObject(variable: unknown): boolean {
   }
   return false;
 }
+
+export function getObjectPathValue<T = any>(object: Record<string, any>, path: string, recLevel?: number): T | undefined {
+  if (object == null) {
+    return undefined;
+  }
+  if (!path.includes('.')) {
+    return object[path];
+  }
+  try {
+    const paths = path.split('.');
+    const key = paths.shift();
+    if (!key) {
+      return undefined;
+    }
+    if (paths.length > 0) {
+      const rec = recLevel || 0;
+      if (rec > 100) {
+        console.error('getObjectPathValue endless recursion');
+        return undefined;
+      }
+      return getObjectPathValue(object[key], paths.join('.'), rec + 1);
+    } else {
+      return object[key];
+    }
+  } catch (e) {
+    console.error(e);
+    return undefined;
+  }
+}
+

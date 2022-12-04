@@ -1,4 +1,4 @@
-import { isEmptyObject, isEmptyValue } from './helpers';
+import { getObjectPathValue, isEmptyObject, isEmptyValue } from './helpers';
 
 export type ObjectsComparatorFn<T = any> = (obj1: T, obj2: T) => boolean;
 
@@ -20,7 +20,9 @@ export class Comparator implements ObjectsComparator {
     if (fields.length) {
       for (const field of fields) {
         if (typeof field === 'string') {
-          if (obj1.hasOwnProperty(field) && obj2.hasOwnProperty(field)) {
+          const value1 = getObjectPathValue(obj1, field);
+          const value2 = getObjectPathValue(obj2, field);
+          if (value1 !== undefined && value2 !== undefined) {
             if (fieldValuesAreNotEmptyAndEqual(obj1, obj2, field)) {
               return true;
             } else {
@@ -29,11 +31,7 @@ export class Comparator implements ObjectsComparator {
             }
           }
         } else {
-          if (!field.find(key =>
-            !obj1.hasOwnProperty(key)
-            || !obj2.hasOwnProperty(key)
-            || !fieldValuesAreNotEmptyAndEqual(obj1, obj2, key))
-          ) {
+          if (!field.find(key => !fieldValuesAreNotEmptyAndEqual(obj1, obj2, key))) {
             return true;
           }
         }
@@ -44,10 +42,19 @@ export class Comparator implements ObjectsComparator {
 }
 
 function fieldValuesAreNotEmptyAndEqual(obj1: unknown, obj2: unknown, field: string): boolean {
-  return (!isEmptyValue((obj1 as any)[field])
-    && !isEmptyValue((obj2 as any)[field])
-    && !isEmptyObject((obj1 as any)[field])
-    && !isEmptyObject((obj2 as any)[field])
-    && (obj1 as any)[field] === (obj2 as any)[field]
+  const value1 = getObjectPathValue(obj1 as any, field);
+  if (value1 === undefined) {
+    return false;
+  }
+  const value2 = getObjectPathValue(obj2 as any, field);
+  if (value2 === undefined) {
+    return false;
+  }
+
+  return (!isEmptyValue(value1)
+    && !isEmptyValue(value2)
+    && !isEmptyObject(value1)
+    && !isEmptyObject(value2)
+    && value1 === value2
   );
 }
