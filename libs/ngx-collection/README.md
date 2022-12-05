@@ -6,7 +6,7 @@ Collection State Management Service
 
 Using this service, you can easily and safely mutate collections of items and monitor their state (and state of their mutations).
 
-All the actions are immutable - items and collections will not be modified: new items and new collections will be created on every mutation.
+All the actions are asynchronous and immutable - items and collections will not be modified: new items and new collections will be created on every mutation.
 
 For monitoring the state, you can use one of the predefined selectors, or view model.
 
@@ -16,10 +16,28 @@ Service is built on top of [NgRx ComponentStore](https://ngrx.io/guide/component
 
 # Example App
 
+You can read an [introductory article](https://medium.com/@eugeniyoz/collection-service-for-angular-d0b64bae9c20) with an example of building this application.     
+
 ## 🖼️ [StackBlitz](https://stackblitz.com/edit/ngx-collection-example?file=src%2Fapp%2Fcollections%2Fpaintings.collection.ts)  
 
 Here you can see how little code you need to gently manipulate your collection of art! 
 
+# Benefits
+✅  Every mutation is asynchronous:  
+* works in reactive apps with the OnPush strategy;  
+* works in components with the Default change detection strategy;  
+* can be used with just ‘async’ pipe and subscribe() or with some store.
+
+✅  Service is not opinionated:  
+* it will not dictate how you should communicate with your APIs or other data sources;    
+* You decide how to run and cancel your requests: every mutation method returns an observable, so you can decide how to orchestrate them: switchMap, mergeMap, concatMap, forkJoin, or something else;  
+* Data Sources can be synchronous (just use “rxjs/of”).  
+
+✅  Safety guarantees:
+* 100% immutable;  
+* Duplicates prevention;  
+* Errors and exceptions will be handled correctly;   
+* Strictly typed — advanced type-checking and code completion.
 
 # Installation
 
