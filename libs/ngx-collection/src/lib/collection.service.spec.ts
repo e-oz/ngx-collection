@@ -761,4 +761,222 @@ describe('Collection Service', () => {
       }
     );
   });
+
+  it('should emit onCreate', () => {
+    const {coll} = setup();
+    let lastEmitted: any = undefined;
+    coll.listenForCreate().subscribe(v => lastEmitted = v);
+
+    jest.runOnlyPendingTimers();
+    expect(lastEmitted).toBeFalsy();
+
+    coll.create({
+      request: emit({id: 1, name: 'A'})
+    }).subscribe();
+
+    expect(lastEmitted).toBeFalsy();
+    jest.runAllTimers();
+    expect(lastEmitted).toStrictEqual([{id: 1, name: 'A'}]);
+  });
+
+  it('should emit onCreate for createMany', () => {
+    const {coll} = setup();
+    let lastEmitted: any = undefined;
+    coll.listenForCreate().subscribe(v => lastEmitted = v);
+
+    jest.runOnlyPendingTimers();
+    expect(lastEmitted).toBeFalsy();
+
+    coll.createMany({
+      request: emit([{id: 1, name: 'A'}, {id: 2, name: 'B'}])
+    }).subscribe();
+
+    expect(lastEmitted).toBeFalsy();
+    jest.runAllTimers();
+    expect(lastEmitted).toStrictEqual([{id: 1, name: 'A'}, {id: 2, name: 'B'}]);
+  });
+
+  it('should not emit onCreate without subscribers', () => {
+    const {coll} = setup();
+    let lastEmitted: any = undefined;
+    const s = coll.listenForCreate().subscribe(v => lastEmitted = v);
+
+    jest.runOnlyPendingTimers();
+    expect(lastEmitted).toBeFalsy();
+    s.unsubscribe();
+
+    coll.create({
+      request: emit({id: 1, name: 'A'})
+    }).subscribe();
+
+    expect(lastEmitted).toBeFalsy();
+    jest.runAllTimers();
+    expect(lastEmitted).toStrictEqual(undefined);
+  });
+
+  it('should emit onRead', () => {
+    const {coll} = setup();
+    let lastEmitted: any = undefined;
+    coll.listenForRead().subscribe(v => lastEmitted = v);
+
+    jest.runOnlyPendingTimers();
+    expect(lastEmitted).toBeFalsy();
+
+    coll.read({
+      request: emit([{id: 1, name: 'A'}])
+    }).subscribe();
+
+    expect(lastEmitted).toBeFalsy();
+    jest.runAllTimers();
+    expect(lastEmitted).toStrictEqual([{id: 1, name: 'A'}]);
+  });
+
+  it('should emit onRead for readMany', () => {
+    const {coll} = setup();
+    let lastEmitted: any = undefined;
+    coll.listenForRead().subscribe(v => lastEmitted = v);
+
+    jest.runOnlyPendingTimers();
+    expect(lastEmitted).toBeFalsy();
+
+    coll.readMany({
+      request: emit([{id: 1, name: 'A'}, {id: 2, name: 'B'}])
+    }).subscribe();
+
+    expect(lastEmitted).toBeFalsy();
+    jest.runAllTimers();
+    expect(lastEmitted).toStrictEqual([{id: 1, name: 'A'}, {id: 2, name: 'B'}]);
+  });
+
+  it('should emit onRead for refresh', () => {
+    const {coll} = setup();
+    let lastEmitted: any = undefined;
+    coll.listenForRead().subscribe(v => lastEmitted = v);
+
+    coll.read({
+      request: emit([{id: 1, name: 'A'}])
+    }).subscribe();
+
+    jest.runOnlyPendingTimers();
+    expect(lastEmitted).toStrictEqual([{id: 1, name: 'A'}]);
+
+    coll.refresh({
+      request: emit({id: 1, name: 'B'}),
+      item: {id: 1},
+    }).subscribe();
+
+    expect(lastEmitted).toStrictEqual([{id: 1, name: 'A'}]);
+    jest.runAllTimers();
+    expect(lastEmitted).toStrictEqual([{id: 1, name: 'B'}]);
+  });
+
+  it('should emit onRead for refreshMany', () => {
+    const {coll} = setup();
+    let lastEmitted: any = undefined;
+    coll.listenForRead().subscribe(v => lastEmitted = v);
+
+    coll.read({
+      request: emit([{id: 1, name: 'A'}, {id: 2, name: 'B'}])
+    }).subscribe();
+
+    jest.runOnlyPendingTimers();
+    expect(lastEmitted).toStrictEqual([{id: 1, name: 'A'}, {id: 2, name: 'B'}]);
+
+    coll.refreshMany({
+      request: emit([{id: 1, name: 'C'}, {id: 2, name: 'D'}]),
+      items: [{id: 1}, {id: 2}],
+    }).subscribe();
+
+    expect(lastEmitted).toStrictEqual([{id: 1, name: 'A'}, {id: 2, name: 'B'}]);
+    jest.runAllTimers();
+    expect(lastEmitted).toStrictEqual([{id: 1, name: 'C'}, {id: 2, name: 'D'}]);
+  });
+
+  it('should emit onUpdate', () => {
+    const {coll} = setup();
+    let lastEmitted: any = undefined;
+    coll.listenForUpdate().subscribe(v => lastEmitted = v);
+
+    coll.read({
+      request: emit([{id: 1, name: 'A'}])
+    }).subscribe();
+
+    jest.runOnlyPendingTimers();
+    expect(lastEmitted).toBeFalsy();
+
+    coll.update({
+      request: emit({id: 1, name: 'B'}),
+      item: {id: 1},
+    }).subscribe();
+
+    expect(lastEmitted).toBeFalsy();
+    jest.runAllTimers();
+    expect(lastEmitted).toStrictEqual([{id: 1, name: 'B'}]);
+  });
+
+  it('should emit onUpdate for updateMany', () => {
+    const {coll} = setup();
+    let lastEmitted: any = undefined;
+    coll.listenForUpdate().subscribe(v => lastEmitted = v);
+
+    coll.read({
+      request: emit([{id: 1, name: 'A'}])
+    }).subscribe();
+
+    jest.runOnlyPendingTimers();
+    expect(lastEmitted).toBeFalsy();
+
+    coll.updateMany({
+      request: emit([{id: 1, name: 'B'}, {id: 2, name: 'A'}]),
+      items: [{id: 1}, {id: 2}],
+    }).subscribe();
+
+    expect(lastEmitted).toBeFalsy();
+    jest.runAllTimers();
+    expect(lastEmitted).toStrictEqual([{id: 1, name: 'B'}, {id: 2, name: 'A'}]);
+  });
+
+  it('should emit onDelete', () => {
+    const {coll} = setup();
+    let lastEmitted: any = undefined;
+    coll.listenForDelete().subscribe(v => lastEmitted = v);
+
+    coll.read({
+      request: emit([{id: 1, name: 'A'}])
+    }).subscribe();
+
+    jest.runOnlyPendingTimers();
+    expect(lastEmitted).toBeFalsy();
+
+    coll.delete({
+      request: emit(null),
+      item: {id: 1}
+    }).subscribe();
+
+    expect(lastEmitted).toBeFalsy();
+    jest.runAllTimers();
+    expect(lastEmitted).toStrictEqual([{id: 1}]);
+  });
+
+  it('should emit onDelete for deleteMany', () => {
+    const {coll} = setup();
+    let lastEmitted: any = undefined;
+    coll.listenForDelete().subscribe(v => lastEmitted = v);
+
+    coll.read({
+      request: emit([{id: 1, name: 'A'}, {id: 2, name: 'B'}])
+    }).subscribe();
+
+    jest.runOnlyPendingTimers();
+    expect(lastEmitted).toBeFalsy();
+
+    coll.deleteMany({
+      request: emit(null),
+      items: [{id: 1}, {id: 2}]
+    }).subscribe();
+
+    expect(lastEmitted).toBeFalsy();
+    jest.runAllTimers();
+    expect(lastEmitted).toStrictEqual([{id: 1}, {id: 2}]);
+  });
 });

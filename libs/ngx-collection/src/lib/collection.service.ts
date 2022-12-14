@@ -1,4 +1,4 @@
-import { Observable, finalize, map, first, catchError, EMPTY, switchMap, startWith, isObservable, forkJoin } from 'rxjs';
+import { Observable, finalize, map, first, catchError, EMPTY, switchMap, startWith, isObservable, forkJoin, Subject } from 'rxjs';
 import { Injectable, Inject, Optional } from '@angular/core';
 import { ComponentStore, tapResponse } from '@ngrx/component-store';
 import { concatLatestFrom } from '@ngrx/effects';
@@ -140,6 +140,11 @@ export class CollectionService<T, UniqueStatus = any, Status = any> extends Comp
   );
   public readonly statuses$ = this.select(s => s.statuses);
   public readonly status$ = this.select(s => s.status);
+
+  protected readonly onCreate = new Subject<T[]>();
+  protected readonly onRead = new Subject<T[]>();
+  protected readonly onUpdate = new Subject<T[]>();
+  protected readonly onDelete = new Subject<Partial<T>[]>();
 
   protected comparator: ObjectsComparator = new Comparator();
   protected throwOnDuplicates?: string;
@@ -359,6 +364,9 @@ export class CollectionService<T, UniqueStatus = any, Status = any> extends Comp
             if (!this.hasItemIn(item, items)) {
               this.patchState({items: [...items, item]});
               this.callCb(params.onSuccess, item);
+              if (this.onCreate.observed) {
+                this.onCreate.next([item]);
+              }
             } else {
               this.duplicateNotAdded(item, items);
               this.callCb(params.onError, this.onDuplicateErrCallbackParam);
@@ -394,6 +402,9 @@ export class CollectionService<T, UniqueStatus = any, Status = any> extends Comp
                   totalCountFetched: Array.isArray(fetched) ? s.totalCountFetched : fetched.totalCount
                 }));
                 this.callCb(params.onSuccess, fetchedItems);
+                if (this.onCreate.observed) {
+                  this.onCreate.next(fetchedItems);
+                }
               }
             } else {
               if (!Array.isArray(fetched) && fetched.totalCount !== undefined) {
@@ -434,6 +445,9 @@ export class CollectionService<T, UniqueStatus = any, Status = any> extends Comp
             totalCountFetched: Array.isArray(fetched) ? undefined : fetched.totalCount,
           });
           this.callCb(params.onSuccess, items);
+          if (this.onRead.observed) {
+            this.onRead.next(items);
+          }
         },
         (error) => {
           if (!params.keepExistingOnError) {
@@ -470,6 +484,9 @@ export class CollectionService<T, UniqueStatus = any, Status = any> extends Comp
                 } else {
                   this.patchState({items: newItems});
                   this.callCb(params.onSuccess, newItem);
+                  if (this.onUpdate.observed) {
+                    this.onUpdate.next([newItem]);
+                  }
                 }
               }
               return newItem;
@@ -496,6 +513,9 @@ export class CollectionService<T, UniqueStatus = any, Status = any> extends Comp
             items: items.filter(item => !this.comparator.equal(item, params.item))
           });
           this.callCb(params.onSuccess, response);
+          if (this.onDelete.observed) {
+            this.onDelete.next([params.item]);
+          }
         },
         (error) => this.callCb(params.onError, error)
       ),
@@ -519,6 +539,9 @@ export class CollectionService<T, UniqueStatus = any, Status = any> extends Comp
             } else {
               this.patchState({items: newItems});
               this.callCb(params.onSuccess, newItem);
+              if (this.onRead.observed) {
+                this.onRead.next([newItem]);
+              }
             }
           }
         },
@@ -551,6 +574,9 @@ export class CollectionService<T, UniqueStatus = any, Status = any> extends Comp
                   totalCountFetched: Array.isArray(fetched) ? s.totalCountFetched : fetched.totalCount,
                 }));
                 this.callCb(params.onSuccess, newItems);
+                if (this.onRead.observed) {
+                  this.onRead.next(fetchedItems);
+                }
               }
             } else {
               if (!Array.isArray(fetched) && fetched.totalCount !== undefined) {
@@ -581,6 +607,9 @@ export class CollectionService<T, UniqueStatus = any, Status = any> extends Comp
             } else {
               this.patchState({items: newItems});
               this.callCb(params.onSuccess, newItem);
+              if (this.onRead.observed) {
+                this.onRead.next([newItem]);
+              }
             }
           }
         },
@@ -612,6 +641,9 @@ export class CollectionService<T, UniqueStatus = any, Status = any> extends Comp
                 totalCountFetched: Array.isArray(fetched) ? totalCountFetched : fetched.totalCount,
               });
               this.callCb(params.onSuccess, newItems);
+              if (this.onRead.observed) {
+                this.onRead.next(readItems);
+              }
             }
           } else {
             if (!Array.isArray(fetched) && fetched.totalCount !== undefined) {
@@ -652,6 +684,9 @@ export class CollectionService<T, UniqueStatus = any, Status = any> extends Comp
                 } else {
                   this.patchState({items: newItems});
                   this.callCb(params.onSuccess, updatedItems);
+                  if (this.onUpdate.observed) {
+                    this.onUpdate.next(updatedItems);
+                  }
                 }
               }
               return updatedItems;
@@ -678,6 +713,9 @@ export class CollectionService<T, UniqueStatus = any, Status = any> extends Comp
             items: items.filter(item => !this.has(item, params.items))
           });
           this.callCb(params.onSuccess, response);
+          if (this.onDelete.observed) {
+            this.onDelete.next(params.items);
+          }
         },
         (error) => this.callCb(params.onError, error)
       ),
@@ -919,5 +957,21 @@ export class CollectionService<T, UniqueStatus = any, Status = any> extends Comp
         this.errReporter = options.errReporter;
       }
     }
+  }
+
+  public listenForCreate() {
+    return this.onCreate.asObservable();
+  }
+
+  public listenForRead() {
+    return this.onRead.asObservable();
+  }
+
+  public listenForUpdate() {
+    return this.onUpdate.asObservable();
+  }
+
+  public listenForDelete() {
+    return this.onDelete.asObservable();
   }
 }

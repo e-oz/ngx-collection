@@ -1,3 +1,11 @@
+### 1.3.0
+You can now get an observable to be notified about the mutations:
+* `listenForCreate()`
+* `listenForRead()`
+* `listenForUpdate()`
+* `listenForDelete()`
+Events will be only emitted if there are active observers.
+
 ### 1.2.9
 
 * Comparator now accepts dot-separated paths;

@@ -716,6 +716,32 @@ interface CollectionServiceOptions {
 }
 ```
 
+---
+
+### listenForCreate()
+Get an observable to be notified when new items are created.
+#### Returns
+Observable<T[]> - items that were returned by the `request` observable
+
+---
+
+### listenForRead()
+Get an observable to be notified when items are read (will also emit on `refresh` reads).
+#### Returns
+Observable<T[]> - items that were returned by the `request` observable
+
+---
+
+### listenForUpdate()
+Get an observable to be notified when some items are updated.
+#### Returns
+Observable<T[]> - items that were returned by the `request` observable
+
+---
+### listenForDelete()
+Get an observable to be notified when some items are deleted.
+#### Returns
+Observable<Partial<T>[]> - items that were provided in params
 
 ## Helpers
 
