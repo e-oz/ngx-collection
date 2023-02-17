@@ -1,5 +1,5 @@
 import { CollectionService } from './collection.service';
-import { of, Observable, timer, map } from 'rxjs';
+import { map, Observable, of, timer } from 'rxjs';
 
 beforeEach(() => {
   jest.useFakeTimers();
@@ -487,13 +487,46 @@ describe('Collection Service', () => {
 
     const item1 = {id: 1, name: 'A'};
     const item2 = {id: 0, name: 'B'};
+    const item3 = {id: 3, name: 'B3'};
+    const item4 = {id: 4, name: 'B4'};
+    const item5 = {id: 5, name: 'B5'};
+    const item6 = {id: 6, name: 'B6'};
+    const item7 = {id: 7, name: 'B7'};
+
     const ivm = coll.getItemViewModel(of(item2));
 
-    coll.read({request: of([item1, item2])}).subscribe();
+    coll.read({
+      request: of({
+        items: [
+          item1,
+          item2,
+          item3,
+          item4,
+          item5,
+          item6,
+          item7,
+        ],
+        totalCount: 7
+      }),
+    }).subscribe();
 
-    expect(readState(coll.items$)).toStrictEqual([item1, item2]);
+    expect(readState(coll.items$)).toStrictEqual([
+      item1,
+      item2,
+      item3,
+      item4,
+      item5,
+      item6,
+      item7,
+    ]);
     expect(readState(coll.deletingItems$)).toStrictEqual([]);
-    expect(readState(vm)).toMatchObject<ViewModel>({isDeleting: false, isMutating: false, isProcessing: false, isSaving: false});
+    expect(readState(vm)).toMatchObject<ViewModel>({
+      isDeleting: false,
+      isMutating: false,
+      isProcessing: false,
+      isSaving: false,
+      totalCountFetched: 7,
+    });
     expect(readState(ivm)).toMatchObject<ItemViewModel>({isProcessing: false, isMutating: false, isDeleting: false, isRefreshing: false, isUpdating: false});
 
     coll.delete({
@@ -501,17 +534,68 @@ describe('Collection Service', () => {
       item: item2,
     }).subscribe();
 
-    expect(readState(coll.items$)).toStrictEqual([item1, item2]);
+    expect(readState(coll.items$)).toStrictEqual([
+      item1,
+      item2,
+      item3,
+      item4,
+      item5,
+      item6,
+      item7,
+    ]);
     expect(readState(coll.deletingItems$)).toStrictEqual([item2]);
-    expect(readState(vm)).toMatchObject<ViewModel>({isDeleting: true, isMutating: true, isProcessing: true, isSaving: false});
+    expect(readState(vm)).toMatchObject<ViewModel>({
+      isDeleting: true,
+      isMutating: true,
+      isProcessing: true,
+      isSaving: false,
+      totalCountFetched: 7,
+    });
     expect(readState(ivm)).toMatchObject<ItemViewModel>({isProcessing: true, isMutating: true, isDeleting: true, isRefreshing: false, isUpdating: false});
 
     jest.runOnlyPendingTimers();
 
-    expect(readState(coll.items$)).toStrictEqual([item1]);
+    expect(readState(coll.items$)).toStrictEqual([
+      item1,
+      item3,
+      item4,
+      item5,
+      item6,
+      item7,
+    ]);
     expect(readState(coll.deletingItems$)).toStrictEqual([]);
-    expect(readState(vm)).toMatchObject<ViewModel>({isDeleting: false, isMutating: false, isProcessing: false, isSaving: false});
+    expect(readState(vm)).toMatchObject<ViewModel>({
+      isDeleting: false,
+      isMutating: false,
+      isProcessing: false,
+      isSaving: false,
+      totalCountFetched: 7,
+    });
     expect(readState(ivm)).toMatchObject<ItemViewModel>({isProcessing: false, isMutating: false, isDeleting: false, isRefreshing: false, isUpdating: false});
+
+    coll.delete({
+      request: of(null),
+      item: item3,
+      decrementTotalCount: 3,
+    }).subscribe();
+    jest.runOnlyPendingTimers();
+    expect(readState(vm)).toMatchObject<ViewModel>({totalCountFetched: 4});
+
+    coll.delete({
+      request: of(null),
+      item: item4,
+      decrementTotalCount: true,
+    }).subscribe();
+    jest.runOnlyPendingTimers();
+    expect(readState(vm)).toMatchObject<ViewModel>({totalCountFetched: 3});
+
+    coll.delete({
+      request: of({totalItems: 1}),
+      item: item5,
+      decrementTotalCount: 'totalItems',
+    }).subscribe();
+    jest.runOnlyPendingTimers();
+    expect(readState(vm)).toMatchObject<ViewModel>({totalCountFetched: 1});
   });
 
   it('delete many', () => {
@@ -521,15 +605,31 @@ describe('Collection Service', () => {
     const item2 = {id: 0, name: 'B'};
     const item3 = {id: 1, name: 'C'};
     const item4 = {id: 2, name: 'D'};
+    const item5 = {id: 5, name: 'B5'};
+    const item6 = {id: 6, name: 'B6'};
+    const item7 = {id: 7, name: 'B7'};
+    const item8 = {id: 8, name: 'B8'};
+    const item9 = {id: 9, name: 'B9'};
 
     const ivm2 = coll.getItemViewModel(of(item2));
     const ivm3 = coll.getItemViewModel(of(item3));
 
-    coll.read({request: of([item1, item2, item3, item4])}).subscribe();
+    coll.read({
+      request: of({
+        items: [item1, item2, item3, item4, item5, item6, item7, item8, item9],
+        totalCount: 200
+      })
+    }).subscribe();
 
-    expect(readState(coll.items$)).toStrictEqual([item1, item2, item3, item4]);
+    expect(readState(coll.items$)).toStrictEqual([item1, item2, item3, item4, item5, item6, item7, item8, item9]);
     expect(readState(coll.deletingItems$)).toStrictEqual([]);
-    expect(readState(vm)).toMatchObject<ViewModel>({isDeleting: false, isMutating: false, isProcessing: false, isSaving: false});
+    expect(readState(vm)).toMatchObject<ViewModel>({
+      isDeleting: false,
+      isMutating: false,
+      isProcessing: false,
+      isSaving: false,
+      totalCountFetched: 200,
+    });
     expect(readState(ivm2)).toMatchObject<ItemViewModel>({isProcessing: false, isMutating: false, isDeleting: false, isRefreshing: false, isUpdating: false});
     expect(readState(ivm3)).toMatchObject<ItemViewModel>({isProcessing: false, isMutating: false, isDeleting: false, isRefreshing: false, isUpdating: false});
 
@@ -538,19 +638,55 @@ describe('Collection Service', () => {
       items: [item3, item4],
     }).subscribe();
 
-    expect(readState(coll.items$)).toStrictEqual([item1, item2, item3, item4]);
+    expect(readState(coll.items$)).toStrictEqual([item1, item2, item3, item4, item5, item6, item7, item8, item9]);
     expect(readState(coll.deletingItems$)).toStrictEqual([item3, item4]);
-    expect(readState(vm)).toMatchObject<ViewModel>({isDeleting: true, isMutating: true, isProcessing: true, isSaving: false});
+    expect(readState(vm)).toMatchObject<ViewModel>({
+      isDeleting: true,
+      isMutating: true,
+      isProcessing: true,
+      isSaving: false,
+      totalCountFetched: 200,
+    });
     expect(readState(ivm2)).toMatchObject<ItemViewModel>({isProcessing: false, isMutating: false, isDeleting: false, isRefreshing: false, isUpdating: false});
     expect(readState(ivm3)).toMatchObject<ItemViewModel>({isProcessing: true, isMutating: true, isDeleting: true, isRefreshing: false, isUpdating: false});
 
     jest.runOnlyPendingTimers();
 
-    expect(readState(coll.items$)).toStrictEqual([item1, item2]);
+    expect(readState(coll.items$)).toStrictEqual([item1, item2, item5, item6, item7, item8, item9]);
     expect(readState(coll.deletingItems$)).toStrictEqual([]);
     expect(readState(vm)).toMatchObject<ViewModel>({isDeleting: false, isMutating: false, isProcessing: false, isSaving: false});
     expect(readState(ivm2)).toMatchObject<ItemViewModel>({isProcessing: false, isMutating: false, isDeleting: false, isRefreshing: false, isUpdating: false});
     expect(readState(ivm3)).toMatchObject<ItemViewModel>({isProcessing: false, isMutating: false, isDeleting: false, isRefreshing: false, isUpdating: false});
+
+    coll.deleteMany({
+      request: emit('ok'),
+      items: [item5],
+      decrementTotalCount: 110,
+    }).subscribe();
+    jest.runOnlyPendingTimers();
+    expect(readState(vm)).toMatchObject<ViewModel>({
+      totalCountFetched: 90,
+    });
+
+    coll.deleteMany({
+      request: emit('ok'),
+      items: [item6, item7],
+      decrementTotalCount: true,
+    }).subscribe();
+    jest.runOnlyPendingTimers();
+    expect(readState(vm)).toMatchObject<ViewModel>({
+      totalCountFetched: 88,
+    });
+
+    coll.deleteMany({
+      request: emit({total: 10}),
+      items: [item8],
+      decrementTotalCount: 'total',
+    }).subscribe();
+    jest.runOnlyPendingTimers();
+    expect(readState(vm)).toMatchObject<ViewModel>({
+      totalCountFetched: 10,
+    });
   });
 
   it('status', () => {

@@ -1,3 +1,9 @@
+### 1.4.0
+* `delete()` and `deleteMany()` now have 2 new optional fields in their params:
+  * `readRequest`: consecutive `read()` request (will completely reset `items`);
+  * `decrementTotalCount`: decrement `totalCountFetched` by count of removed items, by number, or read new value from the response object.
+* Angular and NgRx versions bump, RxJS 7 & 8 versions are supported.
+
 ### 1.3.0
 You can now get an observable to be notified about the mutations:
 * `listenForCreate()`
@@ -59,7 +65,7 @@ Events will be only emitted if there are active observers.
 ## 1.0.10
 * Update dependencies to Angular 15 release version
 * Add file with test to the repo
-* Add `deleteItemStatus` method
+* Add `deleteItemStatus()` method
 
 ## 1.0.9
 You can (optionally) declare Collection Service configuration details in your module or component providers:
@@ -86,9 +92,9 @@ interface CollectionServiceOptions {
 
 ## 1.0.8
 * Fix itemViewModel.isProcessing; 
-* Make all selectors in itemViewModel protected from streams without pre-emitted value;
+* Make all selectors in `itemViewModel` protected from streams without pre-emitted value;
 * Add `getTrackByFieldFn()` helper function.
 
 ## 1.0.7
-* read() now accepts usual arrays also;
+* `read()` now accepts usual arrays also;
 * Info about duplicates prevention has been added to README.

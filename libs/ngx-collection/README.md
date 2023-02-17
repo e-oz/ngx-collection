@@ -475,12 +475,19 @@ interface UpdateParams<T> {
 ---
 
 ### delete()
-Remove an item from the collection.
+Remove an item from the collection.  
+If `decrementTotalCount` is provided (and `readRequest` is not provided):  
+* `boolean`: decrement `totalCountFetched` by 1 (if current totalCountFetched > 0);  
+* `number`: decrement `totalCountFetched` by number (should be integer, less or equal to the current value of `totalCountFetched`);  
+* `string`: points what field of the response object should be used (if exist) as a source of `totalCountFetched` (should be integer, >= 0).
+
 #### Parameters object
 ```ts
 interface DeleteParams<T, R = unknown> {
   request: Observable<R>;
   item: T;
+  decrementTotalCount?: boolean | number | string;
+  readRequest?: Observable<FetchedItems<T> | T[]>;
   onSuccess?: (response: R) => void;
   onError?: (error: unknown) => void;
 }
@@ -580,6 +587,11 @@ interface UpdateManyParams<T> {
 
 ### deleteMany()  
 Like `delete()`, but will run multiple queries in parallel.  
+If `decrementTotalCount` is provided (and `readRequest` is not provided):  
+* `boolean`: decrement `totalCountFetched` by number of removed items (if resulting `totalCountFetched` >= 0);  
+* `number`: decrement `totalCountFetched` by number (should be integer, less or equal to the current value of `totalCountFetched`);  
+* `string`: points what field of the response object (first one, if it's an array) should be used (if exist) as a source of `totalCountFetched` (should be integer, >= 0).
+
 #### Parameters object
 ```ts
 interface DeleteManyParams<T, R = unknown> {
