@@ -42,7 +42,7 @@ Here you can see how little code you need to gently manipulate your collection o
 
 # Installation
 
-Requires Angular 15 and [NgRx ComponentStore](https://ngrx.io/guide/component-store) 15  
+Requires Angular 15 or 16, and [NgRx ComponentStore](https://ngrx.io/guide/component-store) 15  
 
 Yarn: 
 ```

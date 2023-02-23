@@ -1,3 +1,6 @@
+### 1.4.1
+Accept Angular 16 as peerDependency.
+
 ### 1.4.0
 * `delete()` and `deleteMany()` now have 2 new optional fields in their params:
   * `readRequest`: consecutive `read()` request (will completely reset `items`);
