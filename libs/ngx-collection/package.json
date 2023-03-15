@@ -1,6 +1,6 @@
 {
   "name": "ngx-collection",
-  "version": "1.4.1",
+  "version": "1.4.2",
   "license": "MIT",
   "author": {
     "name": "Evgeniy OZ",
@@ -10,17 +10,20 @@
   "repository": {
     "url": "https://github.com/e-oz/ngx-collection"
   },
-  "keywords": ["angular", "collections"],
+  "keywords": [
+    "angular",
+    "collections"
+  ],
   "private": false,
   "peerDependencies": {
-    "@angular/core": "15.x || 16.x",
+    "@angular/core": "15.x || 16.0.0-next.x",
     "@ngrx/component-store": "15.x",
     "@ngrx/effects": "15.x",
     "@ngrx/store": "15.x",
-    "rxjs": "7.x || 8.x"
+    "rxjs": "7.x || 8.0.0-alpha.x"
   },
   "devDependencies": {
     "tslib": "^2.5.0",
-    "zone.js": "~0.12.0"
+    "zone.js": "0.12.x || 0.13.x"
   }
 }

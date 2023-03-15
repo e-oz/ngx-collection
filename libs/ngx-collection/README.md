@@ -44,7 +44,7 @@ Here you can see how little code you need to gently manipulate your collection o
 
 Requires Angular 15 or 16, and [NgRx ComponentStore](https://ngrx.io/guide/component-store) 15  
 
-Yarn: 
+[Yarn](https://yarnpkg.com/package/ngx-collection): 
 ```
 yarn add ngx-collection
 ```  
