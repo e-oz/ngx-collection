@@ -1,12 +1,13 @@
-import { catchError, EMPTY, finalize, first, forkJoin, isObservable, map, Observable, startWith, Subject, switchMap } from 'rxjs';
-import { Inject, Injectable, Optional } from '@angular/core';
+import { catchError, EMPTY, finalize, first, forkJoin, isObservable, map, Observable, startWith, Subject, switchMap, takeUntil } from 'rxjs';
+import { Inject, Injectable, Injector, isSignal, Optional, Signal, untracked } from '@angular/core';
 import { ComponentStore, tapResponse } from '@ngrx/component-store';
 import { concatLatestFrom } from '@ngrx/effects';
-import { FetchedItems } from './interfaces';
 import { Comparator, ObjectsComparator, ObjectsComparatorFn } from './comparator';
 import { isEmptyValue } from './helpers';
+import { toObservable, toSignal } from '@angular/core/rxjs-interop';
+import { isFunction } from 'rxjs/internal/util/isFunction';
 
-export interface CollectionState<T, UniqueStatus = any, Status = any> {
+export type CollectionState<T, UniqueStatus = any, Status = any> = {
   readonly items: T[];
   readonly totalCountFetched?: number;
   readonly isCreating: boolean;
@@ -18,38 +19,43 @@ export interface CollectionState<T, UniqueStatus = any, Status = any> {
   readonly statuses: Map<T, Set<Status>>;
 }
 
-export interface CreateParams<T> {
+export type FetchedItems<T> = {
+  items: T[];
+  totalCount?: number;
+}
+
+export type CreateParams<T> = {
   readonly request: Observable<T>;
   readonly onSuccess?: (item: T) => void;
   readonly onError?: (error: unknown) => void;
 }
 
-export interface CreateManyParams<T> {
+export type CreateManyParams<T> = {
   readonly request: Observable<FetchedItems<T> | T[]> | Observable<T>[];
   readonly onSuccess?: (items: T[]) => void;
   readonly onError?: (error: unknown) => void;
 }
 
-export interface ReadParams<T> {
+export type ReadParams<T> = {
   readonly request: Observable<FetchedItems<T> | T[]>;
   readonly onSuccess?: (items: T[]) => void;
   readonly onError?: (error: unknown) => void;
   readonly keepExistingOnError?: boolean;
 }
 
-export interface ReadOneParams<T> {
+export type ReadOneParams<T> = {
   readonly request: Observable<T>;
   readonly onSuccess?: (item: T) => void;
   readonly onError?: (error: unknown) => void;
 }
 
-export interface ReadManyParams<T> {
+export type ReadManyParams<T> = {
   readonly request: Observable<FetchedItems<T> | T[]> | Observable<T>[];
   readonly onSuccess?: (items: T[]) => void;
   readonly onError?: (error: unknown) => void;
 }
 
-export interface UpdateParams<T> {
+export type UpdateParams<T> = {
   readonly request: Observable<T>;
   readonly refreshRequest?: Observable<T>;
   readonly item: Partial<T>;
@@ -57,7 +63,7 @@ export interface UpdateParams<T> {
   readonly onError?: (error: unknown) => void;
 }
 
-export interface UpdateManyParams<T> {
+export type UpdateManyParams<T> = {
   readonly request: Observable<T[]> | Observable<T>[];
   readonly refreshRequest?: Observable<FetchedItems<T> | T[]>;
   readonly items: Partial<T>[];
@@ -65,7 +71,7 @@ export interface UpdateManyParams<T> {
   readonly onError?: (error: unknown) => void;
 }
 
-export interface DeleteParams<T, R = unknown> {
+export type DeleteParams<T, R = unknown> = {
   readonly request: Observable<R>;
   readonly item: Partial<T>;
   /**
@@ -84,7 +90,7 @@ export interface DeleteParams<T, R = unknown> {
   readonly onError?: (error: unknown) => void;
 }
 
-export interface DeleteManyParams<T, R = unknown> {
+export type DeleteManyParams<T, R = unknown> = {
   readonly request: Observable<R> | Observable<R>[];
   readonly items: Partial<T>[];
   /**
@@ -103,14 +109,14 @@ export interface DeleteManyParams<T, R = unknown> {
   readonly onError?: (error: unknown) => void;
 }
 
-export interface RefreshParams<T> {
+export type RefreshParams<T> = {
   readonly request: Observable<T>;
   readonly item: Partial<T>;
   readonly onSuccess?: (item: T) => void;
   readonly onError?: (error: unknown) => void;
 }
 
-export interface RefreshManyParams<T> {
+export type RefreshManyParams<T> = {
   readonly request: Observable<FetchedItems<T> | T[]> | Observable<T>[];
   readonly items: Partial<T>[];
   readonly onSuccess?: (item: T[]) => void;
@@ -119,13 +125,39 @@ export interface RefreshManyParams<T> {
 
 export type DuplicatesMap<T> = Record<number, Record<number, T>>;
 
-export interface CollectionServiceOptions {
+export type CollectionServiceOptions = {
   comparatorFields?: (string | string[])[];
   comparator?: ObjectsComparator | ObjectsComparatorFn;
   throwOnDuplicates?: string;
   allowFetchedDuplicates?: boolean;
   onDuplicateErrCallbackParam?: any;
   errReporter?: (...args: any[]) => any;
+}
+
+export type ViewModel<T, UniqueStatus = any, Status = any> = {
+  readonly items: T[];
+  readonly totalCountFetched: number | undefined;
+  readonly isCreating: boolean;
+  readonly isReading: boolean;
+  readonly isUpdating: boolean;
+  readonly isDeleting: boolean;
+  readonly isMutating: boolean;
+  readonly isSaving: boolean;
+  readonly isProcessing: boolean;
+  readonly updatingItems: T[];
+  readonly deletingItems: T[];
+  readonly mutatingItems: T[];
+  readonly refreshingItems: T[];
+  readonly statuses: Map<T, Set<Status>>;
+  readonly status: Map<UniqueStatus, T>;
+}
+
+export type ItemViewModel = {
+  readonly isDeleting: boolean;
+  readonly isRefreshing: boolean;
+  readonly isUpdating: boolean;
+  readonly isMutating: boolean;
+  readonly isProcessing: boolean;
 }
 
 @Injectable()
@@ -165,6 +197,133 @@ export class CollectionService<T, UniqueStatus = any, Status = any> extends Comp
   );
   public readonly statuses$ = this.select(s => s.statuses);
   public readonly status$ = this.select(s => s.status);
+
+  private _itemsSignal?: Signal<T[]>;
+
+  public get itemsSignal(): Signal<T[]> {
+    return this._itemsSignal ?? (
+      this._itemsSignal = untracked(() => toSignal(
+        this.items$.pipe(takeUntil(this.destroy$)),
+        {initialValue: [] as T[], injector: this.injector}
+      ))
+    );
+  }
+
+  private _totalCountFetchedSignal?: Signal<number | undefined>;
+
+  public get totalCountFetchedSignal(): Signal<number | undefined> {
+    const source = this.totalCountFetched$.pipe(takeUntil(this.destroy$));
+    return this._totalCountFetchedSignal ?? (
+      this._totalCountFetchedSignal = untracked(() => toSignal(
+        source,
+        {initialValue: undefined, injector: this.injector}
+      ))
+    );
+  }
+
+  private _updatingItemsSignal?: Signal<T[]>;
+
+  public get updatingItemsSignal(): Signal<T[]> {
+    return this._updatingItemsSignal ?? (
+      this._updatingItemsSignal = untracked(() => toSignal(this.updatingItems$, {initialValue: [] as T[], injector: this.injector}))
+    );
+  };
+
+  private _deletingItemsSignal?: Signal<T[]>;
+
+  public get deletingItemsSignal(): Signal<T[]> {
+    return this._deletingItemsSignal ?? (
+      this._deletingItemsSignal = untracked(() => toSignal(this.deletingItems$, {initialValue: [] as T[], injector: this.injector}))
+    );
+  }
+
+  private _refreshingItemsSignal?: Signal<T[]>;
+
+  public get refreshingItemsSignal(): Signal<T[]> {
+    return this._refreshingItemsSignal ?? (
+      this._refreshingItemsSignal = untracked(() => toSignal(this.refreshingItems$, {initialValue: [] as T[], injector: this.injector}))
+    );
+  }
+
+  private _mutatingItemsSignal?: Signal<T[]>;
+
+  public get mutatingItemsSignal(): Signal<T[]> {
+    return this._mutatingItemsSignal ?? (
+      this._mutatingItemsSignal = untracked(() => toSignal(this.mutatingItems$, {initialValue: [] as T[], injector: this.injector}))
+    );
+  }
+
+  private _isCreatingSignal?: Signal<boolean>;
+
+  public get isCreatingSignal(): Signal<boolean> {
+    return this._isCreatingSignal ?? (
+      this._isCreatingSignal = untracked(() => toSignal(this.isCreating$, {initialValue: false, injector: this.injector}))
+    );
+  }
+
+  private _isReadingSignal?: Signal<boolean>;
+
+  public get isReadingSignal(): Signal<boolean> {
+    return this._isReadingSignal ?? (
+      this._isReadingSignal = untracked(() => toSignal(this.isReading$, {initialValue: false, injector: this.injector}))
+    );
+  }
+
+  private _isUpdatingSignal?: Signal<boolean>;
+
+  public get isUpdatingSignal(): Signal<boolean> {
+    return this._isUpdatingSignal ?? (
+      this._isUpdatingSignal = untracked(() => toSignal(this.isUpdating$, {initialValue: false, injector: this.injector}))
+    );
+  }
+
+  private _isDeletingSignal?: Signal<boolean>;
+
+  public get isDeletingSignal(): Signal<boolean> {
+    return this._isDeletingSignal ?? (
+      this._isDeletingSignal = untracked(() => toSignal(this.isDeleting$, {initialValue: false, injector: this.injector}))
+    );
+  }
+
+  private _isSavingSignal?: Signal<boolean>;
+
+  public get isSavingSignal(): Signal<boolean> {
+    return this._isSavingSignal ?? (
+      this._isSavingSignal = untracked(() => toSignal(this.isSaving$, {initialValue: false, injector: this.injector}))
+    );
+  }
+
+  private _isMutatingSignal?: Signal<boolean>;
+
+  public get isMutatingSignal(): Signal<boolean> {
+    return this._isMutatingSignal ?? (
+      this._isMutatingSignal = untracked(() => toSignal(this.isMutating$, {initialValue: false, injector: this.injector}))
+    );
+  }
+
+  private _isProcessingSignal?: Signal<boolean>;
+
+  public get isProcessingSignal(): Signal<boolean> {
+    return this._isProcessingSignal ?? (
+      this._isProcessingSignal = untracked(() => toSignal(this.isProcessing$, {initialValue: false, injector: this.injector}))
+    );
+  }
+
+  private _statusesSignal?: Signal<Map<T, Set<Status>>>;
+
+  public get statusesSignal(): Signal<Map<T, Set<Status>>> {
+    return this._statusesSignal ?? (
+      this._statusesSignal = untracked(() => toSignal(this.statuses$, {requireSync: true, injector: this.injector}))
+    );
+  }
+
+  private _statusSignal?: Signal<Map<UniqueStatus, T>>;
+
+  public get statusSignal(): Signal<Map<UniqueStatus, T>> {
+    return this._statusSignal ?? (
+      this._statusSignal = untracked(() => toSignal(this.status$, {requireSync: true, injector: this.injector}))
+    );
+  }
 
   protected readonly onCreate = new Subject<T[]>();
   protected readonly onRead = new Subject<T[]>();
@@ -400,7 +559,8 @@ export class CollectionService<T, UniqueStatus = any, Status = any> extends Comp
   }
 
   constructor(
-    @Inject('COLLECTION_SERVICE_OPTIONS') @Optional() options?: CollectionServiceOptions
+    @Inject('COLLECTION_SERVICE_OPTIONS') @Optional() options?: CollectionServiceOptions,
+    private injector?: Injector,
   ) {
     super({
       items: [],
@@ -912,7 +1072,7 @@ export class CollectionService<T, UniqueStatus = any, Status = any> extends Comp
     });
   }
 
-  public getViewModel() {
+  public getViewModel(): Observable<ViewModel<T, UniqueStatus, Status>> {
     return this.select({
       items: this.items$,
       totalCountFetched: this.select(s => s.totalCountFetched),
@@ -932,7 +1092,15 @@ export class CollectionService<T, UniqueStatus = any, Status = any> extends Comp
     });
   }
 
-  public getItemViewModel(itemSource: Observable<T | undefined>) {
+  private _viewModelSignal?: Signal<ViewModel<T, UniqueStatus, Status>>;
+
+  public getViewModelSignal(): Signal<ViewModel<T, UniqueStatus, Status>> {
+    return this._viewModelSignal ?? (
+      this._viewModelSignal = untracked(() => toSignal(this.getViewModel(), {requireSync: true, injector: this.injector}))
+    );
+  }
+
+  public getItemViewModel(itemSource: Observable<T | undefined>): Observable<ItemViewModel> {
     return this.select({
       isDeleting: this.select(
         this.deletingItems$,
@@ -966,6 +1134,14 @@ export class CollectionService<T, UniqueStatus = any, Status = any> extends Comp
     });
   }
 
+  public getItemViewModelSignal(itemSource: Observable<T | undefined> | Signal<T | undefined>): Signal<ItemViewModel> {
+    const _itemSource = isObservable(itemSource) ?
+      itemSource
+      : toObservable(itemSource, {injector: this.injector}).pipe(startWith(itemSource()));
+
+    return untracked(() => toSignal(this.getItemViewModel(_itemSource), {requireSync: true, injector: this.injector}));
+  }
+
   public getItem(filter: Partial<T> | Observable<Partial<T>>): Observable<T | undefined> {
     if (isObservable(filter)) {
       return this.select(
@@ -979,6 +1155,13 @@ export class CollectionService<T, UniqueStatus = any, Status = any> extends Comp
         (items) => this.getItemByPartial(filter, items)
       );
     }
+  }
+
+  public getItemSignal(filter: Partial<T> | Observable<Partial<T>> | Signal<Partial<T>>): Signal<T | undefined> {
+    const _filter = isFunction(filter) && isSignal(filter) ?
+      toObservable(filter, {injector: this.injector}).pipe(startWith(filter()))
+      : filter;
+    return untracked(() => toSignal(this.getItem(_filter), {injector: this.injector}));
   }
 
   public getItemByField<K extends keyof T>(field: K | K[], fieldValue: T[K] | Observable<T[K]>): Observable<T | undefined> {
@@ -1001,6 +1184,13 @@ export class CollectionService<T, UniqueStatus = any, Status = any> extends Comp
         )
       );
     }
+  }
+
+  public getItemByFieldSignal<K extends keyof T>(field: K | K[], fieldValue: T[K] | Observable<T[K]> | Signal<T[K]>): Signal<T | undefined> {
+    const _fieldValue = isFunction(fieldValue) && isSignal(fieldValue) ?
+      toObservable(fieldValue, {injector: this.injector}).pipe(startWith(fieldValue()))
+      : fieldValue;
+    return untracked(() => toSignal(this.getItemByField(field, _fieldValue), {injector: this.injector}));
   }
 
   public setComparator(comparator: ObjectsComparator | ObjectsComparatorFn) {

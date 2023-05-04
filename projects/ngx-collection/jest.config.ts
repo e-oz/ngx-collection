@@ -1,7 +1,7 @@
 /* eslint-disable */
 export default {
   displayName: 'ngx-collection',
-  preset: '../../jest.preset.js',
+  preset: 'jest-preset-angular',
   setupFilesAfterEnv: ['<rootDir>/src/test-setup.ts'],
   globals: {  },
   transform: {

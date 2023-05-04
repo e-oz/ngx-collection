@@ -1,3 +1,9 @@
+### 2.0.0
+* Add support for Angular Signals;
+* This version requires Angular 16;
+* Export `ViewModel` and `ItemViewModel` types;
+* Every `interface` is converted to a `type`, so they can now be imported using `import type`.
+
 ### 1.4.1
 Accept Angular 16 as peerDependency.
 

@@ -5,19 +5,19 @@ Collection
 
 # Introduction
 
-Using this service, you can easily and safely mutate collections of items and monitor their state (and state of their mutations).
+By using this service, you can easily and safely mutate collections of items and monitor their state (as well as the state of their mutations).
 
 All the actions are asynchronous and immutable - items and collections will not be modified: new items and new collections will be created on every mutation.
 
-For monitoring the state, you can use one of the predefined selectors, or view model.
+To monitor the state, you can use one of the predefined selectors or a view model.
 
 Out of the box, without any additional code, you'll be able to control your "loading" spinners, temporarily disable buttons, display success/error messages, and much more.
 
-Service is built on top of [NgRx ComponentStore](https://ngrx.io/guide/component-store), all the selectors (including view models) are generated using `ComponentStore.select()`.
+This service is built on top of [NgRx ComponentStore](https://ngrx.io/guide/component-store), all selectors (including view models) are generated using `ComponentStore.select()` method.
 
-# Example App
+# Example Application
 
-You can read an [introductory article](https://medium.com/@eugeniyoz/collection-service-for-angular-d0b64bae9c20) with an example of building this application.     
+You can read an [introductory article](https://medium.com/@eugeniyoz/collection-service-for-angular-d0b64bae9c20) that includes an example of building this application.     
 
 ## 🖼️ [StackBlitz](https://stackblitz.com/edit/ngx-collection-example?file=src%2Fapp%2Fcollections%2Fpaintings.collection.ts)  
 
@@ -25,24 +25,25 @@ Here you can see how little code you need to gently manipulate your collection o
 
 # Benefits
 ✅  Every mutation is asynchronous:  
-* works in reactive apps with the OnPush strategy;  
+* works in reactive apps with the OnPush change detection strategy;  
 * works in components with the Default change detection strategy;  
-* can be used with just ‘async’ pipe and subscribe() or with some store.
+* can be used with just the `async` pipe and `subscribe()`, or with some store;
+* built-in support for Angular Signals.
 
-✅  Service is not opinionated:  
+✅  The service is not opinionated:  
 * it will not dictate how you should communicate with your APIs or other data sources;    
-* You decide how to run and cancel your requests: every mutation method returns an observable, so you can decide how to orchestrate them: switchMap, mergeMap, concatMap, forkJoin, or something else;  
-* Data Sources can be synchronous (just use “rxjs/of”).  
+* you decide how to run and cancel your requests. Every mutation method returns an observable, so you can decide how to orchestrate them using methods like switchMap, mergeMap, concatMap, forkJoin, or something else;  
+* Data sources can be synchronous (you can use rxjs/of for this purpose).  
 
 ✅  Safety guarantees:
-* 100% immutable;  
+* 100% immutability;  
 * Duplicates prevention;  
 * Errors and exceptions will be handled correctly;   
 * Strictly typed — advanced type-checking and code completion.
 
 # Installation
 
-Requires Angular 15 or 16, and [NgRx ComponentStore](https://ngrx.io/guide/component-store) 15  
+Requires Angular 16, and [NgRx ComponentStore](https://ngrx.io/guide/component-store) 15  
 
 [Yarn](https://yarnpkg.com/package/ngx-collection): 
 ```
@@ -63,16 +64,16 @@ import { CollectionService } from 'ngx-collection';
 # Usage
 This service is designed to be used in 2 ways:  
 
-1. Local collection - temporary instance, with lifecycle bound to a component;
+1. Local collection - a temporary instance with a lifecycle bound to a component;
 2. Shared collection - a global singleton.
 
 ## Examples
 
-It is possible to use this service right in your component, but it is a good practice to move all the state management out of a component to a "store".
-Because of that, examples will rely on [ComponentStore](https://ngrx.io/guide/component-store) usage.
+While it is possible to use this service directly in your component, it is good practice to move all the state management out of a component and into a "store".   
+Therefore, examples will rely on usage with [ComponentStore](https://ngrx.io/guide/component-store).
 
 ### Local collection
-A local collection will be destroyed with a component.
+A local collection will be destroyed with its associated component.
 
 #### In your Component:
 To use a local collection instance, you need to add it to the "providers" array of your component (or module):
@@ -88,11 +89,11 @@ To use a local collection instance, you need to add it to the "providers" array 
 })
 export class ExampleComponent {
   
-  // Usage of `inject()` is required here (to make CollectionService instance accessible in the ExampleStore).
+  // Usage of `inject()` is required here (to make the CollectionService instance accessible in the ExampleStore).
   // Declare it before usage of the "store" field.
   protected readonly store = inject(ExampleStore);
 
-  // here you can use the "store" field already
+  // you can now use the "store" field.
   protected readonly vm$ = this.store.examplesCollection.getViewModel();
 
 }
@@ -108,13 +109,12 @@ export class ExampleStore extends ComponentStore<ExampleState> {
 
 ### Shared collection
 
-If you want to share some collection of items between multiple components, you can create a shared collection.
+If you want to share a collection of items between multiple components, you can create a shared collection.  
 
-One of the usage examples: you have some list of the items (ListComponent), and every item is rendered using a component (ListItemComponent).   
-In this case, if ListComponent and ListItemComponent will use the same shared collection, then changes made in of them will be instantly reflected in another.
+One example use case is having a list of items (ListComponent), and every item is rendered using a component (ListItemComponent). 
+If both ListComponent and ListItemComponent use the same shared collection, changes made to one of them will be instantly reflected in the other.  
 
-To make a shared collection, create a new class extended from this service and add `@Injectable({providedIn: 'root'})`:
-
+To create a shared collection, create a new class that extends this service and add the `@Injectable({providedIn: 'root'})` decorator:
 ```ts
 @Injectable({providedIn: 'root'})
 export class BooksCollectionService extends CollectionService<Book> {
@@ -127,7 +127,7 @@ export class BooksCollectionService extends CollectionService<Book> {
   }  
 }
 ```
-For your convenience, there is `protected init()` method that you can override, to don't deal with `constructor()` overriding if you want some special initialization logic.
+For your convenience, there is a protected `init()` method that you can override if you want some special initialization logic, so you don't have to deal with overriding the `constructor()` method.
 
 #### In your Component:
 
@@ -155,19 +155,19 @@ export class BookStore extends ComponentStore<BookStoreState> {
 
 ### View Model
 
-The most simple way to watch the state of a collection is to use `collection.getViewModel() | async` in your template.
+The simplest way to watch the state of a collection is to use `collection.getViewModel() | async` in your template.
 
-ViewModel contains a lot of useful fields:  
+The ViewModel contains a lot of useful fields:
 
-* `items`[]
-* `isCreating`
-* `isReading`
-* `isUpdating`
-* `isDeleting`
-* `isMutating`
-* `isSaving`
-* `updatingItems`[]
-* `deletingItems`[]
+* `items$`[]
+* `isCreating$`
+* `isReading$`
+* `isUpdating$`
+* `isDeleting$`
+* `isMutating$`
+* `isSaving$`
+* `updatingItems$`[]
+* `deletingItems$`[]
 
 and some others.
 
@@ -178,17 +178,17 @@ If your component is rendering one of the collection's items, you can use `getIt
 
 Item's view model is more simple:  
 
-* `isDeleting`
-* `isRefreshing`
-* `isUpdating`
-* `isMutating`
-* `isProcessing`
+* `isDeleting$`
+* `isRefreshing$`
+* `isUpdating$`
+* `isMutating$`
+* `isProcessing$`
 
 In both models, `mutating` = (`updating` OR `deleting`).
 
 ### Mutations
 
-Collection Service has 4 main methods to mutate a collection: `create()`, `read()`, `update()`, `delete()`.  
+The Collection Service has four main methods to mutate a collection: `create()`, `read()`, `update()`, `delete()`.  
 
 #### Create
 Call `create` to add a new item to a collection:
@@ -222,7 +222,7 @@ this.booksCollection.update({
 ```
 
 #### Delete
-The usage of `delete()` is obvious, let's use a bit more wordy example:
+The usage of `delete()` is obvious. Let's explore a more detailed example:
 ```ts
 export class BookStore extends ComponentStore<BookStoreState> {
 
@@ -253,15 +253,15 @@ export class BookStore extends ComponentStore<BookStoreState> {
 ```
 
 ## Statuses
-You can set statuses for the items: statuses can be unique per collection (for example: "focused"), or not (for example: "selected").  
-Statuses are not predefined - you can use your list of statuses, the service only should know if a given status is unique or not unique.
+You can set statuses for the items. Statuses can be unique per collection (for example: 'focused') or not (for example: 'selected'). 
+Statuses are not predefined; you can use your list of statuses. The service only needs to know if a given status is unique or not unique.
 
 ## Items comparison
-The equality of items will be checked using the comparator that you can replace using `setComparator()` method.
+The equality of items will be checked using the comparator, which you can replace using the `setComparator()` method.
 
-The comparator will compare items using `===` first, then it will use id fields.
+The comparator will first compare items using `===`, then it will use id fields.
 
-You can check the default id fields list of the default comparator in [comparator.ts](projects/ngx-collection/src/lib/comparator.ts) file.
+You can check the default id fields list of the default comparator in the [comparator.ts](projects/ngx-collection/src/lib/comparator.ts) file.
 
 You can easily configure this using Angular DI:
 ```ts
@@ -276,7 +276,7 @@ You can easily configure this using Angular DI:
 or in constructor:
 
 ```ts
-const collection = new CollectionService<Item>({comparatorFields: ['uuId', 'url']});
+const collection = new CollectionService<Item>({comparatorFields: ['uuId', 'url']}, this.injector);
 ```
 
 or using `setOptions()`, or by re-instantiating a Comparator:
@@ -296,29 +296,28 @@ or by providing your own Comparator - it can be a class, implementing `ObjectsCo
 
 ## Comparator fields
 
-In default comparator, every item in the list of fields can be:  
-1. `string` - if both objects have this field, and values are equal, objects are equal.   
-   If both objects have this field, and values are not equal - objects are not equal and __comparison stops__.  
-2. `string[]` - composite field: if both objects have every field enlisted, and every value is equal, objects are equal.
+In the default comparator, each item in the list of fields can be:  
+1. `string` - if both objects have this field, and values are equal, the objects are considered equal.   
+   If both objects have this field, but the values are not equal, the objects are not equal and __the comparison stops__.  
+2. `string[]` - composite field: If both objects have every field listed, and every value is equal, the objects are considered equal.
 
 Every field in the list will be treated as path, if it has a dot in it - this way you can compare nested fields.
 
 ## Duplicates prevention
 
-Collection Service will not allow duplicates in the collection.   
+The Collection Service will not allow duplicates in the collection.   
 
-Item will be checked before adding to the collection in methods `create()`, `read()`, `update()`, and `refresh()`.
+Items will be checked before adding to the collection in the `create()`, `read()`, `update()`, and `refresh()` methods.
 
-To find a duplicate, items will be compared by comparator - objects equality check is a vital part of this service, and with duplicates this functionality will be broken.    
+To find a duplicate, items will be compared by using the comparator. Object equality check is a vital part of this service, and duplicates will break this functionality.    
 
-A collection might have duplicates because of some data error or because of wrong fields in the comparator - you can redefine them.  
+A collection might have duplicates due to some data error or because of incorrect fields in the comparator. You can redefine them to fix this issue.  
 
-If a duplicate is detected, the item will not be added to the collection and an error will be sent to the `errReporter` (if `errReporter` is set).  
-You can call `setThrowOnDuplicates('some message')` to make Collection Service throw an exception with the message you expect.
+If a duplicate is detected, the item will not be added to the collection, and an error will be sent to the `errReporter` (if `errReporter` is set).   
+You can call `setThrowOnDuplicates('some message')` to make the Collection Service throw an exception with the message you expect.
 
-Method `read()` by default will put returned items to the collection even if they have duplicates, but `errReporter` will be called (if `errReporter` is set), 
-because in this case you have a chance to damage your data in future `update()`.    
-You can call `setAllowFetchedDuplicates(false)` to instruct `read()` to not accept items lists with duplicates. 
+The `read()` method, by default, will put returned items to the collection even if they have duplicates, but the `errReporter` will be called (if `errReporter` is set) because in this case, you have a chance to damage your data in future `update()` operations.   
+You can call `setAllowFetchedDuplicates(false)` to instruct `read()` not to accept items lists with duplicates.
 
 ## Request parameters
 
@@ -337,8 +336,8 @@ In every params object, `request` is an observable you are using to send the req
 
 ### item
 
-Parameter `item` is the item that you are mutating.  
-You are receiving this item from the `items` field of the collection state.
+The `item` parameter is the item that you are mutating.  
+You receive this item from the items field of the collection state.
 
 ```ts
   remove = this.effect<Example>(_ => _.pipe(
@@ -353,7 +352,8 @@ You are receiving this item from the `items` field of the collection state.
   ));
 ```
 
-You can send just part of the item object, but this part should contain at least one of the comparator's fields (id fields). See "Items comparison" for details.
+You can send just a part of the item object, but this part should contain at least one of the comparator's fields (id fields).  
+See "Items comparison" for details.
 
 ```ts
   remove = this.effect<string>(_ => _.pipe(
@@ -370,15 +370,14 @@ You can send just part of the item object, but this part should contain at least
 
 # Pipes
 
-This library provides two Angular pipes to ease the usage of collection statuses:  
+This library provides two Angular pipes to make it easier to use collection statuses:  
 
 * [UniqueStatusPipe](projects/ngx-collection/src/lib/status.pipes.ts)
 * [StatusesPipe](projects/ngx-collection/src/lib/status.pipes.ts)
 
 # Interface `FetchedItems<T>`
 
-`Collection.read()` method additionally supports a specific type from the request execution result: not just a list of items, but a wrapper, containing a list of items:  
-[FetchedItems](projects/ngx-collection/src/lib/interfaces.ts)   
+The `read()` method additionally supports a specific type from the request execution result, not just a list of items but a wrapper containing a list of items: `FetchedItems` type.   
 
 You can (optionally) use this or a similar structure to don't lose meta information, such as the total count of items (usually needed for pagination).
 
@@ -424,6 +423,7 @@ interface CollectionServiceOptions {
 
 
 # API
+The API has a lot of fields and methods, but you don't have to learn and use all of them. Just use the fields and methods that your application needs.
 
 ## Main methods
 
@@ -455,7 +455,7 @@ interface ReadParams<T> {
 ---
 
 ### update()
-Replace the existing item with the new one. If no existing item is found, a new one will be added.  
+This method replaces the existing item with the new one. If no existing item is found, a new one will be added.  
 
 You can optionally set `refreshRequest` to provide an observable that will be used to get the new item:  
 *  If `refreshRequest` is set, `request` returned item will be ignored (but the request itself will be sent), and the result of the `refreshRequest` will become a new value of an item.  
@@ -754,6 +754,31 @@ Observable<T[]> - items that were returned by the `request` observable
 Get an observable to be notified when some items are deleted.
 #### Returns
 Observable<Partial<T>[]> - items that were provided in params
+
+## Signals
+### Fields:
+
+* `itemsSignal`
+* `totalCountFetchedSignal`
+* `updatingItemsSignal`
+* `deletingItemsSignal`
+* `mutatingItemsSignal`
+* `isCreatingSignal`
+* `isReadingSignal`
+* `isUpdatingSignal`
+* `isDeletingSignal`
+* `isSavingSignal`
+* `isMutatingSignal`
+* `isProcessingSignal`
+* `statusesSignal`
+* `statusSignal`
+
+### Methods:
+
+* `getViewModelSignal()` - Signal-returning version of `getViewModel()`
+* `getItemViewModelSignal()` - Signal-returning version of `getItemViewModelSignal()`
+* `getItemSignal()` - Signal-returning version of `getItem()`
+* `getItemByFieldSignal()` - Signal-returning version of `getItemByField()`
 
 ## Helpers
 

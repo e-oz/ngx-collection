@@ -1,5 +1,3 @@
-import { getJestProjects } from '@nrwl/jest';
-
 export default {
-  projects: getJestProjects()
+  projects: ['<rootDir>/projects/ngx-collection/jest.config.ts']
 };

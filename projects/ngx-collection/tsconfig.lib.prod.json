@@ -4,7 +4,7 @@
   "compilerOptions": {
     "declarationMap": false,
     "emitDecoratorMetadata": true,
-    "experimentalDecorators": true,
+    "experimentalDecorators": true
   },
   "angularCompilerOptions": {
     "compilationMode": "partial"

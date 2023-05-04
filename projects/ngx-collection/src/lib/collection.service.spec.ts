@@ -9,7 +9,7 @@ afterEach(() => {
   jest.useRealTimers();
 });
 
-interface Item {
+type Item = {
   id: number;
   name: string;
 }

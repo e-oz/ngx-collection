@@ -2,7 +2,7 @@ import { getObjectPathValue, isEmptyObject, isEmptyValue } from './helpers';
 
 export type ObjectsComparatorFn<T = any> = (obj1: T, obj2: T) => boolean;
 
-export interface ObjectsComparator {
+export type ObjectsComparator = {
   equal: ObjectsComparatorFn;
 }
 
