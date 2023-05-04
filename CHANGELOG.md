@@ -1,3 +1,10 @@
+### 2.1.0
+* Every `request` parameter now accepts signals! The signal will be read once, at the moment of request execution;
+* Signals are accepted also by:
+* * `getItemViewModel()`
+* * `getItem()`
+* * `getItemByField()`
+
 ### 2.0.0
 * Add support for Angular Signals;
 * This version requires Angular 16;

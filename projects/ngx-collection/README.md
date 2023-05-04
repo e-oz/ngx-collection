@@ -323,7 +323,10 @@ You can call `setAllowFetchedDuplicates(false)` to instruct `read()` not to acce
 
 ### request
 
-In every params object, `request` is an observable you are using to send the request to API:
+In every params object, `request` is an observable or signal that you are using to send the request to the API.  
+Only the first emitted value will be used.  
+If the request is a signal, the signal will be read once at the moment of request execution.  
+The same rule applies to arrays of observables and signals, as some methods accept them too.
 
 ```ts
   return this.exampleCollection.update({
@@ -343,7 +346,7 @@ You receive this item from the items field of the collection state.
   remove = this.effect<Example>(_ => _.pipe(
     exhaustMap((example) => {
       return this.examplesCollection.delete({
-        request: example.uuId ? this.exampleService.removeExample(example.uuId) : of(null),
+        request: example.uuId ? this.exampleService.removeExample(example.uuId) : signal(null),
         item: example,
         onSuccess: () => this.messageService.success('Removed'),
         onError: () => this.messageService.error('Error'),
@@ -359,7 +362,7 @@ See "Items comparison" for details.
   remove = this.effect<string>(_ => _.pipe(
     exhaustMap((uuId) => {
       return this.examplesCollection.delete({
-        request: uuId ? this.exampleService.removeExample(uuId) : of(null),
+        request: uuId ? this.exampleService.removeExample(uuId) : signal(null),
         item: {uuId: uuId},
         onSuccess: () => this.messageService.success('Removed'),
         onError: () => this.messageService.error('Error'),
@@ -432,7 +435,7 @@ Add a new item to the collection.
 #### Parameters object
 ```ts
 interface CreateParams<T> {
-  request: Observable<T>;
+  request: Observable<T> | Signal<T>;
   onSuccess?: (item: T) => void;
   onError?: (error: unknown) => void;
 }
@@ -445,7 +448,7 @@ Create a new collection from provided items.
 #### Parameters object
 ```ts
 interface ReadParams<T> {
-  request: Observable<FetchedItems<T> | T[]>;
+  request: Observable<FetchedItems<T> | T[]> | Signal<FetchedItems<T> | T[]>;
   onSuccess?: (items: T[]) => void;
   onError?: (error: unknown) => void;
   keepExistingOnError?: boolean;
@@ -464,8 +467,8 @@ You can optionally set `refreshRequest` to provide an observable that will be us
 #### Parameters object
 ```ts
 interface UpdateParams<T> {
-  request: Observable<T>;
-  refreshRequest?: Observable<T>;
+  request: Observable<T> | Signal<T>;
+  refreshRequest?: Observable<T> | Signal<T>;
   item: T;
   onSuccess?: (item: T) => void;
   onError?: (error: unknown) => void;
@@ -481,13 +484,15 @@ If `decrementTotalCount` is provided (and `readRequest` is not provided):
 * `number`: decrement `totalCountFetched` by number (should be integer, less or equal to the current value of `totalCountFetched`);  
 * `string`: points what field of the response object should be used (if exist) as a source of `totalCountFetched` (should be integer, >= 0).
 
+If `readRequest` is provided, it will be the source of the new set of items (decrementTotalCount will be ignored).
+
 #### Parameters object
 ```ts
 interface DeleteParams<T, R = unknown> {
-  request: Observable<R>;
+  request: Observable<R> | Signal<R>;
   item: T;
   decrementTotalCount?: boolean | number | string;
-  readRequest?: Observable<FetchedItems<T> | T[]>;
+  readRequest?: Observable<FetchedItems<T> | T[]> | Signal<FetchedItems<T> | T[]>;
   onSuccess?: (response: R) => void;
   onError?: (error: unknown) => void;
 }
@@ -500,7 +505,7 @@ Like `create()`, but will run multiple requests in parallel.
 #### Parameters object
 ```ts
 interface CreateManyParams<T> {
-  request: Observable<FetchedItems<T> | T[]> | Observable<T>[];
+  request: Observable<FetchedItems<T> | T[]> | Observable<T>[] | Signal<FetchedItems<T> | T[]> | Signal<T>[];
   onSuccess?: (items: T[]) => void;
   onError?: (error: unknown) => void;
 }
@@ -515,7 +520,7 @@ Designed to be used in components with no guarantee that the item is already fet
 #### Parameters object
 ```ts
 interface ReadOneParams<T> {
-  request: Observable<T>;
+  request: Observable<T> | Signal<T>;
   onSuccess?: (item: T) => void;
   onError?: (error: unknown) => void;
 }
@@ -531,7 +536,7 @@ Designed to be used for pagination or infinite scroll.
 #### Parameters object
 ```ts
 interface ReadManyParams<T> {
-  request: Observable<FetchedItems<T> | T[]>;
+  request: Observable<FetchedItems<T> | T[]> | Observable<T>[] | Signal<FetchedItems<T> | T[]> | Signal<T>[];
   onSuccess?: (items: T[]) => void;
   onError?: (error: unknown) => void;
 }
@@ -546,7 +551,7 @@ Designed to be used for "reloading" the item data without triggering "disabled" 
 #### Parameters object
 ```ts
 interface RefreshParams<T> {
-  request: Observable<T>;
+  request: Observable<T> | Signal<T>;
   item: T;
   onSuccess?: (item: T) => void;
   onError?: (error: unknown) => void;
@@ -560,7 +565,7 @@ Like `refresh()`, but for multiple items. Requests will run in parallel.
 #### Parameters object
 ```ts
 interface RefreshManyParams<T> {
-  request: Observable<FetchedItems<T> | T[]> | Observable<T>[];
+  request: Observable<FetchedItems<T> | T[]> | Observable<T>[] | Signal<FetchedItems<T> | T[]> | Signal<T>[];
   items: Partial<T>[];
   onSuccess?: (item: T[]) => void;
   onError?: (error: unknown) => void;
@@ -575,8 +580,8 @@ Consecutive `refreshRequest` (if set) will be executed using `refreshMany()`.
 #### Parameters object
 ```ts
 interface UpdateManyParams<T> {
-  request: Observable<T[]> | Observable<T>[];
-  refreshRequest?: Observable<FetchedItems<T> | T[]>;
+  request: Observable<T[]> | Observable<T>[] | Signal<T[]> | Signal<T>[];
+  refreshRequest?: Observable<FetchedItems<T> | T[]> | Signal<FetchedItems<T> | T[]>;
   items: Partial<T>[];
   onSuccess?: (item: T[]) => void;
   onError?: (error: unknown) => void;
@@ -595,8 +600,9 @@ If `decrementTotalCount` is provided (and `readRequest` is not provided):
 #### Parameters object
 ```ts
 interface DeleteManyParams<T, R = unknown> {
-  request: Observable<R> | Observable<R>[];
+  request: Observable<R> | Observable<R>[] | Signal<R> | Signal<R>[];
   items: Partial<T>[];
+  readRequest?: Observable<FetchedItems<T> | T[]> | Signal<FetchedItems<T> | T[]>;
   onSuccess?: (response: R[]) => void;
   onError?: (error: unknown) => void;
 }
@@ -673,7 +679,7 @@ Designed to be used with async pipe:
 ### getItemViewModel()
 Get ViewModel for an item.
 #### Parameters
-* `itemSource: Observable<T | undefined>` 
+* `itemSource: Observable<T | undefined> | Signal<T | undefined>` 
 #### Returns
 Dictionary of observables:
 ```ts
@@ -691,7 +697,7 @@ Dictionary of observables:
 ### getItem()
 Creates an item selector.  
 #### Parameters
-* `filter` - (partial) item to be compared with. Accepts observables.
+* `filter` - (partial) item to be compared with. Also accepts observables and signals.
 
 ---
 
@@ -699,7 +705,7 @@ Creates an item selector.
 Creates an item selector.  
 #### Parameters
 * `field` - one field or array of the fields, that item can have (type-checked).
-* `fieldValue` - value (type-checked), accepts observables.
+* `fieldValue` - value (type-checked), also accepts observables and signals.
 
 ---
 

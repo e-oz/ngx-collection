@@ -1,5 +1,7 @@
 import { CollectionService } from './collection.service';
 import { map, Observable, of, timer } from 'rxjs';
+import { TestBed } from '@angular/core/testing';
+import { Injector } from '@angular/core';
 
 beforeEach(() => {
   jest.useFakeTimers();
@@ -24,7 +26,8 @@ function readState<T>(stream: Observable<T>): T {
 }
 
 function setup() {
-  const coll = new CollectionService<Item>({throwOnDuplicates: 'duplicate', comparatorFields: ['id']});
+  const injector = TestBed.inject(Injector);
+  const coll = new CollectionService<Item>({throwOnDuplicates: 'duplicate', comparatorFields: ['id']}, injector);
   const vm = coll.getViewModel();
 
   return {
@@ -869,11 +872,12 @@ describe('Collection Service', () => {
   });
 
   it('custom comparator fn with multiple fields', () => {
+    const injector = TestBed.inject(Injector);
     const coll = new CollectionService<Item>({
       comparator: (item1: Item, item2: Item) => (item1.id + item1.name) === (item2.id + item2.name),
       allowFetchedDuplicates: false,
       onDuplicateErrCallbackParam: 'DRY'
-    });
+    }, injector);
 
     const item1 = {id: 1, name: 'A'};
     const item2 = {id: 2, name: 'B'};

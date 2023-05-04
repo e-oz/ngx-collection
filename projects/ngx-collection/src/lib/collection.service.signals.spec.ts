@@ -1,15 +1,7 @@
 import { CollectionService } from './collection.service';
-import { map, Observable, of, timer } from 'rxjs';
+import { Observable } from 'rxjs';
 import { computed, Injector, signal } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
-
-beforeEach(() => {
-  jest.useFakeTimers();
-});
-
-afterEach(() => {
-  jest.useRealTimers();
-});
 
 type Item = {
   id: number;
@@ -33,10 +25,6 @@ function setup() {
   };
 }
 
-function emit<T>(result: T) {
-  return timer(1).pipe(map(() => result));
-}
-
 describe('Collection Service (Signals)', () => {
   it('create', () => {
     const {coll, vm} = setup();
@@ -45,12 +33,8 @@ describe('Collection Service (Signals)', () => {
     expect(vm()).toMatchObject<ViewModel>({isCreating: false, isProcessing: false, isMutating: false});
 
     coll.create({
-      request: emit(newItem)
+      request: signal(newItem)
     }).subscribe();
-
-    expect(vm()).toMatchObject<ViewModel>({isCreating: true, isProcessing: true, isMutating: true});
-
-    jest.runOnlyPendingTimers();
 
     expect(coll.itemsSignal()).toStrictEqual([newItem]);
     expect(vm()).toMatchObject<ViewModel>({isCreating: false, isProcessing: false, isMutating: false});
@@ -58,13 +42,13 @@ describe('Collection Service (Signals)', () => {
     const secondItem: Item = {id: -1, name: ';)'};
 
     coll.create({
-      request: of(secondItem)
+      request: signal(secondItem)
     }).subscribe();
 
     expect(coll.itemsSignal()).toStrictEqual([newItem, secondItem]);
 
     coll.create({
-      request: of(secondItem)
+      request: signal(secondItem)
     }).subscribe();
 
     expect(coll.itemsSignal()).toStrictEqual([newItem, secondItem]);
@@ -82,25 +66,14 @@ describe('Collection Service (Signals)', () => {
     const item7 = {id: 4, name: 'G'};
 
     coll.read({
-      request: of([item1])
+      request: signal([item1])
     }).subscribe();
 
     expect(coll.itemsSignal()).toStrictEqual([item1]);
 
     coll.createMany({
-      request: emit([item2, item3]),
+      request: signal([item2, item3]),
     }).subscribe();
-
-    expect(vm()).toMatchObject<ViewModel>({
-      isCreating: true,
-      isUpdating: false,
-      isProcessing: true,
-      isMutating: true,
-      isSaving: true,
-      items: [item1],
-    });
-
-    jest.runOnlyPendingTimers();
 
     expect(vm()).toMatchObject<ViewModel>({
       isCreating: false,
@@ -113,27 +86,23 @@ describe('Collection Service (Signals)', () => {
 
     // should not mutate - item5 is a duplicate of item4
     coll.createMany({
-      request: [emit(item4), emit(item5)],
+      request: [signal(item4), signal(item5)],
     }).subscribe();
-
-    jest.runOnlyPendingTimers();
 
     expect(vm()).toMatchObject<ViewModel>({
       items: [item1, item2, item3],
     });
 
     coll.createMany({
-      request: [emit(item4), emit(item6)],
+      request: [signal(item4), signal(item6)],
     }).subscribe();
-
-    jest.runOnlyPendingTimers();
 
     expect(vm()).toMatchObject<ViewModel>({
       items: [item1, item2, item3, item4, item6],
     });
 
     coll.createMany({
-      request: of({items: [item7], totalCount: 0}),
+      request: signal({items: [item7], totalCount: 0}),
     }).subscribe();
 
     expect(vm()).toMatchObject<ViewModel>({
@@ -142,10 +111,8 @@ describe('Collection Service (Signals)', () => {
     });
 
     coll.createMany({
-      request: emit({items: [], totalCount: 4815162342}),
+      request: signal({items: [], totalCount: 4815162342}),
     }).subscribe();
-
-    jest.runOnlyPendingTimers();
 
     expect(vm()).toMatchObject<ViewModel>({
       items: [item1, item2, item3, item4, item6, item7],
@@ -159,17 +126,13 @@ describe('Collection Service (Signals)', () => {
     expect(vm()).toMatchObject<ViewModel>({isReading: false, isProcessing: false, isMutating: false});
 
     coll.read({
-      request: emit([{id: 1, name: 'A'}, {id: 2, name: 'B'}]),
+      request: signal([{id: 1, name: 'A'}, {id: 2, name: 'B'}]),
     }).subscribe();
-
-    expect(vm()).toMatchObject<ViewModel>({isReading: true, isProcessing: true, isMutating: false});
-
-    jest.runOnlyPendingTimers();
 
     expect(coll.itemsSignal()).toStrictEqual([{id: 1, name: 'A'}, {id: 2, name: 'B'}]);
 
     coll.read({
-      request: of({items: [{id: 1, name: 'AN'}, {id: 2, name: 'BN'}], totalCount: 12})
+      request: signal({items: [{id: 1, name: 'AN'}, {id: 2, name: 'BN'}], totalCount: 12})
     }).subscribe();
 
     expect(coll.itemsSignal()).toStrictEqual([{id: 1, name: 'AN'}, {id: 2, name: 'BN'}]);
@@ -179,7 +142,7 @@ describe('Collection Service (Signals)', () => {
     coll.setThrowOnDuplicates(undefined);
 
     coll.read({
-      request: of({items: [{id: 1, name: 'AN'}, {id: 2, name: 'BN'}, {id: 2, name: 'BNX'}], totalCount: 10000}),
+      request: signal({items: [{id: 1, name: 'AN'}, {id: 2, name: 'BN'}, {id: 2, name: 'BNX'}], totalCount: 10000}),
       keepExistingOnError: true,
     }).subscribe();
 
@@ -187,7 +150,7 @@ describe('Collection Service (Signals)', () => {
     expect(vm().totalCountFetched).toStrictEqual(12);
 
     coll.read({
-      request: of({items: [{id: 1, name: 'AN'}, {id: 2, name: 'BN'}, {id: 2, name: 'BNX'}], totalCount: 10000}),
+      request: signal({items: [{id: 1, name: 'AN'}, {id: 2, name: 'BN'}, {id: 2, name: 'BNX'}], totalCount: 10000}),
       keepExistingOnError: false,
     }).subscribe();
 
@@ -195,7 +158,7 @@ describe('Collection Service (Signals)', () => {
     expect(vm().totalCountFetched).toStrictEqual(undefined);
 
     coll.read({
-      request: of({items: [{id: 1, name: 'AN'}, {id: 2, name: 'BN'}, {id: 2, name: 'BNX'}]})
+      request: signal({items: [{id: 1, name: 'AN'}, {id: 2, name: 'BN'}, {id: 2, name: 'BNX'}]})
     }).subscribe();
 
     expect(coll.itemsSignal()).toStrictEqual([]);
@@ -210,7 +173,7 @@ describe('Collection Service (Signals)', () => {
     const item3: Item = {id: 3, name: 'D'};
     const item3v2: Item = {id: 3, name: 'E'};
 
-    coll.read({request: of([item1, item2, item3])}).subscribe();
+    coll.read({request: signal([item1, item2, item3])}).subscribe();
 
     expect(vm()).toMatchObject<ViewModel>({
       isReading: false,
@@ -220,12 +183,8 @@ describe('Collection Service (Signals)', () => {
     });
 
     coll.readOne({
-      request: emit(item),
+      request: signal(item),
     }).subscribe();
-
-    expect(vm()).toMatchObject<ViewModel>({isReading: true, isProcessing: true, isMutating: false});
-
-    jest.runOnlyPendingTimers();
 
     expect(vm()).toMatchObject<ViewModel>({
       isReading: false,
@@ -235,10 +194,8 @@ describe('Collection Service (Signals)', () => {
     });
 
     coll.readOne({
-      request: emit(item3v2),
+      request: signal(item3v2),
     }).subscribe();
-
-    jest.runOnlyPendingTimers();
 
     expect(vm()).toMatchObject<ViewModel>({
       isReading: false,
@@ -254,7 +211,7 @@ describe('Collection Service (Signals)', () => {
     const newItems: Item[] = [{id: 3, name: 'D'}, {id: 4, name: 'E'}];
     const newItemsV2 = {items: [{id: 3, name: 'D!'}, {id: 4, name: 'E!'}], totalCount: 4815162342};
 
-    coll.read({request: of(items)}).subscribe();
+    coll.read({request: signal(items)}).subscribe();
 
     expect(vm()).toMatchObject<ViewModel>({
       isReading: false,
@@ -264,12 +221,8 @@ describe('Collection Service (Signals)', () => {
     });
 
     coll.readMany({
-      request: emit(newItems),
+      request: signal(newItems),
     }).subscribe();
-
-    expect(vm()).toMatchObject<ViewModel>({isReading: true, isProcessing: true, isMutating: false});
-
-    jest.runOnlyPendingTimers();
 
     expect(vm()).toMatchObject<ViewModel>({
       isReading: false,
@@ -279,10 +232,8 @@ describe('Collection Service (Signals)', () => {
     });
 
     coll.readMany({
-      request: emit(newItemsV2),
+      request: signal(newItemsV2),
     }).subscribe();
-
-    jest.runOnlyPendingTimers();
 
     expect(vm()).toMatchObject<ViewModel>({
       isReading: false,
@@ -304,7 +255,7 @@ describe('Collection Service (Signals)', () => {
     const item3f = {id: 2, name: 'Cf'};
     const item4f = {id: 3, name: 'Df'};
 
-    coll.read({request: of([item1, item2])}).subscribe();
+    coll.read({request: signal([item1, item2])}).subscribe();
 
     expect(vm()).toMatchObject<ViewModel>({
       isReading: false,
@@ -315,19 +266,9 @@ describe('Collection Service (Signals)', () => {
     });
 
     coll.refresh({
-      request: emit(item2f),
+      request: signal(item2f),
       item: item2
     }).subscribe();
-
-    expect(vm()).toMatchObject<ViewModel>({
-      isReading: false,
-      isProcessing: true,
-      isMutating: false,
-      refreshingItems: [item2],
-      items: [item1, item2]
-    });
-
-    jest.runOnlyPendingTimers();
 
     expect(vm()).toMatchObject<ViewModel>({
       isReading: false,
@@ -338,11 +279,9 @@ describe('Collection Service (Signals)', () => {
     });
 
     coll.refreshMany({
-      request: emit([item1f, item3]),
+      request: signal([item1f, item3]),
       items: [item1]
     }).subscribe();
-
-    jest.runOnlyPendingTimers();
 
     expect(vm()).toMatchObject<ViewModel>({
       isReading: false,
@@ -353,22 +292,12 @@ describe('Collection Service (Signals)', () => {
     });
 
     coll.refreshMany({
-      request: [emit(item3f), emit(item4)],
+      request: [signal(item3f), signal(item4)],
       items: [item3]
     }).subscribe();
 
     expect(vm()).toMatchObject<ViewModel>({
       isReading: false,
-      isProcessing: true,
-      isMutating: false,
-      refreshingItems: [item3],
-      items: [item1f, item2f, item3],
-    });
-
-    jest.runOnlyPendingTimers();
-
-    expect(vm()).toMatchObject<ViewModel>({
-      isReading: false,
       isProcessing: false,
       isMutating: false,
       refreshingItems: [],
@@ -376,20 +305,9 @@ describe('Collection Service (Signals)', () => {
     });
 
     coll.refreshMany({
-      request: emit({items: [item2f, item3f, item4f], totalCount: 4815162342}),
+      request: signal({items: [item2f, item3f, item4f], totalCount: 4815162342}),
       items: [item3f, item4]
     }).subscribe();
-
-    expect(vm()).toMatchObject<ViewModel>({
-      isReading: false,
-      isProcessing: true,
-      isMutating: false,
-      refreshingItems: [item3f, item4],
-      items: [item1f, item2f, item3f, item4],
-      totalCountFetched: undefined,
-    });
-
-    jest.runOnlyPendingTimers();
 
     expect(vm()).toMatchObject<ViewModel>({
       isReading: false,
@@ -412,7 +330,7 @@ describe('Collection Service (Signals)', () => {
     expect(vm()).toMatchObject<ViewModel>({isUpdating: false, isProcessing: false, isMutating: false});
 
     coll.read({
-      request: of([item1, item2]),
+      request: signal([item1, item2]),
       onSuccess: () => {throw 'oops';}
     }).subscribe();
 
@@ -423,17 +341,9 @@ describe('Collection Service (Signals)', () => {
     expect(coll.updatingItemsSignal().length).toEqual(0);
 
     coll.update({
-      request: emit(newItem2),
+      request: signal(newItem2),
       item: item2,
     }).subscribe();
-
-    expect(coll.itemsSignal()).toStrictEqual([item1, item2]);
-    expect(coll.updatingItemsSignal()).toStrictEqual([item2]);
-    expect(coll.mutatingItemsSignal()).toStrictEqual([item2]);
-    expect(ivm()).toMatchObject<ItemViewModel>({isUpdating: true, isMutating: true, isProcessing: true});
-    expect(vm()).toMatchObject<ViewModel>({isUpdating: true, isProcessing: true, isMutating: true, isSaving: true});
-
-    jest.runOnlyPendingTimers();
 
     expect(coll.itemsSignal()).toStrictEqual([item1, newItem2]);
     expect(coll.updatingItemsSignal()).toStrictEqual([]);
@@ -454,25 +364,16 @@ describe('Collection Service (Signals)', () => {
     const ivm4 = coll.getItemViewModelSignal(signal(item4));
 
     coll.read({
-      request: of([item1, item2, item3, item4])
+      request: signal([item1, item2, item3, item4])
     }).subscribe();
 
     const newItem2 = {id: 0, name: 'X'};
     const newItem4 = {id: 2, name: 'Y'};
 
     coll.updateMany({
-      request: emit([newItem2, newItem4]),
+      request: signal([newItem2, newItem4]),
       items: [item2, item4],
     }).subscribe();
-
-    expect(coll.updatingItemsSignal()).toStrictEqual([item2, item4]);
-    expect(coll.mutatingItemsSignal()).toStrictEqual([item2, item4]);
-    expect(vm()).toMatchObject<ViewModel>({isUpdating: true, isProcessing: true, isMutating: true, isSaving: true});
-    expect(ivm2()).toMatchObject<ItemViewModel>({isUpdating: true, isMutating: true, isProcessing: true});
-    expect(ivm3()).toMatchObject<ItemViewModel>({isUpdating: false, isMutating: false, isProcessing: false});
-    expect(ivm4()).toMatchObject<ItemViewModel>({isUpdating: true, isMutating: true, isProcessing: true});
-
-    jest.runOnlyPendingTimers();
 
     expect(coll.itemsSignal()).toStrictEqual([item1, newItem2, item3, newItem4]);
     expect(coll.updatingItemsSignal()).toStrictEqual([]);
@@ -496,7 +397,7 @@ describe('Collection Service (Signals)', () => {
     const ivm = coll.getItemViewModelSignal(signal(item2));
 
     coll.read({
-      request: of({
+      request: signal({
         items: [
           item1,
           item2,
@@ -530,30 +431,9 @@ describe('Collection Service (Signals)', () => {
     expect(ivm()).toMatchObject<ItemViewModel>({isProcessing: false, isMutating: false, isDeleting: false, isRefreshing: false, isUpdating: false});
 
     coll.delete({
-      request: emit(item2),
+      request: signal(item2),
       item: item2,
     }).subscribe();
-
-    expect(coll.itemsSignal()).toStrictEqual([
-      item1,
-      item2,
-      item3,
-      item4,
-      item5,
-      item6,
-      item7,
-    ]);
-    expect(coll.deletingItemsSignal()).toStrictEqual([item2]);
-    expect(vm()).toMatchObject<ViewModel>({
-      isDeleting: true,
-      isMutating: true,
-      isProcessing: true,
-      isSaving: false,
-      totalCountFetched: 7,
-    });
-    expect(ivm()).toMatchObject<ItemViewModel>({isProcessing: true, isMutating: true, isDeleting: true, isRefreshing: false, isUpdating: false});
-
-    jest.runOnlyPendingTimers();
 
     expect(coll.itemsSignal()).toStrictEqual([
       item1,
@@ -574,27 +454,27 @@ describe('Collection Service (Signals)', () => {
     expect(ivm()).toMatchObject<ItemViewModel>({isProcessing: false, isMutating: false, isDeleting: false, isRefreshing: false, isUpdating: false});
 
     coll.delete({
-      request: of(null),
+      request: signal(null),
       item: item3,
       decrementTotalCount: 3,
     }).subscribe();
-    jest.runOnlyPendingTimers();
+
     expect(vm()).toMatchObject<ViewModel>({totalCountFetched: 4});
 
     coll.delete({
-      request: of(null),
+      request: signal(null),
       item: item4,
       decrementTotalCount: true,
     }).subscribe();
-    jest.runOnlyPendingTimers();
+
     expect(vm()).toMatchObject<ViewModel>({totalCountFetched: 3});
 
     coll.delete({
-      request: of({totalItems: 1}),
+      request: signal({totalItems: 1}),
       item: item5,
       decrementTotalCount: 'totalItems',
     }).subscribe();
-    jest.runOnlyPendingTimers();
+
     expect(vm()).toMatchObject<ViewModel>({totalCountFetched: 1});
   });
 
@@ -615,7 +495,7 @@ describe('Collection Service (Signals)', () => {
     const ivm3 = coll.getItemViewModelSignal(signal(item3));
 
     coll.read({
-      request: of({
+      request: signal({
         items: [item1, item2, item3, item4, item5, item6, item7, item8, item9],
         totalCount: 200
       })
@@ -634,23 +514,9 @@ describe('Collection Service (Signals)', () => {
     expect(ivm3()).toMatchObject<ItemViewModel>({isProcessing: false, isMutating: false, isDeleting: false, isRefreshing: false, isUpdating: false});
 
     coll.deleteMany({
-      request: emit('ok'),
+      request: signal('ok'),
       items: [item3, item4],
     }).subscribe();
-
-    expect(coll.itemsSignal()).toStrictEqual([item1, item2, item3, item4, item5, item6, item7, item8, item9]);
-    expect(coll.deletingItemsSignal()).toStrictEqual([item3, item4]);
-    expect(vm()).toMatchObject<ViewModel>({
-      isDeleting: true,
-      isMutating: true,
-      isProcessing: true,
-      isSaving: false,
-      totalCountFetched: 200,
-    });
-    expect(ivm2()).toMatchObject<ItemViewModel>({isProcessing: false, isMutating: false, isDeleting: false, isRefreshing: false, isUpdating: false});
-    expect(ivm3()).toMatchObject<ItemViewModel>({isProcessing: true, isMutating: true, isDeleting: true, isRefreshing: false, isUpdating: false});
-
-    jest.runOnlyPendingTimers();
 
     expect(coll.itemsSignal()).toStrictEqual([item1, item2, item5, item6, item7, item8, item9]);
     expect(coll.deletingItemsSignal()).toStrictEqual([]);
@@ -659,31 +525,31 @@ describe('Collection Service (Signals)', () => {
     expect(ivm3()).toMatchObject<ItemViewModel>({isProcessing: false, isMutating: false, isDeleting: false, isRefreshing: false, isUpdating: false});
 
     coll.deleteMany({
-      request: emit('ok'),
+      request: signal('ok'),
       items: [item5],
       decrementTotalCount: 110,
     }).subscribe();
-    jest.runOnlyPendingTimers();
+
     expect(vm()).toMatchObject<ViewModel>({
       totalCountFetched: 90,
     });
 
     coll.deleteMany({
-      request: emit('ok'),
+      request: signal('ok'),
       items: [item6, item7],
       decrementTotalCount: true,
     }).subscribe();
-    jest.runOnlyPendingTimers();
+
     expect(vm()).toMatchObject<ViewModel>({
       totalCountFetched: 88,
     });
 
     coll.deleteMany({
-      request: emit({total: 10}),
+      request: signal({total: 10}),
       items: [item8],
       decrementTotalCount: 'total',
     }).subscribe();
-    jest.runOnlyPendingTimers();
+
     expect(vm()).toMatchObject<ViewModel>({
       totalCountFetched: 10,
     });
@@ -699,7 +565,7 @@ describe('Collection Service (Signals)', () => {
     // here `computed()` is used just to check if returned signal can be used inside the `computed()`
     const ivm = computed(() => coll.getItemViewModelSignal(signal(item1)))();
 
-    coll.read({request: of([item1, item2])}).subscribe();
+    coll.read({request: signal([item1, item2])}).subscribe();
     expect(coll.itemsSignal()).toStrictEqual([item1, item2]);
 
     expect(vm()).toMatchObject<ViewModel>({isProcessing: false});
@@ -738,7 +604,7 @@ describe('Collection Service (Signals)', () => {
     const item1 = {id: -1, name: '#!'};
     const item2 = {id: 0, name: '!@'};
 
-    coll.read({request: of([item1, item2])}).subscribe();
+    coll.read({request: signal([item1, item2])}).subscribe();
     expect(coll.itemsSignal()).toStrictEqual([item1, item2]);
 
     expect(vm().status.get('focused')).toBeFalsy();
@@ -782,20 +648,12 @@ describe('Collection Service (Signals)', () => {
     const item3 = {id: 3, name: 'C'};
 
     coll.read({
-      request: emit([item1, item2, item3])
+      request: signal([item1, item2, item3])
     }).subscribe();
-
-    expect(coll.getItemSignal({id: 1})()).toStrictEqual(undefined);
-
-    jest.runOnlyPendingTimers();
 
     expect(coll.getItemSignal({id: 1})()).toStrictEqual(item1);
 
-    const itemSource = coll.getItemSignal(emit(item2));
-
-    expect(itemSource()).toStrictEqual(undefined);
-
-    jest.runOnlyPendingTimers();
+    const itemSource = coll.getItemSignal(signal(item2));
 
     expect(itemSource()).toStrictEqual(item2);
   });
@@ -810,22 +668,14 @@ describe('Collection Service (Signals)', () => {
     const item3 = {id: 1, name: '*'};
 
     coll.read({
-      request: emit([item1, item2, item3])
+      request: signal([item1, item2, item3])
     }).subscribe();
-
-    expect(coll.getItemByFieldSignal('id', 1)()).toStrictEqual(undefined);
-
-    jest.runOnlyPendingTimers();
 
     expect(coll.getItemByFieldSignal('id', 0)()).toStrictEqual(item1);
     expect(coll.getItemByFieldSignal(['id', 'name'], -1)()).toStrictEqual(item2);
     expect(coll.getItemByFieldSignal(['id', 'name'], '*')()).toStrictEqual(item3);
 
-    const itemSource = coll.getItemByFieldSignal('id', emit(0));
-
-    expect(itemSource()).toStrictEqual(undefined);
-
-    jest.runOnlyPendingTimers();
+    const itemSource = coll.getItemByFieldSignal('id', signal(0));
 
     expect(itemSource()).toStrictEqual(item1);
   });
@@ -871,11 +721,12 @@ describe('Collection Service (Signals)', () => {
   });
 
   it('custom comparator fn with multiple fields', () => {
+    const injector = TestBed.inject(Injector);
     const coll = new CollectionService<Item>({
       comparator: (item1: Item, item2: Item) => (item1.id + item1.name) === (item2.id + item2.name),
       allowFetchedDuplicates: false,
       onDuplicateErrCallbackParam: 'DRY'
-    });
+    }, injector);
 
     const item1 = {id: 1, name: 'A'};
     const item2 = {id: 2, name: 'B'};
@@ -885,7 +736,7 @@ describe('Collection Service (Signals)', () => {
     let errMsg = '';
 
     coll.read({
-      request: of([item1, item2, item3, item4]),
+      request: signal([item1, item2, item3, item4]),
       onError: (err) => errMsg = err as string,
     }).subscribe();
 
@@ -905,15 +756,12 @@ describe('Collection Service (Signals)', () => {
     let lastEmitted: any = undefined;
     coll.listenForCreate().subscribe(v => lastEmitted = v);
 
-    jest.runOnlyPendingTimers();
     expect(lastEmitted).toBeFalsy();
 
     coll.create({
-      request: emit({id: 1, name: 'A'})
+      request: signal({id: 1, name: 'A'})
     }).subscribe();
 
-    expect(lastEmitted).toBeFalsy();
-    jest.runAllTimers();
     expect(lastEmitted).toStrictEqual([{id: 1, name: 'A'}]);
   });
 
@@ -922,15 +770,12 @@ describe('Collection Service (Signals)', () => {
     let lastEmitted: any = undefined;
     coll.listenForCreate().subscribe(v => lastEmitted = v);
 
-    jest.runOnlyPendingTimers();
     expect(lastEmitted).toBeFalsy();
 
     coll.createMany({
-      request: emit([{id: 1, name: 'A'}, {id: 2, name: 'B'}])
+      request: signal([{id: 1, name: 'A'}, {id: 2, name: 'B'}])
     }).subscribe();
 
-    expect(lastEmitted).toBeFalsy();
-    jest.runAllTimers();
     expect(lastEmitted).toStrictEqual([{id: 1, name: 'A'}, {id: 2, name: 'B'}]);
   });
 
@@ -939,16 +784,13 @@ describe('Collection Service (Signals)', () => {
     let lastEmitted: any = undefined;
     const s = coll.listenForCreate().subscribe(v => lastEmitted = v);
 
-    jest.runOnlyPendingTimers();
     expect(lastEmitted).toBeFalsy();
     s.unsubscribe();
 
     coll.create({
-      request: emit({id: 1, name: 'A'})
+      request: signal({id: 1, name: 'A'})
     }).subscribe();
 
-    expect(lastEmitted).toBeFalsy();
-    jest.runAllTimers();
     expect(lastEmitted).toStrictEqual(undefined);
   });
 
@@ -957,15 +799,12 @@ describe('Collection Service (Signals)', () => {
     let lastEmitted: any = undefined;
     coll.listenForRead().subscribe(v => lastEmitted = v);
 
-    jest.runOnlyPendingTimers();
     expect(lastEmitted).toBeFalsy();
 
     coll.read({
-      request: emit([{id: 1, name: 'A'}])
+      request: signal([{id: 1, name: 'A'}])
     }).subscribe();
 
-    expect(lastEmitted).toBeFalsy();
-    jest.runAllTimers();
     expect(lastEmitted).toStrictEqual([{id: 1, name: 'A'}]);
   });
 
@@ -974,15 +813,12 @@ describe('Collection Service (Signals)', () => {
     let lastEmitted: any = undefined;
     coll.listenForRead().subscribe(v => lastEmitted = v);
 
-    jest.runOnlyPendingTimers();
     expect(lastEmitted).toBeFalsy();
 
     coll.readMany({
-      request: emit([{id: 1, name: 'A'}, {id: 2, name: 'B'}])
+      request: signal([{id: 1, name: 'A'}, {id: 2, name: 'B'}])
     }).subscribe();
 
-    expect(lastEmitted).toBeFalsy();
-    jest.runAllTimers();
     expect(lastEmitted).toStrictEqual([{id: 1, name: 'A'}, {id: 2, name: 'B'}]);
   });
 
@@ -992,19 +828,16 @@ describe('Collection Service (Signals)', () => {
     coll.listenForRead().subscribe(v => lastEmitted = v);
 
     coll.read({
-      request: emit([{id: 1, name: 'A'}])
+      request: signal([{id: 1, name: 'A'}])
     }).subscribe();
 
-    jest.runOnlyPendingTimers();
     expect(lastEmitted).toStrictEqual([{id: 1, name: 'A'}]);
 
     coll.refresh({
-      request: emit({id: 1, name: 'B'}),
+      request: signal({id: 1, name: 'B'}),
       item: {id: 1},
     }).subscribe();
 
-    expect(lastEmitted).toStrictEqual([{id: 1, name: 'A'}]);
-    jest.runAllTimers();
     expect(lastEmitted).toStrictEqual([{id: 1, name: 'B'}]);
   });
 
@@ -1014,19 +847,16 @@ describe('Collection Service (Signals)', () => {
     coll.listenForRead().subscribe(v => lastEmitted = v);
 
     coll.read({
-      request: emit([{id: 1, name: 'A'}, {id: 2, name: 'B'}])
+      request: signal([{id: 1, name: 'A'}, {id: 2, name: 'B'}])
     }).subscribe();
 
-    jest.runOnlyPendingTimers();
     expect(lastEmitted).toStrictEqual([{id: 1, name: 'A'}, {id: 2, name: 'B'}]);
 
     coll.refreshMany({
-      request: emit([{id: 1, name: 'C'}, {id: 2, name: 'D'}]),
+      request: signal([{id: 1, name: 'C'}, {id: 2, name: 'D'}]),
       items: [{id: 1}, {id: 2}],
     }).subscribe();
 
-    expect(lastEmitted).toStrictEqual([{id: 1, name: 'A'}, {id: 2, name: 'B'}]);
-    jest.runAllTimers();
     expect(lastEmitted).toStrictEqual([{id: 1, name: 'C'}, {id: 2, name: 'D'}]);
   });
 
@@ -1036,19 +866,16 @@ describe('Collection Service (Signals)', () => {
     coll.listenForUpdate().subscribe(v => lastEmitted = v);
 
     coll.read({
-      request: emit([{id: 1, name: 'A'}])
+      request: signal([{id: 1, name: 'A'}])
     }).subscribe();
 
-    jest.runOnlyPendingTimers();
     expect(lastEmitted).toBeFalsy();
 
     coll.update({
-      request: emit({id: 1, name: 'B'}),
+      request: signal({id: 1, name: 'B'}),
       item: {id: 1},
     }).subscribe();
 
-    expect(lastEmitted).toBeFalsy();
-    jest.runAllTimers();
     expect(lastEmitted).toStrictEqual([{id: 1, name: 'B'}]);
   });
 
@@ -1058,19 +885,16 @@ describe('Collection Service (Signals)', () => {
     coll.listenForUpdate().subscribe(v => lastEmitted = v);
 
     coll.read({
-      request: emit([{id: 1, name: 'A'}])
+      request: signal([{id: 1, name: 'A'}])
     }).subscribe();
 
-    jest.runOnlyPendingTimers();
     expect(lastEmitted).toBeFalsy();
 
     coll.updateMany({
-      request: emit([{id: 1, name: 'B'}, {id: 2, name: 'A'}]),
+      request: signal([{id: 1, name: 'B'}, {id: 2, name: 'A'}]),
       items: [{id: 1}, {id: 2}],
     }).subscribe();
 
-    expect(lastEmitted).toBeFalsy();
-    jest.runAllTimers();
     expect(lastEmitted).toStrictEqual([{id: 1, name: 'B'}, {id: 2, name: 'A'}]);
   });
 
@@ -1080,19 +904,16 @@ describe('Collection Service (Signals)', () => {
     coll.listenForDelete().subscribe(v => lastEmitted = v);
 
     coll.read({
-      request: emit([{id: 1, name: 'A'}])
+      request: signal([{id: 1, name: 'A'}])
     }).subscribe();
 
-    jest.runOnlyPendingTimers();
     expect(lastEmitted).toBeFalsy();
 
     coll.delete({
-      request: emit(null),
+      request: signal(null),
       item: {id: 1}
     }).subscribe();
 
-    expect(lastEmitted).toBeFalsy();
-    jest.runAllTimers();
     expect(lastEmitted).toStrictEqual([{id: 1}]);
   });
 
@@ -1102,19 +923,16 @@ describe('Collection Service (Signals)', () => {
     coll.listenForDelete().subscribe(v => lastEmitted = v);
 
     coll.read({
-      request: emit([{id: 1, name: 'A'}, {id: 2, name: 'B'}])
+      request: signal([{id: 1, name: 'A'}, {id: 2, name: 'B'}])
     }).subscribe();
 
-    jest.runOnlyPendingTimers();
     expect(lastEmitted).toBeFalsy();
 
     coll.deleteMany({
-      request: emit(null),
+      request: signal(null),
       items: [{id: 1}, {id: 2}]
     }).subscribe();
 
-    expect(lastEmitted).toBeFalsy();
-    jest.runAllTimers();
     expect(lastEmitted).toStrictEqual([{id: 1}, {id: 2}]);
   });
 });
