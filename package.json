@@ -1,6 +1,6 @@
 {
   "name": "ngx-collection",
-  "version": "2.1.0",
+  "version": "2.1.1",
   "license": "MIT",
   "author": {
     "name": "Evgeniy OZ",
@@ -16,9 +16,7 @@
   ],
   "scripts": {
     "ng": "ng",
-    "start": "ng serve",
     "build": "ng build",
-    "watch": "ng build --watch --configuration development",
     "test": "npx jest",
     "pub": "npm publish ./dist/ngx-collection",
     "pre": "ng build && npm run test && npm publish ./dist/ngx-collection --dry-run",

@@ -26,8 +26,7 @@ function readState<T>(stream: Observable<T>): T {
 }
 
 function setup() {
-  const injector = TestBed.inject(Injector);
-  const coll = new CollectionService<Item>({throwOnDuplicates: 'duplicate', comparatorFields: ['id']}, injector);
+  const coll = new CollectionService<Item>({throwOnDuplicates: 'duplicate', comparatorFields: ['id']}, TestBed.inject(Injector));
   const vm = coll.getViewModel();
 
   return {
@@ -415,8 +414,7 @@ describe('Collection Service', () => {
     expect(readState(vm)).toMatchObject<ViewModel>({isUpdating: false, isProcessing: false, isMutating: false});
 
     coll.read({
-      request: of([item1, item2]),
-      onSuccess: () => {throw 'oops';}
+      request: of([item1, item2])
     }).subscribe();
 
     const newItem2 = {id: 0, name: 'C'};
@@ -853,7 +851,7 @@ describe('Collection Service', () => {
 
     const dColl = new DColl({
       comparator: (a, b) => a === b
-    });
+    }, TestBed.inject(Injector));
     expect(dColl.hasDuplicates(
       [0, 1, 2, 3, 4, 5, 2]
     )).toStrictEqual(2);
@@ -872,12 +870,11 @@ describe('Collection Service', () => {
   });
 
   it('custom comparator fn with multiple fields', () => {
-    const injector = TestBed.inject(Injector);
     const coll = new CollectionService<Item>({
       comparator: (item1: Item, item2: Item) => (item1.id + item1.name) === (item2.id + item2.name),
       allowFetchedDuplicates: false,
       onDuplicateErrCallbackParam: 'DRY'
-    }, injector);
+    }, TestBed.inject(Injector));
 
     const item1 = {id: 1, name: 'A'};
     const item2 = {id: 2, name: 'B'};

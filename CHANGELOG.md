@@ -1,3 +1,6 @@
+### 2.1.1
+If class is instantiated in an injection context, the `injector` will be created from this context.
+
 ### 2.1.0
 * Every `request` parameter now accepts signals! The signal will be read once, at the moment of request execution;
 * Signals are accepted also by:

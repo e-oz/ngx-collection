@@ -1,9 +1,9 @@
-import { catchError, defaultIfEmpty, defer, EMPTY, finalize, first, forkJoin, isObservable, map, Observable, of, startWith, Subject, switchMap } from 'rxjs';
-import { Inject, Injectable, Injector, isSignal, Optional, Signal, untracked } from '@angular/core';
+import { catchError, defaultIfEmpty, defer, EMPTY, finalize, first, forkJoin, isObservable, map, Observable, of, startWith, Subject, switchMap, takeUntil } from 'rxjs';
+import { inject, Inject, Injectable, Injector, isDevMode, isSignal, Optional, Signal, untracked } from '@angular/core';
 import { ComponentStore, tapResponse } from '@ngrx/component-store';
 import { concatLatestFrom } from '@ngrx/effects';
 import { Comparator, ObjectsComparator, ObjectsComparatorFn } from './comparator';
-import { isEmptyValue } from './helpers';
+import { isEmptyValue, toObservableComputed } from './helpers';
 import { toObservable, toSignal } from '@angular/core/rxjs-interop';
 import { isFunction } from 'rxjs/internal/util/isFunction';
 
@@ -203,8 +203,8 @@ export class CollectionService<T, UniqueStatus = any, Status = any> extends Comp
   public get itemsSignal(): Signal<T[]> {
     return this._itemsSignal ?? (
       this._itemsSignal = untracked(() => toSignal(
-        this.items$,
-        {initialValue: [] as T[], injector: this.injector}
+        this.items$.pipe(takeUntil(this.destroy$)),
+        {initialValue: [] as T[], manualCleanup: true}
       ))
     );
   }
@@ -212,12 +212,14 @@ export class CollectionService<T, UniqueStatus = any, Status = any> extends Comp
   private _totalCountFetchedSignal?: Signal<number | undefined>;
 
   public get totalCountFetchedSignal(): Signal<number | undefined> {
-    return this._totalCountFetchedSignal ?? (
-      this._totalCountFetchedSignal = untracked(() => toSignal(
-        this.totalCountFetched$,
-        {initialValue: undefined, injector: this.injector}
-      ))
-    );
+    if (this._totalCountFetchedSignal) {
+      return this._totalCountFetchedSignal;
+    }
+    const src = this.totalCountFetched$.pipe(takeUntil(this.destroy$));
+    return this._totalCountFetchedSignal = untracked(() => toSignal(
+      src,
+      {initialValue: undefined, manualCleanup: true}
+    ));
   }
 
   private _updatingItemsSignal?: Signal<T[]>;
@@ -225,8 +227,8 @@ export class CollectionService<T, UniqueStatus = any, Status = any> extends Comp
   public get updatingItemsSignal(): Signal<T[]> {
     return this._updatingItemsSignal ?? (
       this._updatingItemsSignal = untracked(() => toSignal(
-        this.updatingItems$,
-        {initialValue: [] as T[], injector: this.injector}
+        this.updatingItems$.pipe(takeUntil(this.destroy$)),
+        {initialValue: [] as T[], manualCleanup: true}
       )));
   };
 
@@ -235,8 +237,8 @@ export class CollectionService<T, UniqueStatus = any, Status = any> extends Comp
   public get deletingItemsSignal(): Signal<T[]> {
     return this._deletingItemsSignal ?? (
       this._deletingItemsSignal = untracked(() => toSignal(
-        this.deletingItems$,
-        {initialValue: [] as T[], injector: this.injector}
+        this.deletingItems$.pipe(takeUntil(this.destroy$)),
+        {initialValue: [] as T[], manualCleanup: true}
       )));
   }
 
@@ -245,8 +247,8 @@ export class CollectionService<T, UniqueStatus = any, Status = any> extends Comp
   public get refreshingItemsSignal(): Signal<T[]> {
     return this._refreshingItemsSignal ?? (
       this._refreshingItemsSignal = untracked(() => toSignal(
-        this.refreshingItems$,
-        {initialValue: [] as T[], injector: this.injector}
+        this.refreshingItems$.pipe(takeUntil(this.destroy$)),
+        {initialValue: [] as T[], manualCleanup: true}
       )));
   }
 
@@ -255,8 +257,8 @@ export class CollectionService<T, UniqueStatus = any, Status = any> extends Comp
   public get mutatingItemsSignal(): Signal<T[]> {
     return this._mutatingItemsSignal ?? (
       this._mutatingItemsSignal = untracked(() => toSignal(
-        this.mutatingItems$,
-        {initialValue: [] as T[], injector: this.injector}
+        this.mutatingItems$.pipe(takeUntil(this.destroy$)),
+        {initialValue: [] as T[], manualCleanup: true}
       )));
   }
 
@@ -265,8 +267,8 @@ export class CollectionService<T, UniqueStatus = any, Status = any> extends Comp
   public get isCreatingSignal(): Signal<boolean> {
     return this._isCreatingSignal ?? (
       this._isCreatingSignal = untracked(() => toSignal(
-        this.isCreating$,
-        {initialValue: false, injector: this.injector}
+        this.isCreating$.pipe(takeUntil(this.destroy$)),
+        {initialValue: false, manualCleanup: true}
       )));
   }
 
@@ -275,7 +277,8 @@ export class CollectionService<T, UniqueStatus = any, Status = any> extends Comp
   public get isReadingSignal(): Signal<boolean> {
     return this._isReadingSignal ?? (
       this._isReadingSignal = untracked(() => toSignal(
-        this.isReading$, {initialValue: false, injector: this.injector}
+        this.isReading$.pipe(takeUntil(this.destroy$)),
+        {initialValue: false, manualCleanup: true}
       )));
   }
 
@@ -284,7 +287,8 @@ export class CollectionService<T, UniqueStatus = any, Status = any> extends Comp
   public get isUpdatingSignal(): Signal<boolean> {
     return this._isUpdatingSignal ?? (
       this._isUpdatingSignal = untracked(() => toSignal(
-        this.isUpdating$, {initialValue: false, injector: this.injector}
+        this.isUpdating$.pipe(takeUntil(this.destroy$)),
+        {initialValue: false, manualCleanup: true}
       )));
   }
 
@@ -293,7 +297,8 @@ export class CollectionService<T, UniqueStatus = any, Status = any> extends Comp
   public get isDeletingSignal(): Signal<boolean> {
     return this._isDeletingSignal ?? (
       this._isDeletingSignal = untracked(() => toSignal(
-        this.isDeleting$, {initialValue: false, injector: this.injector}
+        this.isDeleting$.pipe(takeUntil(this.destroy$)),
+        {initialValue: false, manualCleanup: true}
       )));
   }
 
@@ -302,7 +307,8 @@ export class CollectionService<T, UniqueStatus = any, Status = any> extends Comp
   public get isSavingSignal(): Signal<boolean> {
     return this._isSavingSignal ?? (
       this._isSavingSignal = untracked(() => toSignal(
-        this.isSaving$, {initialValue: false, injector: this.injector}
+        this.isSaving$.pipe(takeUntil(this.destroy$)),
+        {initialValue: false, manualCleanup: true}
       )));
   }
 
@@ -311,7 +317,8 @@ export class CollectionService<T, UniqueStatus = any, Status = any> extends Comp
   public get isMutatingSignal(): Signal<boolean> {
     return this._isMutatingSignal ?? (
       this._isMutatingSignal = untracked(() => toSignal(
-        this.isMutating$, {initialValue: false, injector: this.injector}
+        this.isMutating$.pipe(takeUntil(this.destroy$)),
+        {initialValue: false, manualCleanup: true}
       )));
   }
 
@@ -320,7 +327,8 @@ export class CollectionService<T, UniqueStatus = any, Status = any> extends Comp
   public get isProcessingSignal(): Signal<boolean> {
     return this._isProcessingSignal ?? (
       this._isProcessingSignal = untracked(() => toSignal(
-        this.isProcessing$, {initialValue: false, injector: this.injector}
+        this.isProcessing$.pipe(takeUntil(this.destroy$)),
+        {initialValue: false, manualCleanup: true}
       )));
   }
 
@@ -329,7 +337,8 @@ export class CollectionService<T, UniqueStatus = any, Status = any> extends Comp
   public get statusesSignal(): Signal<Map<T, Set<Status>>> {
     return this._statusesSignal ?? (
       this._statusesSignal = untracked(() => toSignal(
-        this.statuses$, {requireSync: true, injector: this.injector}
+        this.statuses$.pipe(takeUntil(this.destroy$)),
+        {requireSync: true, manualCleanup: true}
       )));
   }
 
@@ -338,7 +347,8 @@ export class CollectionService<T, UniqueStatus = any, Status = any> extends Comp
   public get statusSignal(): Signal<Map<UniqueStatus, T>> {
     return this._statusSignal ?? (
       this._statusSignal = untracked(() => toSignal(
-        this.status$, {requireSync: true, injector: this.injector}
+        this.status$.pipe(takeUntil(this.destroy$)),
+        {requireSync: true, manualCleanup: true}
       )));
   }
 
@@ -356,7 +366,10 @@ export class CollectionService<T, UniqueStatus = any, Status = any> extends Comp
   private toObservable<Src>(source: Observable<Src> | Signal<Src>): Observable<Src> {
     return isObservable(source) ?
       source
-      : toObservable(source, {injector: this.injector}).pipe(startWith(source()));
+      : (this.injector ?
+          toObservable(source, {injector: this.injector}).pipe(startWith(source()))
+          : toObservableComputed(source).pipe(takeUntil(this.destroy$))
+      );
   }
 
   private toObservableFirstValue<Src>(s: Observable<Src> | Signal<Src>): Observable<Src> {
@@ -542,7 +555,7 @@ export class CollectionService<T, UniqueStatus = any, Status = any> extends Comp
       try {
         cb(param);
       } catch (e) {
-        this.callErrReporter(e);
+        this.reportRuntimeError(e);
       }
     }
   }
@@ -554,6 +567,14 @@ export class CollectionService<T, UniqueStatus = any, Status = any> extends Comp
       } catch (e) {
         console?.error('errReporter threw an exception', e);
       }
+    }
+  }
+
+  protected reportRuntimeError(...args: any) {
+    if (this.errReporter) {
+      this.callErrReporter(...args);
+    } else {
+      console?.error(...args);
     }
   }
 
@@ -597,14 +618,15 @@ export class CollectionService<T, UniqueStatus = any, Status = any> extends Comp
         }
       }
     } catch (e) {
-      this.callErrReporter(e);
+      this.reportRuntimeError(e);
     }
     return null;
   }
 
   constructor(
     @Inject('COLLECTION_SERVICE_OPTIONS') @Optional() options?: CollectionServiceOptions,
-    private injector?: Injector,
+    // You don't need to provide `injector` here if class is injected or created in an injection context
+    protected injector?: Injector,
   ) {
     super({
       items: [],
@@ -617,6 +639,17 @@ export class CollectionService<T, UniqueStatus = any, Status = any> extends Comp
       status: new Map<UniqueStatus, T>(),
     });
     this.setOptions(options);
+    if (!this.injector) {
+      try {
+        this.injector = inject(Injector);
+      } catch (e) {
+        if (isDevMode()) {
+          this.reportRuntimeError(e);
+        } else {
+          this.callErrReporter(e);
+        }
+      }
+    }
     this.init();
     Promise.resolve().then(() => this.postInit());
   }
@@ -1136,8 +1169,8 @@ export class CollectionService<T, UniqueStatus = any, Status = any> extends Comp
   public getViewModelSignal(): Signal<ViewModel<T, UniqueStatus, Status>> {
     return this._viewModelSignal ?? (
       this._viewModelSignal = untracked(() => toSignal(
-        this.getViewModel(),
-        {requireSync: true, injector: this.injector}
+        this.getViewModel().pipe(takeUntil(this.destroy$)),
+        {requireSync: true, manualCleanup: true}
       )));
   }
 
@@ -1178,8 +1211,8 @@ export class CollectionService<T, UniqueStatus = any, Status = any> extends Comp
 
   public getItemViewModelSignal(itemSource: Observable<T | undefined> | Signal<T | undefined>): Signal<ItemViewModel> {
     return untracked(() => toSignal(
-      this.getItemViewModel(this.toObservable(itemSource)),
-      {requireSync: true, injector: this.injector}
+      this.getItemViewModel(itemSource).pipe(takeUntil(this.destroy$)),
+      {requireSync: true, manualCleanup: true}
     ));
   }
 
@@ -1207,9 +1240,10 @@ export class CollectionService<T, UniqueStatus = any, Status = any> extends Comp
   }
 
   public getItemSignal(filter: Partial<T> | Observable<Partial<T>> | Signal<Partial<T>>): Signal<T | undefined> {
+    const src = this.getItem(filter).pipe(takeUntil(this.destroy$));
     return untracked(() => toSignal(
-      this.getItem(filter),
-      {injector: this.injector}
+      src,
+      {manualCleanup: true}
     ));
   }
 
@@ -1248,9 +1282,10 @@ export class CollectionService<T, UniqueStatus = any, Status = any> extends Comp
   }
 
   public getItemByFieldSignal<K extends keyof T>(field: K | K[], fieldValue: T[K] | Observable<T[K]> | Signal<T[K]>): Signal<T | undefined> {
+    const src = this.getItemByField(field, fieldValue).pipe(takeUntil(this.destroy$));
     return untracked(() => toSignal(
-      this.getItemByField(field, fieldValue),
-      {injector: this.injector}
+      src,
+      {manualCleanup: true}
     ));
   }
 
@@ -1309,7 +1344,7 @@ export class CollectionService<T, UniqueStatus = any, Status = any> extends Comp
           && !isEmptyValue(item[field])
         ) ? item[field] : i;
       } catch (e) {
-        this.callErrReporter(e);
+        this.reportRuntimeError(e);
         return i;
       }
     };

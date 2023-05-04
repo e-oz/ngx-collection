@@ -12,10 +12,9 @@ type ViewModel = ReturnType<CollectionService<Item>['getViewModel']> extends Obs
 type ItemViewModel = ReturnType<CollectionService<Item>['getItemViewModel']> extends Observable<infer IVM> ? Partial<IVM> : never;
 
 function setup() {
-  const injector = TestBed.inject(Injector);
   const coll = new CollectionService<Item>(
     {throwOnDuplicates: 'duplicate', comparatorFields: ['id']},
-    injector
+    TestBed.inject(Injector)
   );
   const vm = coll.getViewModelSignal();
 
@@ -330,8 +329,7 @@ describe('Collection Service (Signals)', () => {
     expect(vm()).toMatchObject<ViewModel>({isUpdating: false, isProcessing: false, isMutating: false});
 
     coll.read({
-      request: signal([item1, item2]),
-      onSuccess: () => {throw 'oops';}
+      request: signal([item1, item2])
     }).subscribe();
 
     const newItem2 = {id: 0, name: 'C'};
@@ -702,7 +700,7 @@ describe('Collection Service (Signals)', () => {
 
     const dColl = new DColl({
       comparator: (a, b) => a === b
-    });
+    }, TestBed.inject(Injector));
     expect(dColl.hasDuplicates(
       [0, 1, 2, 3, 4, 5, 2]
     )).toStrictEqual(2);
@@ -721,12 +719,11 @@ describe('Collection Service (Signals)', () => {
   });
 
   it('custom comparator fn with multiple fields', () => {
-    const injector = TestBed.inject(Injector);
     const coll = new CollectionService<Item>({
       comparator: (item1: Item, item2: Item) => (item1.id + item1.name) === (item2.id + item2.name),
       allowFetchedDuplicates: false,
       onDuplicateErrCallbackParam: 'DRY'
-    }, injector);
+    }, TestBed.inject(Injector));
 
     const item1 = {id: 1, name: 'A'};
     const item2 = {id: 2, name: 'B'};
