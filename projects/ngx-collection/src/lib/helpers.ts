@@ -62,27 +62,3 @@ export function getObjectPathValue<T = any>(object: Record<string, any>, path: s
     return undefined;
   }
 }
-
-/**
- * This function is being used as a replacement for the official `toObservable()`
- * from @angular/core/rxjs-interop.
- * This one uses `computed()` instead of `effect()` and expects that
- * resulting observable will be unsubscribed manually (CollectionService does it).
- */
-export function toObservableComputed<T>(source: Signal<T>): Observable<T> {
-  const subject = new ReplaySubject<T>(1);
-  const c = computed(() => {
-    if (!subject.closed) {
-      let value: T;
-      try {
-        value = source();
-      } catch (err) {
-        untracked(() => subject.error(err));
-        return;
-      }
-      untracked(() => subject.next(value));
-    }
-  });
-  untracked(c);
-  return subject.asObservable();
-}

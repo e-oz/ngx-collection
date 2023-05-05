@@ -1,4 +1,4 @@
-import { getObjectPathValue, isEmptyValue, isEmptyObject } from './helpers';
+import { getObjectPathValue, isEmptyObject, isEmptyValue } from './helpers';
 
 describe('getObjectPathValue', () => {
   it('should return undefined if path is empty', () => {
@@ -87,14 +87,16 @@ describe('isEmptyObject()', () => {
   });
 
   it('should return false for objects with inherited properties', () => {
-    class Base { a:string = 'a'}
+    class Base {a: string = 'a';}
+
     class Derived extends Base {}
+
     const obj = new Derived();
     expect(isEmptyObject(obj)).toBe(false);
   });
 
   it('should return false for objects with own properties', () => {
-    expect(isEmptyObject({ foo: 'bar' })).toBe(false);
+    expect(isEmptyObject({foo: 'bar'})).toBe(false);
   });
 
   it('should return true for arrays with no elements', () => {

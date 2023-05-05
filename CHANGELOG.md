@@ -1,3 +1,7 @@
+### 2.1.2
+* `toObservable()` from '@angular/core/rxjs-interop' will be used without replacement;
+* If instantiated not in an injection context and without `injector` argument, the `constructor()` will throw an error in development mode or will print to `console.error` (or `errorReporter`, if set), at runtime.
+
 ### 2.1.1
 If class is instantiated in an injection context, the `injector` will be created from this context.
 

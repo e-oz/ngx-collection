@@ -277,6 +277,8 @@ or in constructor:
 
 ```ts
 const collection = new CollectionService<Item>({comparatorFields: ['uuId', 'url']}, this.injector);
+// ☝️You can instantiate this service even out of injection context, 
+// but then you'll need to set an injector in the constructor. 
 ```
 
 or using `setOptions()`, or by re-instantiating a Comparator:
