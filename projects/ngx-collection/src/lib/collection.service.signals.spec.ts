@@ -678,46 +678,6 @@ describe('Collection Service (Signals)', () => {
     expect(itemSource()).toStrictEqual(item1);
   });
 
-  it('getDuplicates', () => {
-    const {coll} = setup();
-
-    const item1 = {id: 1, name: 'A'};
-    const item2 = {id: 2, name: 'B'};
-    const item3 = {id: 3, name: 'C'};
-    const item2d = {id: 1, name: '!A'};
-
-    expect(coll.getDuplicates([item1, item2, item3])).toStrictEqual(null);
-
-    const expected = new Map();
-    expected.set(1, {1: item2, 3: item2d});
-    expect(coll.getDuplicates([item1, item2, item3, item2d])).toMatchObject(expected);
-
-    class DColl extends CollectionService<number> {
-      override hasDuplicates(items: number[]) {
-        return super.hasDuplicates(items);
-      }
-    }
-
-    const dColl = new DColl({
-      comparator: (a, b) => a === b
-    }, TestBed.inject(Injector));
-    expect(dColl.hasDuplicates(
-      [0, 1, 2, 3, 4, 5, 2]
-    )).toStrictEqual(2);
-    expect(dColl.hasDuplicates(
-      [0, 0, 2, 3, 4, 5, 2]
-    )).toStrictEqual(0);
-    expect(dColl.hasDuplicates(
-      [0, 1, 1, 3, 4, 5, 2]
-    )).toStrictEqual(1);
-    expect(dColl.hasDuplicates(
-      [0, 1, 2, 3, 4, 5, 5]
-    )).toStrictEqual(5);
-    expect(dColl.hasDuplicates(
-      [0, 1, 2, 3, 2, 4, 5]
-    )).toStrictEqual(2);
-  });
-
   it('custom comparator fn with multiple fields', () => {
     const coll = new CollectionService<Item>({
       comparator: (item1: Item, item2: Item) => (item1.id + item1.name) === (item2.id + item2.name),
