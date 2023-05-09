@@ -5,11 +5,15 @@ import { concatLatestFrom } from '@ngrx/effects';
 import { ObjectsComparator, ObjectsComparatorFn } from './comparator';
 import { toSignal } from '@angular/core/rxjs-interop';
 import { isFunction } from 'rxjs/internal/util/isFunction';
-import { CollectionServiceOptions, CollectionState, CreateManyParams, CreateParams, DeleteManyParams, DeleteParams, DuplicatesMap, FetchedItems, ItemViewModel, ReadManyParams, ReadOneParams, ReadParams, RefreshManyParams, RefreshParams, UpdateManyParams, UpdateParams, ViewModel } from './collection.service.types';
+import type { CollectionCore, CollectionServiceOptions, CollectionState, CreateManyParams, CreateParams, DeleteManyParams, DeleteParams, DuplicatesMap, FetchedItems, ReadManyParams, ReadOneParams, ReadParams, RefreshManyParams, RefreshParams, UpdateManyParams, UpdateParams } from './types';
 import { CollectionManager } from './collection.manager';
+import type { ItemViewModel, ObservableBasedCollection, ViewModel } from './observable-based';
 
 @Injectable()
-export class CollectionService<T, UniqueStatus = any, Status = any> extends ComponentStore<CollectionState<T, UniqueStatus, Status>> {
+export class CollectionService<T, UniqueStatus = any, Status = any>
+  extends ComponentStore<CollectionState<T, UniqueStatus, Status>>
+  implements ObservableBasedCollection<T, UniqueStatus, Status>, CollectionCore<T, UniqueStatus, Status> {
+
   protected readonly m = new CollectionManager<T, UniqueStatus, Status>();
 
   public readonly items$ = this.select(s => s.items);

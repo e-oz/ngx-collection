@@ -13,7 +13,9 @@ To monitor the state, you can use one of the predefined selectors or a view mode
 
 Out of the box, without any additional code, you'll be able to control your "loading" spinners, temporarily disable buttons, display success/error messages, and much more.
 
-This service is built on top of [NgRx ComponentStore](https://ngrx.io/guide/component-store), all selectors (including view models) are generated using `ComponentStore.select()` method.
+Observable-based version extends [NgRx ComponentStore](https://ngrx.io/guide/component-store), all selectors (including view models) are generated using `ComponentStore.select()` method.  
+
+Signal-based version uses only Angular Signals to manage the state (doesn't extend ComponentStore).
 
 # Example Application
 
@@ -28,12 +30,12 @@ Here you can see how little code you need to gently manipulate your collection o
 * works in reactive apps with the OnPush change detection strategy;  
 * works in components with the Default change detection strategy;  
 * can be used with just the `async` pipe and `subscribe()`, or with some store;
-* built-in support for Angular Signals.
+* built-in support for Angular Signals 🚦!
 
 ✅  The service is not opinionated:  
 * it will not dictate how you should communicate with your APIs or other data sources;    
-* you decide how to run and cancel your requests. Every mutation method returns an observable, so you can decide how to orchestrate them using methods like switchMap, mergeMap, concatMap, forkJoin, or something else;  
-* Data sources can be synchronous (you can use rxjs/of for this purpose).  
+* you decide how to run and cancel your requests. Every mutation method returns an observable, so you can decide how to orchestrate them using methods like `switchMap()`, `mergeMap()`, `concatMap()`, `forkJoin()`, or something else;  
+* Data sources can be synchronous (you can use `of()` or `signal()` for this purpose).  
 
 ✅  Safety guarantees:
 * 100% immutability;  
@@ -43,7 +45,8 @@ Here you can see how little code you need to gently manipulate your collection o
 
 # Installation
 
-Requires Angular 16, and [NgRx ComponentStore](https://ngrx.io/guide/component-store) 15  
+Requires Angular 16.   
+Observable-based `CollectionService` also requires [NgRx ComponentStore](https://ngrx.io/guide/component-store) 15 or 16.  
 
 [Yarn](https://yarnpkg.com/package/ngx-collection): 
 ```
@@ -61,8 +64,26 @@ In your code:
 import { CollectionService } from 'ngx-collection';
 ```
 
+Or, to use the signal-based version:  
+```ts
+import { Collection } from 'ngx-collection';
+```
+
+# API
+The API has a lot of fields and methods, but you don't have to learn and use all of them. Just use the fields and methods that your application needs.
+
+This library provides 2 ways of managing the collection's state: 
+* "Observable-based" [CollectionService](projects/ngx-collection/src/lib/collection.service.ts)
+* "Signal-based" [Collection](projects/ngx-collection/src/lib/collection.ts)  
+
+Which one to use is your choice :)
+
+* [Core API](projects/ngx-collection/src/lib/types.ts)
+* [Observable-based APIs of CollectionService](projects/ngx-collection/src/lib/observable-based.ts)
+* [Signal-based APIs of CollectionService](projects/ngx-collection/src/lib/signal-based.ts)
+
 # Usage
-This service is designed to be used in 2 ways:  
+Both the signal-based and observable-based classes are designed to be used in 2 ways:  
 
 1. Local collection - a temporary instance with a lifecycle bound to a component;
 2. Shared collection - a global singleton.
@@ -117,17 +138,20 @@ If both ListComponent and ListItemComponent use the same shared collection, chan
 To create a shared collection, create a new class that extends this service and add the `@Injectable({providedIn: 'root'})` decorator:
 ```ts
 @Injectable({providedIn: 'root'})
-export class BooksCollectionService extends CollectionService<Book> {
+export class BooksCollectionService extends Collection<Book> {
   // to use a global instance, do not add this service to the "providers" array 
   // otherwise, a new (local) instance will be injected.
-  
-  constructor() {
-    // at least an empty constructor should be created to make class compatible with Angular Dependency Injection
-    super();
-  }  
 }
 ```
 For your convenience, there is a protected `init()` method that you can override if you want some special initialization logic, so you don't have to deal with overriding the `constructor()` method.
+
+#### In your Component Store:
+
+```ts
+export class BookStore extends ComponentStore<BookStoreState> {
+  public readonly coll = inject(BooksCollectionService);
+}
+```
 
 #### In your Component:
 
@@ -140,51 +164,9 @@ For your convenience, there is a protected `init()` method that you can override
 })
 export class BookComponent {
   protected readonly store = inject(BookStore);
-  protected readonly vm$ = this.store.booksCollection.getViewModel();
+  protected readonly booksSignal = this.store.coll.items;
 }
 ```
-
-#### In your Component Store:
-
-```ts
-export class BookStore extends ComponentStore<BookStoreState> {
-  readonly booksCollection = inject(BooksCollectionService);
-}
-```
-
-
-### View Model
-
-The simplest way to watch the state of a collection is to use `collection.getViewModel() | async` in your template.
-
-The ViewModel contains a lot of useful fields:
-
-* `items$`[]
-* `isCreating$`
-* `isReading$`
-* `isUpdating$`
-* `isDeleting$`
-* `isMutating$`
-* `isSaving$`
-* `updatingItems$`[]
-* `deletingItems$`[]
-
-and some others.
-
-
-Alternatively, you can use `collection.state$` or any other public field and method of the Collection Service class.
-
-If your component is rendering one of the collection's items, you can use `getItemViewModel()` method to monitor the state changes of your item.  
-
-Item's view model is more simple:  
-
-* `isDeleting$`
-* `isRefreshing$`
-* `isUpdating$`
-* `isMutating$`
-* `isProcessing$`
-
-In both models, `mutating` = (`updating` OR `deleting`).
 
 ### Mutations
 
@@ -273,15 +255,8 @@ You can easily configure this using Angular DI:
     },
 ```
 
-or in constructor:
-
-```ts
-const collection = new CollectionService<Item>({comparatorFields: ['uuId', 'url']}, this.injector);
-// ☝️You can instantiate this service even out of injection context, 
-// but then you'll need to set an injector in the constructor. 
-```
-
-or using `setOptions()`, or by re-instantiating a Comparator:
+or using `setOptions()`,  
+or by re-instantiating a Comparator:
 
 ```ts
 export class NotificationsCollectionService extends CollectionService<Notification> {
@@ -325,7 +300,7 @@ You can call `setAllowFetchedDuplicates(false)` to instruct `read()` not to acce
 
 ### request
 
-In every params object, `request` is an observable or signal that you are using to send the request to the API.  
+In every params object, `request` is an observable or a signal that you are using to send the request to the API.  
 Only the first emitted value will be used.  
 If the request is a signal, the signal will be read once at the moment of request execution.  
 The same rule applies to arrays of observables and signals, as some methods accept them too.
@@ -373,6 +348,38 @@ See "Items comparison" for details.
   ));
 ```
 
+# View Model
+
+The simplest way to watch the state of an observable-based collection is to use `collection.getViewModel() | async` in your template.
+
+The ViewModel contains a lot of useful fields:
+
+* `items$`[]
+* `isCreating$`
+* `isReading$`
+* `isUpdating$`
+* `isDeleting$`
+* `isMutating$`
+* `isSaving$`
+* `updatingItems$`[]
+* `deletingItems$`[]
+
+and some others.
+
+Alternatively, you can use `collection.state$` or any other public field and method of the Collection Service class.  
+
+If your component is rendering one of the collection's items, you can use `getItemViewModel()` method to monitor the state changes of your item.
+
+The item's view model is more simple:
+
+* `isDeleting$`
+* `isRefreshing$`
+* `isUpdating$`
+* `isMutating$`
+* `isProcessing$`
+
+In both models, `mutating` = (`updating` OR `deleting`).
+
 # Pipes
 
 This library provides two Angular pipes to make it easier to use collection statuses:  
@@ -400,422 +407,3 @@ providers: [
 ]
 ```
 Token `COLLECTION_SERVICE_OPTIONS` is just a string to don't break lazy-loading (if you are using it).
-
-Options structure:
-```ts
-interface CollectionServiceOptions {
-  // List of "id" fields
-  comparatorFields?: string[];
-
-  // Custom comparator - will override `comparatorFields` if set
-  comparator?: ObjectsComparator | ObjectsComparatorFn;
-  
-  // If set, duplicates detection will throw an exception with this value as an argument
-  throwOnDuplicates?: string;
-  
-  // if not set: true
-  allowFetchedDuplicates?: boolean;
-  
-  // in case of duplicate detection, `onError` callback function (if provided) will be called with this value as an argument
-  onDuplicateErrCallbackParam?: any;
-
-  // print errors. Example: ` errReporter: environment.production ? undefined : console.error `
-  errReporter?: (...args: any[]) => any;
-}
-```
-
----
-
-
-# API
-The API has a lot of fields and methods, but you don't have to learn and use all of them. Just use the fields and methods that your application needs.
-
-## Main methods
-
-### create()
-Add a new item to the collection.  
-#### Parameters object
-```ts
-interface CreateParams<T> {
-  request: Observable<T> | Signal<T>;
-  onSuccess?: (item: T) => void;
-  onError?: (error: unknown) => void;
-}
-```
-
----
-
-### read()
-Create a new collection from provided items.  
-#### Parameters object
-```ts
-interface ReadParams<T> {
-  request: Observable<FetchedItems<T> | T[]> | Signal<FetchedItems<T> | T[]>;
-  onSuccess?: (items: T[]) => void;
-  onError?: (error: unknown) => void;
-  keepExistingOnError?: boolean;
-}
-```
-
----
-
-### update()
-This method replaces the existing item with the new one. If no existing item is found, a new one will be added.  
-
-You can optionally set `refreshRequest` to provide an observable that will be used to get the new item:  
-*  If `refreshRequest` is set, `request` returned item will be ignored (but the request itself will be sent), and the result of the `refreshRequest` will become a new value of an item.  
-  Item will be removed from `updatingItems`, `mutatingItems` only after executing both requests - to prevent spinners from flickering.
-
-#### Parameters object
-```ts
-interface UpdateParams<T> {
-  request: Observable<T> | Signal<T>;
-  refreshRequest?: Observable<T> | Signal<T>;
-  item: T;
-  onSuccess?: (item: T) => void;
-  onError?: (error: unknown) => void;
-}
-```
-
----
-
-### delete()
-Remove an item from the collection.  
-If `decrementTotalCount` is provided (and `readRequest` is not provided):  
-* `boolean`: decrement `totalCountFetched` by 1 (if current totalCountFetched > 0);  
-* `number`: decrement `totalCountFetched` by number (should be integer, less or equal to the current value of `totalCountFetched`);  
-* `string`: points what field of the response object should be used (if exist) as a source of `totalCountFetched` (should be integer, >= 0).
-
-If `readRequest` is provided, it will be the source of the new set of items (decrementTotalCount will be ignored).
-
-#### Parameters object
-```ts
-interface DeleteParams<T, R = unknown> {
-  request: Observable<R> | Signal<R>;
-  item: T;
-  decrementTotalCount?: boolean | number | string;
-  readRequest?: Observable<FetchedItems<T> | T[]> | Signal<FetchedItems<T> | T[]>;
-  onSuccess?: (response: R) => void;
-  onError?: (error: unknown) => void;
-}
-```
-
-## Additional Methods
-
-### createMany()  
-Like `create()`, but will run multiple requests in parallel.  
-#### Parameters object
-```ts
-interface CreateManyParams<T> {
-  request: Observable<FetchedItems<T> | T[]> | Observable<T>[] | Signal<FetchedItems<T> | T[]> | Signal<T>[];
-  onSuccess?: (items: T[]) => void;
-  onError?: (error: unknown) => void;
-}
-```
-
----
-
-### readOne()
-Read and update/add one item.   
-Will toggle `isReading` state field of the collection.  
-Designed to be used in components with no guarantee that the item is already fetched from the server (and, therefore, needs to fetch the item first).
-#### Parameters object
-```ts
-interface ReadOneParams<T> {
-  request: Observable<T> | Signal<T>;
-  onSuccess?: (item: T) => void;
-  onError?: (error: unknown) => void;
-}
-```
-
----
-
-### readMany()
-Read and add a set of items to the collection.   
-Existing items will be updated.   
-Will toggle `isReading` state field of the collection.
-Designed to be used for pagination or infinite scroll.
-#### Parameters object
-```ts
-interface ReadManyParams<T> {
-  request: Observable<FetchedItems<T> | T[]> | Observable<T>[] | Signal<FetchedItems<T> | T[]> | Signal<T>[];
-  onSuccess?: (items: T[]) => void;
-  onError?: (error: unknown) => void;
-}
-```
-
----
-
-### refresh()
-Item will be updated without adding it to `updating` or `mutating` lists, and __without__ toggling `isReading` state field of the collection.         
-Item will be added to the `refreshing` list, triggering modifications of related state fields.    
-Designed to be used for "reloading" the item data without triggering "disabled" statuses of controls.  
-#### Parameters object
-```ts
-interface RefreshParams<T> {
-  request: Observable<T> | Signal<T>;
-  item: T;
-  onSuccess?: (item: T) => void;
-  onError?: (error: unknown) => void;
-}
-```
-
----
-
-### refreshMany()  
-Like `refresh()`, but for multiple items. Requests will run in parallel.
-#### Parameters object
-```ts
-interface RefreshManyParams<T> {
-  request: Observable<FetchedItems<T> | T[]> | Observable<T>[] | Signal<FetchedItems<T> | T[]> | Signal<T>[];
-  items: Partial<T>[];
-  onSuccess?: (item: T[]) => void;
-  onError?: (error: unknown) => void;
-}
-```
-
----
-
-### updateMany()  
-Like `update()`, but for multiple items. Requests will run in parallel.  
-Consecutive `refreshRequest` (if set) will be executed using `refreshMany()`.  
-#### Parameters object
-```ts
-interface UpdateManyParams<T> {
-  request: Observable<T[]> | Observable<T>[] | Signal<T[]> | Signal<T>[];
-  refreshRequest?: Observable<FetchedItems<T> | T[]> | Signal<FetchedItems<T> | T[]>;
-  items: Partial<T>[];
-  onSuccess?: (item: T[]) => void;
-  onError?: (error: unknown) => void;
-}
-```
-
----
-
-### deleteMany()  
-Like `delete()`, but will run multiple queries in parallel.  
-If `decrementTotalCount` is provided (and `readRequest` is not provided):  
-* `boolean`: decrement `totalCountFetched` by number of removed items (if resulting `totalCountFetched` >= 0);  
-* `number`: decrement `totalCountFetched` by number (should be integer, less or equal to the current value of `totalCountFetched`);  
-* `string`: points what field of the response object (first one, if it's an array) should be used (if exist) as a source of `totalCountFetched` (should be integer, >= 0).
-
-#### Parameters object
-```ts
-interface DeleteManyParams<T, R = unknown> {
-  request: Observable<R> | Observable<R>[] | Signal<R> | Signal<R>[];
-  items: Partial<T>[];
-  readRequest?: Observable<FetchedItems<T> | T[]> | Signal<FetchedItems<T> | T[]>;
-  onSuccess?: (response: R[]) => void;
-  onError?: (error: unknown) => void;
-}
-```
-
----
-
-### setUniqueStatus()
-Set the status for an item.  
-Only one item in the collection can have this status.  
-Designed to be used with statuses like 'focused', 'expanded', and so on.  
-#### Parameters
-* `status` - any value (including objects, will be used as a key in a Map)
-* `item`
-* `active` - if the status is active for this particular item. `boolean`, optional, `true` by default. If set to `false`, __and__ this status currently is assigned to this item, then the status will be removed.
-
----
-
-### deleteUniqueStatus()
-Removes unique status.  
-No items will be associated with this status after this call.
-#### Parameters
-* `status` - any value
-
----
-
-### setItemStatus()
-Set the status of the item.  
-#### Parameters
-* `item`
-* `status` - can be anything.
-
----
-
-
-### deleteItemStatus()
-Removes the status of the item.  
-#### Parameters
-* `item`
-* `status` - can be anything.
-
----
-
-### getViewModel()
-Get ViewModel dictionary of observables.
-```ts
-{
-  items: T[],
-  totalCountFetched: number | undefined,
-  isCreating: boolean,
-  isReading: boolean,
-  isUpdating: boolean,
-  isDeleting: boolean,
-  isMutating: boolean,
-  isSaving: boolean,
-  isProcessing: boolean,
-  updatingItems: T[],
-  deletingItems: T[],
-  mutatingItems: T[],
-  refreshingItems: T[],
-  statuses: Map<T, Status>,
-  status: Map<UniqueStatus, T>,
-}
-```
-Designed to be used with async pipe:
-```angular2html
-<ng-container *ngIf="viewModel$ | async as $">
-  <spinner *ngIf="$.isReading"></spinner>
-</ng-container>
-```
-
----
-
-### getItemViewModel()
-Get ViewModel for an item.
-#### Parameters
-* `itemSource: Observable<T | undefined> | Signal<T | undefined>` 
-#### Returns
-Dictionary of observables:
-```ts
-{
-  isDeleting: boolean,
-  isRefreshing: boolean,
-  isUpdating: boolean,
-  isMutating: boolean,
-  isProcessing: boolean,
-}
-```
-
----
-
-### getItem()
-Creates an item selector.  
-#### Parameters
-* `filter` - (partial) item to be compared with. Also accepts observables and signals.
-
----
-
-### getItemByField()
-Creates an item selector.  
-#### Parameters
-* `field` - one field or array of the fields, that item can have (type-checked).
-* `fieldValue` - value (type-checked), also accepts observables and signals.
-
----
-
-### setOptions()
-Set multiple options at once. Useful during initialization.
-#### Parameters object
-```ts
-interface CollectionServiceOptions {
-  // List of "id" fields
-  comparatorFields?: string[];
-
-  // Custom comparator - will override `comparatorFields` if set
-  comparator?: ObjectsComparator | ObjectsComparatorFn;
-
-  // If set, duplicates detection will throw an exception with this value as an argument
-  throwOnDuplicates?: string;
-
-  // if not set: true
-  allowFetchedDuplicates?: boolean;
-
-  // in case of duplicate detection, `onError` callback function (if provided) will be called with this value as an argument
-  onDuplicateErrCallbackParam?: any;
-
-  // print errors. Example: ` errReporter: environment.production ? undefined : console.error `
-  errReporter?: (...args: any[]) => any;
-}
-```
-
----
-
-### listenForCreate()
-Get an observable to be notified when new items are created.
-#### Returns
-Observable<T[]> - items that were returned by the `request` observable
-
----
-
-### listenForRead()
-Get an observable to be notified when items are read (will also emit on `refresh` reads).
-#### Returns
-Observable<T[]> - items that were returned by the `request` observable
-
----
-
-### listenForUpdate()
-Get an observable to be notified when some items are updated.
-#### Returns
-Observable<T[]> - items that were returned by the `request` observable
-
----
-### listenForDelete()
-Get an observable to be notified when some items are deleted.
-#### Returns
-Observable<Partial<T>[]> - items that were provided in params
-
-## Signals
-### Fields:
-
-* `itemsSignal`
-* `totalCountFetchedSignal`
-* `updatingItemsSignal`
-* `deletingItemsSignal`
-* `mutatingItemsSignal`
-* `isCreatingSignal`
-* `isReadingSignal`
-* `isUpdatingSignal`
-* `isDeletingSignal`
-* `isSavingSignal`
-* `isMutatingSignal`
-* `isProcessingSignal`
-* `statusesSignal`
-* `statusSignal`
-
-### Methods:
-
-* `getViewModelSignal()` - Signal-returning version of `getViewModel()`
-* `getItemViewModelSignal()` - Signal-returning version of `getItemViewModelSignal()`
-* `getItemSignal()` - Signal-returning version of `getItem()`
-* `getItemByFieldSignal()` - Signal-returning version of `getItemByField()`
-
-## Helpers
-
-### getTrackByFieldFn()
-Returns a function you can use with "trackBy" in `ngFor`
-#### Parameters
-* `field: string` - field name
-
-Usage example:
-```angular2html
-<div *ngFor="let item of $.items; trackBy: collection.getTrackByFieldFn('uuId')"></div>
-```
-
----
-
-### hasItemIn()
-Checks if some item belongs to some array of items - a comparator of this collection will be used.
-#### Parameters
-* `item`
-* `array`
-
-Example of usage:
-```angular2html
-<mat-chip-option
-    *ngFor="let role of $.allRoles" 
-    [value]="role"
-    [selected]="collection.hasItemIn(role, $.roles)"
-    [selectable]="false"
->
-<span>{{role.name}}</span>
-</mat-chip-option>
-```

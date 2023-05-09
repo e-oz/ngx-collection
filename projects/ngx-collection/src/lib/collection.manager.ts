@@ -1,5 +1,5 @@
 import { Comparator, ObjectsComparator, ObjectsComparatorFn } from './comparator';
-import { CollectionServiceOptions, DuplicatesMap } from './collection.service.types';
+import type { CollectionServiceOptions, DuplicatesMap } from './types';
 import { catchError, defaultIfEmpty, defer, first, forkJoin, isObservable, map, Observable, of, startWith, Subject } from 'rxjs';
 import { Injector, isSignal, Signal, untracked } from '@angular/core';
 import { toObservable, toSignal } from '@angular/core/rxjs-interop';
