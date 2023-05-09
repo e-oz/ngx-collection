@@ -1,10 +1,9 @@
-import { catchError, defaultIfEmpty, defer, EMPTY, finalize, first, forkJoin, isObservable, map, Observable, of, startWith, Subject, switchMap } from 'rxjs';
+import { catchError, EMPTY, finalize, first, isObservable, map, Observable, startWith, switchMap } from 'rxjs';
 import { inject, Inject, Injectable, Injector, isDevMode, isSignal, Optional, Signal, untracked } from '@angular/core';
 import { ComponentStore, tapResponse } from '@ngrx/component-store';
 import { concatLatestFrom } from '@ngrx/effects';
 import { ObjectsComparator, ObjectsComparatorFn } from './comparator';
-import { isEmptyValue } from './helpers';
-import { toObservable, toSignal } from '@angular/core/rxjs-interop';
+import { toSignal } from '@angular/core/rxjs-interop';
 import { isFunction } from 'rxjs/internal/util/isFunction';
 import { CollectionServiceOptions, CollectionState, CreateManyParams, CreateParams, DeleteManyParams, DeleteParams, DuplicatesMap, FetchedItems, ItemViewModel, ReadManyParams, ReadOneParams, ReadParams, RefreshManyParams, RefreshParams, UpdateManyParams, UpdateParams, ViewModel } from './collection.service.types';
 import { CollectionManager } from './collection.manager';
@@ -202,38 +201,6 @@ export class CollectionService<T, UniqueStatus = any, Status = any> extends Comp
       )));
   }
 
-  protected readonly onCreate = new Subject<T[]>();
-  protected readonly onRead = new Subject<T[]>();
-  protected readonly onUpdate = new Subject<T[]>();
-  protected readonly onDelete = new Subject<Partial<T>[]>();
-
-  private toObservable<Src>(source: Observable<Src> | Signal<Src>): Observable<Src> {
-    return isObservable(source) ?
-      source
-      : toObservable(source, {injector: this.injector}).pipe(startWith(source()));
-  }
-
-  private toObservableFirstValue<Src>(s: Observable<Src> | Signal<Src>): Observable<Src> {
-    return isObservable(s) ? s.pipe(first()) : defer(() => of(s()));
-  }
-
-  private forkJoinSafe<Src>(sources: Observable<Src>[] | Signal<Src>[] | (Observable<Src> | Signal<Src>)[]): Observable<Src[]> {
-    const source = sources.map(s => this.toObservableFirstValue(s).pipe(
-      map(v => ({value: v, error: false})),
-      defaultIfEmpty({error: true, value: undefined}),
-      catchError((e) => {
-        this.m.callErrReporter(e);
-        return of({error: true, value: undefined});
-      })
-    ));
-
-    return forkJoin(source).pipe(
-      map((values) => {
-        return values.filter(v => !v.error).map(v => v.value!);
-      })
-    );
-  }
-
   private defineInjector() {
     if (!this.injector) {
       try {
@@ -282,7 +249,7 @@ export class CollectionService<T, UniqueStatus = any, Status = any> extends Comp
 
   public create(params: CreateParams<T>): Observable<T> {
     this.patchState({isCreating: true});
-    return this.toObservableFirstValue(params.request).pipe(
+    return this.m.toObservableFirstValue(params.request).pipe(
       finalize(() => this.patchState({isCreating: false})),
       concatLatestFrom(() => this.items$),
       tapResponse(([item, items]) => {
@@ -290,8 +257,8 @@ export class CollectionService<T, UniqueStatus = any, Status = any> extends Comp
             if (!this.hasItemIn(item, items)) {
               this.patchState({items: [...items, item]});
               this.m.callCb(params.onSuccess, item);
-              if (this.onCreate.observed) {
-                this.onCreate.next([item]);
+              if (this.m.onCreate.observed) {
+                this.m.onCreate.next([item]);
               }
             } else {
               this.m.duplicateNotAdded(item, items);
@@ -307,12 +274,13 @@ export class CollectionService<T, UniqueStatus = any, Status = any> extends Comp
 
   public createMany(params: CreateManyParams<T>): Observable<T[] | FetchedItems<T>> {
     this.patchState({isCreating: true});
-    const request = Array.isArray(params.request) ? this.forkJoinSafe(params.request) : this.toObservableFirstValue(params.request);
+    const request = Array.isArray(params.request) ? this.m.forkJoinSafe(params.request) : this.m.toObservableFirstValue(params.request);
     return request.pipe(
       finalize(() => this.patchState({isCreating: false})),
       concatLatestFrom(() => this.items$),
       tapResponse(([fetched, items]) => {
           if (fetched != null) {
+            this.patchState({totalCountFetched: Array.isArray(fetched) ? undefined : fetched.totalCount});
             const fetchedItems = Array.isArray(fetched) ? fetched : fetched.items;
             if (fetchedItems.length > 0) {
               const newItems = items.slice();
@@ -321,18 +289,11 @@ export class CollectionService<T, UniqueStatus = any, Status = any> extends Comp
                 this.m.duplicateNotAdded(result.duplicate, result.preExisting ? fetchedItems : items);
                 this.m.callCb(params.onError, this.m.onDuplicateErrCallbackParam);
               } else {
-                this.patchState((s) => ({
-                  items: newItems,
-                  totalCountFetched: Array.isArray(fetched) ? s.totalCountFetched : fetched.totalCount
-                }));
+                this.patchState({items: newItems});
                 this.m.callCb(params.onSuccess, fetchedItems);
-                if (this.onCreate.observed) {
-                  this.onCreate.next(fetchedItems);
+                if (this.m.onCreate.observed) {
+                  this.m.onCreate.next(fetchedItems);
                 }
-              }
-            } else {
-              if (!Array.isArray(fetched) && fetched.totalCount !== undefined) {
-                this.patchState({totalCountFetched: fetched.totalCount});
               }
             }
           }
@@ -345,7 +306,7 @@ export class CollectionService<T, UniqueStatus = any, Status = any> extends Comp
 
   public read(params: ReadParams<T>): Observable<T[] | FetchedItems<T>> {
     this.patchState({isReading: true});
-    return this.toObservableFirstValue(params.request).pipe(
+    return this.m.toObservableFirstValue(params.request).pipe(
       finalize(() => this.patchState({isReading: false})),
       tapResponse(
         (fetched) => {
@@ -368,8 +329,8 @@ export class CollectionService<T, UniqueStatus = any, Status = any> extends Comp
             totalCountFetched: Array.isArray(fetched) ? undefined : fetched.totalCount,
           });
           this.m.callCb(params.onSuccess, items);
-          if (this.onRead.observed) {
-            this.onRead.next(items);
+          if (this.m.onRead.observed) {
+            this.m.onRead.next(items);
           }
         },
         (error) => {
@@ -384,7 +345,7 @@ export class CollectionService<T, UniqueStatus = any, Status = any> extends Comp
 
   public update(params: UpdateParams<T>): Observable<T> {
     this.patchState((s) => ({updatingItems: this.m.getWith(s.updatingItems, params.item)}));
-    return this.toObservableFirstValue(params.request).pipe(
+    return this.m.toObservableFirstValue(params.request).pipe(
       finalize(() => this.patchState((s) => ({updatingItems: this.m.getWithout(s.updatingItems, params.item)}))),
       first(),
       switchMap((newItem) => {
@@ -407,8 +368,8 @@ export class CollectionService<T, UniqueStatus = any, Status = any> extends Comp
                 } else {
                   this.patchState({items: newItems});
                   this.m.callCb(params.onSuccess, newItem);
-                  if (this.onUpdate.observed) {
-                    this.onUpdate.next([newItem]);
+                  if (this.m.onUpdate.observed) {
+                    this.m.onUpdate.next([newItem]);
                   }
                 }
               }
@@ -426,7 +387,7 @@ export class CollectionService<T, UniqueStatus = any, Status = any> extends Comp
 
   public delete<R = unknown>(params: DeleteParams<T, R>): Observable<R> {
     this.patchState((s) => ({deletingItems: this.m.getWith(s.deletingItems, params.item)}));
-    return this.toObservableFirstValue(params.request).pipe(
+    return this.m.toObservableFirstValue(params.request).pipe(
       finalize(() => this.patchState((s) => ({deletingItems: this.m.getWithout(s.deletingItems, params.item)}))),
       switchMap((response) => {
         if (params.readRequest) {
@@ -458,8 +419,8 @@ export class CollectionService<T, UniqueStatus = any, Status = any> extends Comp
                 });
               }
               this.m.callCb(params.onSuccess, response);
-              if (this.onDelete.observed) {
-                this.onDelete.next([params.item]);
+              if (this.m.onDelete.observed) {
+                this.m.onDelete.next([params.item]);
               }
               return response;
             })
@@ -475,7 +436,7 @@ export class CollectionService<T, UniqueStatus = any, Status = any> extends Comp
 
   public refresh(params: RefreshParams<T>): Observable<T> {
     this.patchState((s) => ({refreshingItems: this.m.getWith(s.refreshingItems, params.item)}));
-    return this.toObservableFirstValue(params.request).pipe(
+    return this.m.toObservableFirstValue(params.request).pipe(
       finalize(() => this.patchState((s) => ({refreshingItems: this.m.getWithout(s.refreshingItems, params.item)}))),
       concatLatestFrom(() => this.items$),
       tapResponse(
@@ -488,8 +449,8 @@ export class CollectionService<T, UniqueStatus = any, Status = any> extends Comp
             } else {
               this.patchState({items: newItems});
               this.m.callCb(params.onSuccess, newItem);
-              if (this.onRead.observed) {
-                this.onRead.next([newItem]);
+              if (this.m.onRead.observed) {
+                this.m.onRead.next([newItem]);
               }
             }
           }
@@ -502,7 +463,7 @@ export class CollectionService<T, UniqueStatus = any, Status = any> extends Comp
 
   public refreshMany(params: RefreshManyParams<T>): Observable<T[] | FetchedItems<T>> {
     this.patchState((s) => ({refreshingItems: this.m.getWith(s.refreshingItems, params.items)}));
-    const request = Array.isArray(params.request) ? this.forkJoinSafe(params.request) : this.toObservableFirstValue(params.request);
+    const request = Array.isArray(params.request) ? this.m.forkJoinSafe(params.request) : this.m.toObservableFirstValue(params.request);
     return request.pipe(
       finalize(() => this.patchState((s) => ({refreshingItems: this.m.getWithout(s.refreshingItems, params.items)}))),
       concatLatestFrom(() => this.items$),
@@ -522,8 +483,8 @@ export class CollectionService<T, UniqueStatus = any, Status = any> extends Comp
                   totalCountFetched: Array.isArray(fetched) ? s.totalCountFetched : fetched.totalCount,
                 }));
                 this.m.callCb(params.onSuccess, newItems);
-                if (this.onRead.observed) {
-                  this.onRead.next(fetchedItems);
+                if (this.m.onRead.observed) {
+                  this.m.onRead.next(fetchedItems);
                 }
               }
             } else {
@@ -541,7 +502,7 @@ export class CollectionService<T, UniqueStatus = any, Status = any> extends Comp
 
   public readOne(params: ReadOneParams<T>): Observable<T> {
     this.patchState({isReading: true});
-    return this.toObservableFirstValue(params.request).pipe(
+    return this.m.toObservableFirstValue(params.request).pipe(
       finalize(() => this.patchState({isReading: false})),
       concatLatestFrom(() => this.items$),
       tapResponse(
@@ -554,8 +515,8 @@ export class CollectionService<T, UniqueStatus = any, Status = any> extends Comp
             } else {
               this.patchState({items: newItems});
               this.m.callCb(params.onSuccess, newItem);
-              if (this.onRead.observed) {
-                this.onRead.next([newItem]);
+              if (this.m.onRead.observed) {
+                this.m.onRead.next([newItem]);
               }
             }
           }
@@ -568,7 +529,7 @@ export class CollectionService<T, UniqueStatus = any, Status = any> extends Comp
 
   public readMany(params: ReadManyParams<T>): Observable<T[] | FetchedItems<T>> {
     this.patchState({isReading: true});
-    const request = Array.isArray(params.request) ? this.forkJoinSafe(params.request) : this.toObservableFirstValue(params.request);
+    const request = Array.isArray(params.request) ? this.m.forkJoinSafe(params.request) : this.m.toObservableFirstValue(params.request);
     return request.pipe(
       finalize(() => this.patchState({isReading: false})),
       concatLatestFrom(() => this.state$),
@@ -587,8 +548,8 @@ export class CollectionService<T, UniqueStatus = any, Status = any> extends Comp
                 totalCountFetched: Array.isArray(fetched) ? totalCountFetched : fetched.totalCount,
               });
               this.m.callCb(params.onSuccess, newItems);
-              if (this.onRead.observed) {
-                this.onRead.next(readItems);
+              if (this.m.onRead.observed) {
+                this.m.onRead.next(readItems);
               }
             }
           } else {
@@ -605,7 +566,7 @@ export class CollectionService<T, UniqueStatus = any, Status = any> extends Comp
 
   public updateMany(params: UpdateManyParams<T>): Observable<T[] | FetchedItems<T>> {
     this.patchState((s) => ({updatingItems: this.m.getWith(s.updatingItems, params.items)}));
-    const request = Array.isArray(params.request) ? this.forkJoinSafe(params.request) : this.toObservableFirstValue(params.request);
+    const request = Array.isArray(params.request) ? this.m.forkJoinSafe(params.request) : this.m.toObservableFirstValue(params.request);
     return request.pipe(
       finalize(() => this.patchState((s) => ({updatingItems: this.m.getWithout(s.updatingItems, params.items)}))),
       first(),
@@ -630,8 +591,8 @@ export class CollectionService<T, UniqueStatus = any, Status = any> extends Comp
                 } else {
                   this.patchState({items: newItems});
                   this.m.callCb(params.onSuccess, updatedItems);
-                  if (this.onUpdate.observed) {
-                    this.onUpdate.next(updatedItems);
+                  if (this.m.onUpdate.observed) {
+                    this.m.onUpdate.next(updatedItems);
                   }
                 }
               }
@@ -650,8 +611,8 @@ export class CollectionService<T, UniqueStatus = any, Status = any> extends Comp
   public deleteMany<R = unknown>(params: DeleteManyParams<T, R>): Observable<R[]> {
     this.patchState((s) => ({deletingItems: this.m.getWith(s.deletingItems, params.items)}));
     const requests = Array.isArray(params.request) ?
-      this.forkJoinSafe(params.request)
-      : this.forkJoinSafe([params.request]);
+      this.m.forkJoinSafe(params.request)
+      : this.m.forkJoinSafe([params.request]);
     return requests.pipe(
       finalize(() => this.patchState((s) => ({deletingItems: this.m.getWithout(s.deletingItems, params.items)}))),
       first(),
@@ -686,8 +647,8 @@ export class CollectionService<T, UniqueStatus = any, Status = any> extends Comp
                 });
               }
               this.m.callCb(params.onSuccess, response);
-              if (this.onDelete.observed) {
-                this.onDelete.next(params.items);
+              if (this.m.onDelete.observed) {
+                this.m.onDelete.next(params.items);
               }
               return response;
             }));
@@ -701,10 +662,7 @@ export class CollectionService<T, UniqueStatus = any, Status = any> extends Comp
   }
 
   public hasItemIn(item: Partial<T>, arr: Partial<T>[]): boolean {
-    if (!Array.isArray(arr)) {
-      return false;
-    }
-    return arr.includes(item) || ((arr.findIndex(i => this.m.comparator.equal(i, item))) > -1);
+    return this.m.hasItemIn(item, arr);
   }
 
   public uniqueItems(items: T[]): T[] {
@@ -758,7 +716,7 @@ export class CollectionService<T, UniqueStatus = any, Status = any> extends Comp
   }
 
   public getItemViewModel(itemSource: Observable<T | undefined> | Signal<T | undefined>): Observable<ItemViewModel> {
-    const src = this.toObservable(itemSource);
+    const src = this.m.toObservable(itemSource, this.injector);
     return this.select({
       isDeleting: this.select(
         this.deletingItems$,
@@ -809,7 +767,7 @@ export class CollectionService<T, UniqueStatus = any, Status = any> extends Comp
     } else {
       if (isFunction(filter) && isSignal(filter)) {
         return this.select(
-          this.toObservable(filter),
+          this.m.toObservable(filter, this.injector),
           this.items$,
           (item, items) => item ? this.m.getItemByPartial(item, items) : undefined
         );
@@ -844,7 +802,7 @@ export class CollectionService<T, UniqueStatus = any, Status = any> extends Comp
     } else {
       if (isFunction(fieldValue) && isSignal(fieldValue)) {
         return this.select(
-          this.toObservable(fieldValue),
+          this.m.toObservable(fieldValue, this.injector),
           this.items$,
           (fieldValue, items) => fieldValue != null ?
             items.find((i) =>
@@ -891,18 +849,7 @@ export class CollectionService<T, UniqueStatus = any, Status = any> extends Comp
   }
 
   public getTrackByFieldFn(field: string): (i: number, item: any) => any {
-    return (i: number, item: any) => {
-      try {
-        return (!!item
-          && typeof item === 'object'
-          && Object.hasOwn(item, field)
-          && !isEmptyValue(item[field])
-        ) ? item[field] : i;
-      } catch (e) {
-        this.m.reportRuntimeError(e);
-        return i;
-      }
-    };
+    return this.m.getTrackByFieldFn(field);
   }
 
   public setOptions(options?: CollectionServiceOptions | null) {
@@ -910,18 +857,18 @@ export class CollectionService<T, UniqueStatus = any, Status = any> extends Comp
   }
 
   public listenForCreate(): Observable<T[]> {
-    return this.onCreate.asObservable();
+    return this.m.onCreate.asObservable();
   }
 
   public listenForRead(): Observable<T[]> {
-    return this.onRead.asObservable();
+    return this.m.onRead.asObservable();
   }
 
   public listenForUpdate(): Observable<T[]> {
-    return this.onUpdate.asObservable();
+    return this.m.onUpdate.asObservable();
   }
 
   public listenForDelete(): Observable<Partial<T>[]> {
-    return this.onDelete.asObservable();
+    return this.m.onDelete.asObservable();
   }
 }

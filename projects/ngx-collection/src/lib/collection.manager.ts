@@ -1,5 +1,10 @@
 import { Comparator, ObjectsComparator, ObjectsComparatorFn } from './comparator';
 import { CollectionServiceOptions, DuplicatesMap } from './collection.service.types';
+import { catchError, defaultIfEmpty, defer, first, forkJoin, isObservable, map, Observable, of, startWith, Subject } from 'rxjs';
+import { Injector, isSignal, Signal, untracked } from '@angular/core';
+import { toObservable, toSignal } from '@angular/core/rxjs-interop';
+import { isFunction } from 'rxjs/internal/util/isFunction';
+import { isEmptyValue } from './helpers';
 
 export class CollectionManager<T, UniqueStatus = unknown, Status = unknown> {
   public comparator: ObjectsComparator = new Comparator();
@@ -7,6 +12,11 @@ export class CollectionManager<T, UniqueStatus = unknown, Status = unknown> {
   public allowFetchedDuplicates: boolean = true;
   public onDuplicateErrCallbackParam = {status: 409};
   public errReporter?: (...args: any[]) => any;
+
+  public readonly onCreate = new Subject<T[]>();
+  public readonly onRead = new Subject<T[]>();
+  public readonly onUpdate = new Subject<T[]>();
+  public readonly onDelete = new Subject<Partial<T>[]>();
 
   public setComparator(comparator: ObjectsComparator | ObjectsComparatorFn) {
     if (typeof comparator === 'function') {
@@ -286,5 +296,63 @@ export class CollectionManager<T, UniqueStatus = unknown, Status = unknown> {
     } else {
       return map;
     }
+  }
+
+  public toObservable<Src>(source: Observable<Src> | Signal<Src>, injector?: Injector): Observable<Src> {
+    if (isObservable(source)) {
+      return source;
+    }
+    if (!injector) {
+      throw new Error('CollectionService.getItemViewModel() requires an injector.');
+    }
+    return toObservable(source, {injector}).pipe(startWith(source()));
+  }
+
+  public toObservableFirstValue<Src>(s: Observable<Src> | Signal<Src>): Observable<Src> {
+    return isObservable(s) ? s.pipe(first()) : defer(() => of(s()));
+  }
+
+  public forkJoinSafe<Src>(sources: Observable<Src>[] | Signal<Src>[] | (Observable<Src> | Signal<Src>)[]): Observable<Src[]> {
+    const source = sources.map(s => this.toObservableFirstValue(s).pipe(
+      map(v => ({value: v, error: false})),
+      defaultIfEmpty({error: true, value: undefined}),
+      catchError((e) => {
+        this.callErrReporter(e);
+        return of({error: true, value: undefined});
+      })
+    ));
+
+    return forkJoin(source).pipe(
+      map((values) => {
+        return values.filter(v => !v.error).map(v => v.value!);
+      })
+    );
+  }
+
+  public toSignal<Src>(source: Observable<Src> | Signal<Src>, injector: Injector): Signal<Src | undefined> {
+    return (isFunction(source) && isSignal(source)) ? source :
+      untracked(() => toSignal(source, {initialValue: undefined, injector: injector}));
+  }
+
+  public hasItemIn(item: Partial<T>, arr: Partial<T>[]): boolean {
+    if (!Array.isArray(arr)) {
+      return false;
+    }
+    return arr.includes(item) || ((arr.findIndex(i => this.comparator.equal(i, item))) > -1);
+  }
+
+  public getTrackByFieldFn(field: string): (i: number, item: any) => any {
+    return (i: number, item: any) => {
+      try {
+        return (!!item
+          && typeof item === 'object'
+          && Object.hasOwn(item, field)
+          && !isEmptyValue(item[field])
+        ) ? item[field] : i;
+      } catch (e) {
+        this.reportRuntimeError(e);
+        return i;
+      }
+    };
   }
 }
