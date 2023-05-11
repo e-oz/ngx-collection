@@ -139,7 +139,7 @@ export type RefreshManyParams<T> = {
 
 export type DuplicatesMap<T> = Record<number, Record<number, T>>;
 
-export type CollectionServiceOptions = {
+export type CollectionOptions = {
   /**
    * List of "id" fields
    */
@@ -151,7 +151,7 @@ export type CollectionServiceOptions = {
   /**
    * If set, duplicates detection will throw an exception with this value as an argument
    */
-  throwOnDuplicates?: string;
+  throwOnDuplicates?: string | false;
   /**
    * if not set: true
    */
@@ -305,7 +305,7 @@ export type CollectionCore<T, UniqueStatus = unknown, Status = unknown> = {
   /**
    * Set multiple options at once. Useful during initialization.
    */
-  setOptions(options?: CollectionServiceOptions | null): void;
+  setOptions(options?: CollectionOptions | null): void;
 
   /**
    * Get an observable to be notified when new items are created.

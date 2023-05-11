@@ -5,7 +5,7 @@ import { concatLatestFrom } from '@ngrx/effects';
 import { ObjectsComparator, ObjectsComparatorFn } from './comparator';
 import { toSignal } from '@angular/core/rxjs-interop';
 import { isFunction } from 'rxjs/internal/util/isFunction';
-import type { CollectionCore, CollectionServiceOptions, CollectionState, CreateManyParams, CreateParams, DeleteManyParams, DeleteParams, DuplicatesMap, FetchedItems, ReadManyParams, ReadOneParams, ReadParams, RefreshManyParams, RefreshParams, UpdateManyParams, UpdateParams } from './types';
+import type { CollectionCore, CollectionOptions, CollectionState, CreateManyParams, CreateParams, DeleteManyParams, DeleteParams, DuplicatesMap, FetchedItems, ReadManyParams, ReadOneParams, ReadParams, RefreshManyParams, RefreshParams, UpdateManyParams, UpdateParams } from './types';
 import { CollectionManager } from './collection.manager';
 import type { ItemViewModel, ObservableBasedCollection, ViewModel } from './observable-based';
 
@@ -223,7 +223,7 @@ export class CollectionService<T, UniqueStatus = any, Status = any>
   }
 
   constructor(
-    @Inject('COLLECTION_SERVICE_OPTIONS') @Optional() options?: CollectionServiceOptions,
+    @Inject('COLLECTION_SERVICE_OPTIONS') @Optional() options?: CollectionOptions,
     // You don't need to provide `injector` here if class is injected or created in an injection context
     protected injector?: Injector,
   ) {
@@ -258,7 +258,7 @@ export class CollectionService<T, UniqueStatus = any, Status = any>
       concatLatestFrom(() => this.items$),
       tapResponse(([item, items]) => {
           if (item != null) {
-            if (!this.hasItemIn(item, items)) {
+            if (!this.m.hasItemIn(item, items)) {
               this.patchState({items: [...items, item]});
               this.m.callCb(params.onSuccess, item);
               if (this.m.onCreate.observed) {
@@ -725,22 +725,22 @@ export class CollectionService<T, UniqueStatus = any, Status = any>
       isDeleting: this.select(
         this.deletingItems$,
         src.pipe(startWith(undefined)),
-        (items, item) => !!item && this.hasItemIn(item, items)
+        (items, item) => !!item && this.m.hasItemIn(item, items)
       ),
       isRefreshing: this.select(
         this.refreshingItems$,
         src.pipe(startWith(undefined)),
-        (items, item) => !!item && this.hasItemIn(item, items)
+        (items, item) => !!item && this.m.hasItemIn(item, items)
       ),
       isUpdating: this.select(
         this.updatingItems$,
         src.pipe(startWith(undefined)),
-        (items, item) => !!item && this.hasItemIn(item, items)
+        (items, item) => !!item && this.m.hasItemIn(item, items)
       ),
       isMutating: this.select(
         this.mutatingItems$,
         src.pipe(startWith(undefined)),
-        (items, item) => !!item && this.hasItemIn(item, items)
+        (items, item) => !!item && this.m.hasItemIn(item, items)
       ),
       isProcessing: this.select(
         this.isProcessing$,
@@ -749,7 +749,7 @@ export class CollectionService<T, UniqueStatus = any, Status = any>
         src.pipe(startWith(undefined)),
         (isProcessing, refreshingItems, mutatingItems, item) => !!item
           && isProcessing
-          && (this.hasItemIn(item, refreshingItems) || this.hasItemIn(item, mutatingItems))
+          && (this.m.hasItemIn(item, refreshingItems) || this.m.hasItemIn(item, mutatingItems))
       ),
     });
   }
@@ -856,7 +856,7 @@ export class CollectionService<T, UniqueStatus = any, Status = any>
     return this.m.getTrackByFieldFn(field);
   }
 
-  public setOptions(options?: CollectionServiceOptions | null) {
+  public setOptions(options?: CollectionOptions | null) {
     this.m.setOptions(options);
   }
 

@@ -682,7 +682,8 @@ describe('Collection Service (Signals)', () => {
     const coll = new CollectionService<Item>({
       comparator: (item1: Item, item2: Item) => (item1.id + item1.name) === (item2.id + item2.name),
       allowFetchedDuplicates: false,
-      onDuplicateErrCallbackParam: 'DRY'
+      onDuplicateErrCallbackParam: 'DRY',
+      throwOnDuplicates: false
     }, TestBed.inject(Injector));
 
     const item1 = {id: 1, name: 'A'};

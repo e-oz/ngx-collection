@@ -1,11 +1,13 @@
 import { assertInInjectionContext, computed, inject, Injectable, InjectionToken, Injector, isSignal, Signal, signal } from '@angular/core';
-import type { CollectionCore, CollectionServiceOptions, CreateManyParams, CreateParams, DeleteManyParams, DeleteParams, DuplicatesMap, FetchedItems, ReadManyParams, ReadOneParams, ReadParams, RefreshManyParams, RefreshParams, UpdateManyParams, UpdateParams } from './types';
+import type { CollectionCore, CollectionOptions, CreateManyParams, CreateParams, DeleteManyParams, DeleteParams, DuplicatesMap, FetchedItems, ReadManyParams, ReadOneParams, ReadParams, RefreshManyParams, RefreshParams, UpdateManyParams, UpdateParams } from './types';
 import { CollectionManager } from './collection.manager';
 import { catchError, EMPTY, finalize, first, isObservable, map, Observable, of, switchMap } from 'rxjs';
 import { tapResponse } from '@ngrx/component-store';
 import { isFunction } from 'rxjs/internal/util/isFunction';
 import { ObjectsComparator, ObjectsComparatorFn } from './comparator';
 import type { SignalBasedCollection } from './signal-based';
+
+export const NGX_COLLECTION_OPTIONS = new InjectionToken<CollectionOptions>('COLLECTION_SERVICE_OPTIONS');
 
 @Injectable()
 export class Collection<T, UniqueStatus = unknown, Status = unknown>
@@ -15,7 +17,7 @@ export class Collection<T, UniqueStatus = unknown, Status = unknown>
   private readonly injector = inject(Injector);
   private readonly equalArrays = (a: T[], b: T[]) => a === b || (a.length === 0 && b.length === 0);
   private readonly equalMaps = (a: Map<unknown, unknown>, b: Map<unknown, unknown>) => a === b || (a.size === 0 && b.size === 0);
-  private readonly options = inject(new InjectionToken<CollectionServiceOptions>('COLLECTION_SERVICE_OPTIONS'), {optional: true});
+  private readonly options = inject(NGX_COLLECTION_OPTIONS, {optional: true});
   /**
    * Writeable State Signals
    */
@@ -478,7 +480,7 @@ export class Collection<T, UniqueStatus = unknown, Status = unknown>
     const item = this.m.toSignal(itemSource, this.injector);
     return computed(() => {
       const i = item();
-      return !!i && this.hasItemIn(i, this._deletingItems());
+      return !!i && this.m.hasItemIn(i, this._deletingItems());
     });
   }
 
@@ -486,7 +488,7 @@ export class Collection<T, UniqueStatus = unknown, Status = unknown>
     const item = this.m.toSignal(itemSource, this.injector);
     return computed(() => {
       const i = item();
-      return !!i && this.hasItemIn(i, this._refreshingItems());
+      return !!i && this.m.hasItemIn(i, this._refreshingItems());
     });
   }
 
@@ -494,7 +496,7 @@ export class Collection<T, UniqueStatus = unknown, Status = unknown>
     const item = this.m.toSignal(itemSource, this.injector);
     return computed(() => {
       const i = item();
-      return !!i && this.hasItemIn(i, this._updatingItems());
+      return !!i && this.m.hasItemIn(i, this._updatingItems());
     });
   }
 
@@ -502,7 +504,7 @@ export class Collection<T, UniqueStatus = unknown, Status = unknown>
     const item = this.m.toSignal(itemSource, this.injector);
     return computed(() => {
       const i = item();
-      return !!i && this.hasItemIn(i, this.mutatingItems());
+      return !!i && this.m.hasItemIn(i, this.mutatingItems());
     });
   }
 
@@ -510,7 +512,7 @@ export class Collection<T, UniqueStatus = unknown, Status = unknown>
     const item = this.m.toSignal(itemSource, this.injector);
     return computed(() => {
       const i = item();
-      return !!i && this.isProcessing() && (this.hasItemIn(i, this._refreshingItems()) || this.hasItemIn(i, this.mutatingItems()));
+      return !!i && this.isProcessing() && (this.m.hasItemIn(i, this._refreshingItems()) || this.m.hasItemIn(i, this.mutatingItems()));
     });
   }
 
@@ -585,7 +587,7 @@ export class Collection<T, UniqueStatus = unknown, Status = unknown>
     return this.m.getTrackByFieldFn(field);
   }
 
-  public setOptions(options?: CollectionServiceOptions | null) {
+  public setOptions(options?: CollectionOptions | null) {
     this.m.setOptions(options);
   }
 

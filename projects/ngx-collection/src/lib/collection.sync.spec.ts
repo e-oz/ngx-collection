@@ -1,5 +1,4 @@
-import { CollectionService } from './collection.service';
-import { createEnvironmentInjector, EnvironmentInjector, Injector, signal } from '@angular/core';
+import { createEnvironmentInjector, EnvironmentInjector, signal } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import { Collection } from './collection';
 
@@ -21,7 +20,7 @@ function setup() {
   };
 }
 
-describe('Collection Service (Signals)', () => {
+describe('Collection Service (Signal-based, sync)', () => {
   it('create', () => {
     const {coll} = setup();
     const newItem: Item = {id: 0, name: ':)'};
@@ -534,11 +533,14 @@ describe('Collection Service (Signals)', () => {
   });
 
   it('custom comparator fn with multiple fields', () => {
-    const coll = new CollectionService<Item>({
+    const {coll} = setup();
+
+    coll.setOptions({
       comparator: (item1: Item, item2: Item) => (item1.id + item1.name) === (item2.id + item2.name),
       allowFetchedDuplicates: false,
-      onDuplicateErrCallbackParam: 'DRY'
-    }, TestBed.inject(Injector));
+      onDuplicateErrCallbackParam: 'DRY',
+      throwOnDuplicates: false
+    });
 
     const item1 = {id: 1, name: 'A'};
     const item2 = {id: 2, name: 'B'};
@@ -566,7 +568,7 @@ describe('Collection Service (Signals)', () => {
   it('should emit onCreate', () => {
     const {coll} = setup();
     let lastEmitted: any = undefined;
-    coll.listenForCreate().subscribe(v => lastEmitted = v);
+    coll.listenForCreate().subscribe((v: any) => lastEmitted = v);
 
     expect(lastEmitted).toBeFalsy();
 
@@ -580,7 +582,7 @@ describe('Collection Service (Signals)', () => {
   it('should emit onCreate for createMany', () => {
     const {coll} = setup();
     let lastEmitted: any = undefined;
-    coll.listenForCreate().subscribe(v => lastEmitted = v);
+    coll.listenForCreate().subscribe((v: any) => lastEmitted = v);
 
     expect(lastEmitted).toBeFalsy();
 
@@ -594,7 +596,7 @@ describe('Collection Service (Signals)', () => {
   it('should not emit onCreate without subscribers', () => {
     const {coll} = setup();
     let lastEmitted: any = undefined;
-    const s = coll.listenForCreate().subscribe(v => lastEmitted = v);
+    const s = coll.listenForCreate().subscribe((v: any) => lastEmitted = v);
 
     expect(lastEmitted).toBeFalsy();
     s.unsubscribe();
@@ -609,7 +611,7 @@ describe('Collection Service (Signals)', () => {
   it('should emit onRead', () => {
     const {coll} = setup();
     let lastEmitted: any = undefined;
-    coll.listenForRead().subscribe(v => lastEmitted = v);
+    coll.listenForRead().subscribe((v: any) => lastEmitted = v);
 
     expect(lastEmitted).toBeFalsy();
 
@@ -623,7 +625,7 @@ describe('Collection Service (Signals)', () => {
   it('should emit onRead for readMany', () => {
     const {coll} = setup();
     let lastEmitted: any = undefined;
-    coll.listenForRead().subscribe(v => lastEmitted = v);
+    coll.listenForRead().subscribe((v: any) => lastEmitted = v);
 
     expect(lastEmitted).toBeFalsy();
 
@@ -637,7 +639,7 @@ describe('Collection Service (Signals)', () => {
   it('should emit onRead for refresh', () => {
     const {coll} = setup();
     let lastEmitted: any = undefined;
-    coll.listenForRead().subscribe(v => lastEmitted = v);
+    coll.listenForRead().subscribe((v: any) => lastEmitted = v);
 
     coll.read({
       request: signal([{id: 1, name: 'A'}])
@@ -656,7 +658,7 @@ describe('Collection Service (Signals)', () => {
   it('should emit onRead for refreshMany', () => {
     const {coll} = setup();
     let lastEmitted: any = undefined;
-    coll.listenForRead().subscribe(v => lastEmitted = v);
+    coll.listenForRead().subscribe((v: any) => lastEmitted = v);
 
     coll.read({
       request: signal([{id: 1, name: 'A'}, {id: 2, name: 'B'}])
@@ -675,7 +677,7 @@ describe('Collection Service (Signals)', () => {
   it('should emit onUpdate', () => {
     const {coll} = setup();
     let lastEmitted: any = undefined;
-    coll.listenForUpdate().subscribe(v => lastEmitted = v);
+    coll.listenForUpdate().subscribe((v: any) => lastEmitted = v);
 
     coll.read({
       request: signal([{id: 1, name: 'A'}])
@@ -694,7 +696,7 @@ describe('Collection Service (Signals)', () => {
   it('should emit onUpdate for updateMany', () => {
     const {coll} = setup();
     let lastEmitted: any = undefined;
-    coll.listenForUpdate().subscribe(v => lastEmitted = v);
+    coll.listenForUpdate().subscribe((v: any) => lastEmitted = v);
 
     coll.read({
       request: signal([{id: 1, name: 'A'}])
@@ -713,7 +715,7 @@ describe('Collection Service (Signals)', () => {
   it('should emit onDelete', () => {
     const {coll} = setup();
     let lastEmitted: any = undefined;
-    coll.listenForDelete().subscribe(v => lastEmitted = v);
+    coll.listenForDelete().subscribe((v: any) => lastEmitted = v);
 
     coll.read({
       request: signal([{id: 1, name: 'A'}])
@@ -732,7 +734,7 @@ describe('Collection Service (Signals)', () => {
   it('should emit onDelete for deleteMany', () => {
     const {coll} = setup();
     let lastEmitted: any = undefined;
-    coll.listenForDelete().subscribe(v => lastEmitted = v);
+    coll.listenForDelete().subscribe((v: any) => lastEmitted = v);
 
     coll.read({
       request: signal([{id: 1, name: 'A'}, {id: 2, name: 'B'}])

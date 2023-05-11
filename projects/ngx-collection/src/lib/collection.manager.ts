@@ -1,5 +1,5 @@
 import { Comparator, ObjectsComparator, ObjectsComparatorFn } from './comparator';
-import type { CollectionServiceOptions, DuplicatesMap } from './types';
+import type { CollectionOptions, DuplicatesMap } from './types';
 import { catchError, defaultIfEmpty, defer, first, forkJoin, isObservable, map, Observable, of, startWith, Subject } from 'rxjs';
 import { Injector, isSignal, Signal, untracked } from '@angular/core';
 import { toObservable, toSignal } from '@angular/core/rxjs-interop';
@@ -8,7 +8,7 @@ import { isEmptyValue } from './helpers';
 
 export class CollectionManager<T, UniqueStatus = unknown, Status = unknown> {
   public comparator: ObjectsComparator = new Comparator();
-  public throwOnDuplicates?: string;
+  public throwOnDuplicates?: string | false;
   public allowFetchedDuplicates: boolean = true;
   public onDuplicateErrCallbackParam = {status: 409};
   public errReporter?: (...args: any[]) => any;
@@ -26,7 +26,7 @@ export class CollectionManager<T, UniqueStatus = unknown, Status = unknown> {
     }
   }
 
-  public setOptions(options?: CollectionServiceOptions | null) {
+  public setOptions(options?: CollectionOptions | null) {
     if (options != null) {
       if (options.comparator) {
         this.setComparator(options.comparator);
@@ -35,7 +35,7 @@ export class CollectionManager<T, UniqueStatus = unknown, Status = unknown> {
           this.comparator = new Comparator(options.comparatorFields);
         }
       }
-      if (options.throwOnDuplicates) {
+      if (options.throwOnDuplicates != null) {
         this.throwOnDuplicates = options.throwOnDuplicates;
       }
       if (typeof options.allowFetchedDuplicates === 'boolean') {

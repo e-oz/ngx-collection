@@ -1,3 +1,6 @@
+### 2.2.1
+Signal-based version (class `Collection`) now uses `NGX_COLLECTION_OPTIONS` injection token to inject options, because string injection tokens are deprecated in Angular.
+
 ### 2.2.0
 * Signal-based [Collection](projects/ngx-collection/src/lib/collection.ts)!
 * API documentation moved to the interfaces.

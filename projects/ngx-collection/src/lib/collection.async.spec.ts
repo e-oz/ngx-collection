@@ -1,8 +1,7 @@
-import { CollectionService } from './collection.service';
-import { map, Observable, of, timer } from 'rxjs';
+import { map, of, timer } from 'rxjs';
 import { TestBed } from '@angular/core/testing';
-import { createEnvironmentInjector, EnvironmentInjector, Injector, signal } from '@angular/core';
-import { Collection } from './collection';
+import { createEnvironmentInjector, EnvironmentInjector, signal } from '@angular/core';
+import { Collection, NGX_COLLECTION_OPTIONS } from './collection';
 
 beforeEach(() => {
   jest.useFakeTimers();
@@ -17,19 +16,18 @@ type Item = {
   name: string;
 }
 
-function readState<T>(stream: Observable<T>): T {
-  let t: T | undefined = undefined;
-  stream.subscribe((v) => t = v);
-  return t as T;
-}
-
 function setup() {
-  const injector = createEnvironmentInjector([{
-    provide: Collection,
-    useClass: Collection,
-  }], TestBed.inject(EnvironmentInjector));
+  const injector = createEnvironmentInjector([
+    {
+      provide: NGX_COLLECTION_OPTIONS,
+      useValue: {throwOnDuplicates: 'duplicate', comparatorFields: ['id']}
+    },
+    {
+      provide: Collection,
+      useClass: Collection,
+    }
+  ], TestBed.inject(EnvironmentInjector));
   const coll = injector.get(Collection<Item>);
-  coll.setOptions({throwOnDuplicates: 'duplicate', comparatorFields: ['id']});
 
   return {
     coll,
@@ -40,7 +38,7 @@ function emit<T>(result: T) {
   return timer(1).pipe(map(() => result));
 }
 
-describe('Collection Service', () => {
+describe('Collection Service (Signal-based, async)', () => {
   it('create', () => {
     const {coll} = setup();
     const newItem: Item = {id: 0, name: ':)'};
@@ -905,11 +903,13 @@ describe('Collection Service', () => {
   });
 
   it('custom comparator fn with multiple fields', () => {
-    const coll = new CollectionService<Item>({
+    const {coll} = setup();
+    coll.setOptions({
       comparator: (item1: Item, item2: Item) => (item1.id + item1.name) === (item2.id + item2.name),
       allowFetchedDuplicates: false,
-      onDuplicateErrCallbackParam: 'DRY'
-    }, TestBed.inject(Injector));
+      onDuplicateErrCallbackParam: 'DRY',
+      throwOnDuplicates: false
+    });
 
     const item1 = {id: 1, name: 'A'};
     const item2 = {id: 2, name: 'B'};
@@ -920,7 +920,7 @@ describe('Collection Service', () => {
 
     coll.read({
       request: of([item1, item2, item3, item4]),
-      onError: (err) => errMsg = err as string,
+      onError: (err: any) => errMsg = err as string,
     }).subscribe();
 
     expect(errMsg).toBe('DRY');
@@ -937,7 +937,7 @@ describe('Collection Service', () => {
   it('should emit onCreate', () => {
     const {coll} = setup();
     let lastEmitted: any = undefined;
-    coll.listenForCreate().subscribe(v => lastEmitted = v);
+    coll.listenForCreate().subscribe((v: any) => lastEmitted = v);
 
     jest.runOnlyPendingTimers();
     expect(lastEmitted).toBeFalsy();
@@ -954,7 +954,7 @@ describe('Collection Service', () => {
   it('should emit onCreate for createMany', () => {
     const {coll} = setup();
     let lastEmitted: any = undefined;
-    coll.listenForCreate().subscribe(v => lastEmitted = v);
+    coll.listenForCreate().subscribe((v: any) => lastEmitted = v);
 
     jest.runOnlyPendingTimers();
     expect(lastEmitted).toBeFalsy();
@@ -971,7 +971,7 @@ describe('Collection Service', () => {
   it('should not emit onCreate without subscribers', () => {
     const {coll} = setup();
     let lastEmitted: any = undefined;
-    const s = coll.listenForCreate().subscribe(v => lastEmitted = v);
+    const s = coll.listenForCreate().subscribe((v: any) => lastEmitted = v);
 
     jest.runOnlyPendingTimers();
     expect(lastEmitted).toBeFalsy();
@@ -989,7 +989,7 @@ describe('Collection Service', () => {
   it('should emit onRead', () => {
     const {coll} = setup();
     let lastEmitted: any = undefined;
-    coll.listenForRead().subscribe(v => lastEmitted = v);
+    coll.listenForRead().subscribe((v: any) => lastEmitted = v);
 
     jest.runOnlyPendingTimers();
     expect(lastEmitted).toBeFalsy();
@@ -1006,7 +1006,7 @@ describe('Collection Service', () => {
   it('should emit onRead for readMany', () => {
     const {coll} = setup();
     let lastEmitted: any = undefined;
-    coll.listenForRead().subscribe(v => lastEmitted = v);
+    coll.listenForRead().subscribe((v: any) => lastEmitted = v);
 
     jest.runOnlyPendingTimers();
     expect(lastEmitted).toBeFalsy();
@@ -1023,7 +1023,7 @@ describe('Collection Service', () => {
   it('should emit onRead for refresh', () => {
     const {coll} = setup();
     let lastEmitted: any = undefined;
-    coll.listenForRead().subscribe(v => lastEmitted = v);
+    coll.listenForRead().subscribe((v: any) => lastEmitted = v);
 
     coll.read({
       request: emit([{id: 1, name: 'A'}])
@@ -1045,7 +1045,7 @@ describe('Collection Service', () => {
   it('should emit onRead for refreshMany', () => {
     const {coll} = setup();
     let lastEmitted: any = undefined;
-    coll.listenForRead().subscribe(v => lastEmitted = v);
+    coll.listenForRead().subscribe((v: any) => lastEmitted = v);
 
     coll.read({
       request: emit([{id: 1, name: 'A'}, {id: 2, name: 'B'}])
@@ -1067,7 +1067,7 @@ describe('Collection Service', () => {
   it('should emit onUpdate', () => {
     const {coll} = setup();
     let lastEmitted: any = undefined;
-    coll.listenForUpdate().subscribe(v => lastEmitted = v);
+    coll.listenForUpdate().subscribe((v: any) => lastEmitted = v);
 
     coll.read({
       request: emit([{id: 1, name: 'A'}])
@@ -1089,7 +1089,7 @@ describe('Collection Service', () => {
   it('should emit onUpdate for updateMany', () => {
     const {coll} = setup();
     let lastEmitted: any = undefined;
-    coll.listenForUpdate().subscribe(v => lastEmitted = v);
+    coll.listenForUpdate().subscribe((v: any) => lastEmitted = v);
 
     coll.read({
       request: emit([{id: 1, name: 'A'}])
@@ -1111,7 +1111,7 @@ describe('Collection Service', () => {
   it('should emit onDelete', () => {
     const {coll} = setup();
     let lastEmitted: any = undefined;
-    coll.listenForDelete().subscribe(v => lastEmitted = v);
+    coll.listenForDelete().subscribe((v: any) => lastEmitted = v);
 
     coll.read({
       request: emit([{id: 1, name: 'A'}])
@@ -1133,7 +1133,7 @@ describe('Collection Service', () => {
   it('should emit onDelete for deleteMany', () => {
     const {coll} = setup();
     let lastEmitted: any = undefined;
-    coll.listenForDelete().subscribe(v => lastEmitted = v);
+    coll.listenForDelete().subscribe((v: any) => lastEmitted = v);
 
     coll.read({
       request: emit([{id: 1, name: 'A'}, {id: 2, name: 'B'}])
