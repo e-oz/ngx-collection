@@ -13,7 +13,7 @@ export class Collection<T, UniqueStatus = unknown, Status = unknown>
 
   protected readonly m = new CollectionManager<T, UniqueStatus, Status>();
   private readonly injector = inject(Injector);
-  private readonly equalItems = (a: T[], b: T[]) => a === b || (a.length === 0 && b.length === 0);
+  private readonly equalArrays = (a: T[], b: T[]) => a === b || (a.length === 0 && b.length === 0);
   private readonly equalMaps = (a: Map<unknown, unknown>, b: Map<unknown, unknown>) => a === b || (a.size === 0 && b.size === 0);
   private readonly options = inject(new InjectionToken<CollectionServiceOptions>('COLLECTION_SERVICE_OPTIONS'), {optional: true});
   /**
@@ -31,13 +31,13 @@ export class Collection<T, UniqueStatus = unknown, Status = unknown>
   /**
    * State Signals
    */
-  public readonly items: Signal<T[]> = computed(() => this._items(), {equal: this.equalItems});
+  public readonly items: Signal<T[]> = computed(() => this._items(), {equal: this.equalArrays});
   public readonly totalCountFetched: Signal<number | undefined> = this._totalCountFetched.asReadonly();
   public readonly isCreating: Signal<boolean> = this._isCreating.asReadonly();
   public readonly isReading: Signal<boolean> = this._isReading.asReadonly();
-  public readonly updatingItems: Signal<T[]> = computed(() => this._updatingItems(), {equal: this.equalItems});
-  public readonly deletingItems: Signal<T[]> = computed(() => this._deletingItems(), {equal: this.equalItems});
-  public readonly refreshingItems: Signal<T[]> = computed(() => this._refreshingItems(), {equal: this.equalItems});
+  public readonly updatingItems: Signal<T[]> = computed(() => this._updatingItems(), {equal: this.equalArrays});
+  public readonly deletingItems: Signal<T[]> = computed(() => this._deletingItems(), {equal: this.equalArrays});
+  public readonly refreshingItems: Signal<T[]> = computed(() => this._refreshingItems(), {equal: this.equalArrays});
   public readonly status: Signal<Map<UniqueStatus, T>> = computed(() => this._status(), {equal: this.equalMaps});
   public readonly statuses: Signal<Map<T, Set<Status>>> = computed(() => this._statuses(), {equal: this.equalMaps});
   /**
