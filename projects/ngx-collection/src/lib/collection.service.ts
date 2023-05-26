@@ -1,7 +1,6 @@
-import { catchError, EMPTY, finalize, first, isObservable, map, Observable, startWith, switchMap } from 'rxjs';
-import { inject, Inject, Injectable, Injector, isDevMode, isSignal, Optional, Signal, untracked } from '@angular/core';
+import { catchError, EMPTY, finalize, first, isObservable, map, Observable, startWith, switchMap, withLatestFrom } from 'rxjs';
+import { computed, inject, Inject, Injectable, Injector, isDevMode, isSignal, Optional, Signal, untracked } from '@angular/core';
 import { ComponentStore, tapResponse } from '@ngrx/component-store';
-import { concatLatestFrom } from '@ngrx/effects';
 import { ObjectsComparator, ObjectsComparatorFn } from './comparator';
 import { toSignal } from '@angular/core/rxjs-interop';
 import { isFunction } from 'rxjs/internal/util/isFunction';
@@ -205,27 +204,30 @@ export class CollectionService<T, UniqueStatus = any, Status = any>
       )));
   }
 
-  private defineInjector() {
-    if (!this.injector) {
-      try {
-        this.injector = inject(Injector);
-      } catch (_) {
-        const msg = this.constructor.name
-          + (this.constructor.name === 'CollectionService' ? '' : ' (CollectionService)')
-          + ' should be injected or created in an injection context!';
-        if (isDevMode()) {
-          throw new Error(msg);
-        } else {
-          this.m.reportRuntimeError(msg);
-        }
+  private defineInjector(): Injector {
+    try {
+      return inject(Injector);
+    } catch (_) {
+      const msg = this.constructor.name
+        + (this.constructor.name === 'CollectionService' ? '' : ' (CollectionService)')
+        + ' should be injected or created in an injection context!';
+      if (isDevMode()) {
+        throw new Error(msg);
+      } else {
+        this.m.reportRuntimeError(msg);
+        // This will prevent runtime errors when Injector is not required for the used methods,
+        // but will fail anyway when Injector is required.
+        return undefined as unknown as Injector;
       }
     }
   }
 
+  protected readonly injector: Injector;
+
   constructor(
     @Inject('COLLECTION_SERVICE_OPTIONS') @Optional() options?: CollectionOptions,
     // You don't need to provide `injector` here if class is injected or created in an injection context
-    protected injector?: Injector,
+    injector?: Injector,
   ) {
     super({
       items: [],
@@ -238,7 +240,7 @@ export class CollectionService<T, UniqueStatus = any, Status = any>
       status: new Map<UniqueStatus, T>(),
     });
     this.m.setOptions(options);
-    this.defineInjector();
+    this.injector = injector ?? this.defineInjector();
     this.init();
     Promise.resolve().then(() => this.postInit());
   }
@@ -255,7 +257,7 @@ export class CollectionService<T, UniqueStatus = any, Status = any>
     this.patchState({isCreating: true});
     return this.m.toObservableFirstValue(params.request).pipe(
       finalize(() => this.patchState({isCreating: false})),
-      concatLatestFrom(() => this.items$),
+      withLatestFrom(this.items$),
       tapResponse(([item, items]) => {
           if (item != null) {
             if (!this.m.hasItemIn(item, items)) {
@@ -281,7 +283,7 @@ export class CollectionService<T, UniqueStatus = any, Status = any>
     const request = Array.isArray(params.request) ? this.m.forkJoinSafe(params.request) : this.m.toObservableFirstValue(params.request);
     return request.pipe(
       finalize(() => this.patchState({isCreating: false})),
-      concatLatestFrom(() => this.items$),
+      withLatestFrom(this.items$),
       tapResponse(([fetched, items]) => {
           if (fetched != null) {
             this.patchState({totalCountFetched: Array.isArray(fetched) ? undefined : fetched.totalCount});
@@ -402,7 +404,7 @@ export class CollectionService<T, UniqueStatus = any, Status = any>
           }).pipe(map(_ => response));
         } else {
           return this.items$.pipe(
-            concatLatestFrom(() => this.totalCountFetched$),
+            withLatestFrom(this.totalCountFetched$),
             first(),
             map(([items, prevTotalCount]) => {
               const newTotalCount = this.m.getDecrementedTotalCount(
@@ -442,7 +444,7 @@ export class CollectionService<T, UniqueStatus = any, Status = any>
     this.patchState((s) => ({refreshingItems: this.m.getWith(s.refreshingItems, params.item)}));
     return this.m.toObservableFirstValue(params.request).pipe(
       finalize(() => this.patchState((s) => ({refreshingItems: this.m.getWithout(s.refreshingItems, params.item)}))),
-      concatLatestFrom(() => this.items$),
+      withLatestFrom(this.items$),
       tapResponse(
         ([newItem, items]) => {
           if (newItem != null) {
@@ -470,7 +472,7 @@ export class CollectionService<T, UniqueStatus = any, Status = any>
     const request = Array.isArray(params.request) ? this.m.forkJoinSafe(params.request) : this.m.toObservableFirstValue(params.request);
     return request.pipe(
       finalize(() => this.patchState((s) => ({refreshingItems: this.m.getWithout(s.refreshingItems, params.items)}))),
-      concatLatestFrom(() => this.items$),
+      withLatestFrom(this.items$),
       tapResponse(
         ([fetched, items]) => {
           if (fetched != null) {
@@ -508,7 +510,7 @@ export class CollectionService<T, UniqueStatus = any, Status = any>
     this.patchState({isReading: true});
     return this.m.toObservableFirstValue(params.request).pipe(
       finalize(() => this.patchState({isReading: false})),
-      concatLatestFrom(() => this.items$),
+      withLatestFrom(this.items$),
       tapResponse(
         ([newItem, items]) => {
           if (newItem != null) {
@@ -536,7 +538,7 @@ export class CollectionService<T, UniqueStatus = any, Status = any>
     const request = Array.isArray(params.request) ? this.m.forkJoinSafe(params.request) : this.m.toObservableFirstValue(params.request);
     return request.pipe(
       finalize(() => this.patchState({isReading: false})),
-      concatLatestFrom(() => this.state$),
+      withLatestFrom(this.state$),
       tapResponse(
         ([fetched, {items, totalCountFetched}]) => {
           const readItems = fetched == null ? ([] as T[]) : (Array.isArray(fetched) ? fetched : fetched.items);
@@ -629,7 +631,7 @@ export class CollectionService<T, UniqueStatus = any, Status = any>
           }).pipe(map(_ => response));
         } else {
           return this.items$.pipe(
-            concatLatestFrom(() => this.totalCountFetched$),
+            withLatestFrom(this.totalCountFetched$),
             first(),
             map(([items, prevTotalCount]) => {
               let newTotalCount = this.m.getDecrementedTotalCount(
@@ -687,6 +689,46 @@ export class CollectionService<T, UniqueStatus = any, Status = any>
 
   public deleteItemStatus(item: T, status: Status) {
     this.patchState((s) => ({statuses: this.m.deleteItemStatus(s.statuses, item, status)}));
+  }
+
+  public isItemDeleting(itemSource: Partial<T> | Observable<Partial<T> | undefined> | Signal<Partial<T> | undefined>): Signal<boolean> {
+    const item = this.m.toSignal(itemSource, this.injector);
+    return computed(() => {
+      const i = item();
+      return !!i && this.m.hasItemIn(i, this.deletingItemsSignal());
+    });
+  }
+
+  public isItemRefreshing(itemSource: Partial<T> | Observable<Partial<T> | undefined> | Signal<Partial<T> | undefined>): Signal<boolean> {
+    const item = this.m.toSignal(itemSource, this.injector);
+    return computed(() => {
+      const i = item();
+      return !!i && this.m.hasItemIn(i, this.refreshingItemsSignal());
+    });
+  }
+
+  public isItemUpdating(itemSource: Partial<T> | Observable<Partial<T> | undefined> | Signal<Partial<T> | undefined>): Signal<boolean> {
+    const item = this.m.toSignal(itemSource, this.injector);
+    return computed(() => {
+      const i = item();
+      return !!i && this.m.hasItemIn(i, this.updatingItemsSignal());
+    });
+  }
+
+  public isItemMutating(itemSource: Partial<T> | Observable<Partial<T> | undefined> | Signal<Partial<T> | undefined>): Signal<boolean> {
+    const item = this.m.toSignal(itemSource, this.injector);
+    return computed(() => {
+      const i = item();
+      return !!i && this.m.hasItemIn(i, this.mutatingItemsSignal());
+    });
+  }
+
+  public isItemProcessing(itemSource: Partial<T> | Observable<Partial<T> | undefined> | Signal<Partial<T> | undefined>): Signal<boolean> {
+    const item = this.m.toSignal(itemSource, this.injector);
+    return computed(() => {
+      const i = item();
+      return !!i && this.isProcessingSignal() && (this.m.hasItemIn(i, this.refreshingItemsSignal()) || this.m.hasItemIn(i, this.mutatingItemsSignal()));
+    });
   }
 
   public getViewModel(): Observable<ViewModel<T, UniqueStatus, Status>> {
@@ -874,5 +916,13 @@ export class CollectionService<T, UniqueStatus = any, Status = any>
 
   public listenForDelete(): Observable<Partial<T>[]> {
     return this.m.onDelete.asObservable();
+  }
+
+  public listenForItemsUpdate(items: Partial<T>[]): Observable<T[]> {
+    return this.m.listenForItemsUpdate(items);
+  }
+
+  public listenForItemsDeletion(items: Partial<T>[]): Observable<Partial<T>[]> {
+    return this.m.listenForItemsDeletion(items);
   }
 }

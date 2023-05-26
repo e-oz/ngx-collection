@@ -279,14 +279,55 @@ export type CollectionCore<T, UniqueStatus = unknown, Status = unknown> = {
    */
   deleteItemStatus(item: T, status: Status): void;
 
+  /**
+   * Check if item is being deleted currently (will be modified dynamically)
+   */
+  isItemDeleting(itemSource: Partial<T> | Observable<Partial<T> | undefined> | Signal<Partial<T> | undefined>): Signal<boolean>;
+
+  /**
+   * Check if item is being refreshed currently (will be modified dynamically)
+   */
+  isItemRefreshing(itemSource: Partial<T> | Observable<Partial<T> | undefined> | Signal<Partial<T> | undefined>): Signal<boolean>;
+
+  /**
+   * Check if item is being updated currently (will be modified dynamically)
+   */
+  isItemUpdating(itemSource: Partial<T> | Observable<Partial<T> | undefined> | Signal<Partial<T> | undefined>): Signal<boolean>;
+
+  /**
+   * Check if item is being updated or deleted currently (will be modified dynamically)
+   */
+  isItemMutating(itemSource: Partial<T> | Observable<Partial<T> | undefined> | Signal<Partial<T> | undefined>): Signal<boolean>;
+
+  /**
+   * Check if item is being refreshed, updated or deleted currently (will be modified dynamically)
+   */
+  isItemProcessing(itemSource: Partial<T> | Observable<Partial<T> | undefined> | Signal<Partial<T> | undefined>): Signal<boolean>;
+
+  /**
+   * Helpers
+   */
+
+  /**
+   * Set custom Comparator
+   */
   setComparator(comparator: ObjectsComparator | ObjectsComparatorFn): void;
 
   getDuplicates(items: T[]): DuplicatesMap<T> | null;
 
+  /**
+   * Set message for an error that will be thrown on duplicates error.
+   */
   setThrowOnDuplicates(message: string | undefined): void;
 
+  /**
+   * If duplicates should be allowed in "read" methods.
+   */
   setAllowFetchedDuplicates(allowFetchedDuplicates: boolean): void;
 
+  /**
+   * Set custom argument which should be passed to onDuplicateErr callback function.
+   */
   setOnDuplicateErrCallbackParam(onDuplicateErrCallbackParam: any): void;
 
   /**
@@ -330,4 +371,15 @@ export type CollectionCore<T, UniqueStatus = unknown, Status = unknown> = {
    * @returns items that were provided in params
    */
   listenForDelete(): Observable<Partial<T>[]>;
+
+  /**
+   * Get an observable to be notified when some particular items
+   * are replaced by the new versions (updated, read or refreshed).
+   */
+  listenForItemsUpdate(items: Partial<T>[]): Observable<T[]>;
+
+  /**
+   * Get an observable to be notified when some particular items are deleted.
+   */
+  listenForItemsDeletion(items: Partial<T>[]): Observable<Partial<T>[]>;
 }

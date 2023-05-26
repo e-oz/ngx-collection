@@ -18,16 +18,6 @@ export type SignalBasedCollection<T, UniqueStatus = unknown, Status = unknown> =
   isProcessing: Signal<boolean>;
   mutatingItems: Signal<T[]>;
 
-  isItemDeleting(itemSource: Observable<T | undefined> | Signal<T | undefined>): Signal<boolean>;
-
-  isItemRefreshing(itemSource: Observable<T | undefined> | Signal<T | undefined>): Signal<boolean>;
-
-  isItemUpdating(itemSource: Observable<T | undefined> | Signal<T | undefined>): Signal<boolean>;
-
-  isItemMutating(itemSource: Observable<T | undefined> | Signal<T | undefined>): Signal<boolean>;
-
-  isItemProcessing(itemSource: Observable<T | undefined> | Signal<T | undefined>): Signal<boolean>;
-
   /**
    * Creates a signal containing an item. Returned signal will be updated every time `filter` is updated.
    * @param filter - (partial) item to be compared with. Also accepts observables and signals.

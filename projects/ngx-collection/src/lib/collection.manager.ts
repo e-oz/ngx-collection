@@ -1,7 +1,7 @@
 import { Comparator, ObjectsComparator, ObjectsComparatorFn } from './comparator';
 import type { CollectionOptions, DuplicatesMap } from './types';
-import { catchError, defaultIfEmpty, defer, first, forkJoin, isObservable, map, Observable, of, startWith, Subject } from 'rxjs';
-import { Injector, isSignal, Signal, untracked } from '@angular/core';
+import { catchError, defaultIfEmpty, defer, filter, first, forkJoin, isObservable, map, merge, Observable, of, startWith, Subject } from 'rxjs';
+import { Injector, isSignal, signal, Signal, untracked } from '@angular/core';
 import { toObservable, toSignal } from '@angular/core/rxjs-interop';
 import { isFunction } from 'rxjs/internal/util/isFunction';
 import { isEmptyValue } from './helpers';
@@ -82,6 +82,10 @@ export class CollectionManager<T, UniqueStatus = unknown, Status = unknown> {
     } else {
       return items.filter(i => !this.comparator.equal(i, item));
     }
+  }
+
+  public findInSet<Ret extends Partial<T>>(seek: Partial<T>[], items: Ret[]): Ret[] {
+    return items.filter(i => this.has(i, seek));
   }
 
   public getItemByPartial(partItem: Partial<T>, items: T[]): T | undefined {
@@ -298,9 +302,12 @@ export class CollectionManager<T, UniqueStatus = unknown, Status = unknown> {
     }
   }
 
-  public toObservable<Src>(source: Observable<Src> | Signal<Src>, injector?: Injector): Observable<Src> {
+  public toObservable<Src>(source: Src | Observable<Src> | Signal<Src>, injector?: Injector): Observable<Src> {
     if (isObservable(source)) {
       return source;
+    }
+    if (!isFunction(source) || !isSignal(source)) {
+      return of(source);
     }
     if (!injector) {
       throw new Error('CollectionService.getItemViewModel() requires an injector.');
@@ -329,9 +336,11 @@ export class CollectionManager<T, UniqueStatus = unknown, Status = unknown> {
     );
   }
 
-  public toSignal<Src>(source: Observable<Src> | Signal<Src>, injector: Injector): Signal<Src | undefined> {
+  public toSignal<Src>(source: Src | Observable<Src> | Signal<Src>, injector: Injector): Signal<Src | undefined> {
     return (isFunction(source) && isSignal(source)) ? source :
-      untracked(() => toSignal(source, {initialValue: undefined, injector: injector}));
+      isObservable(source) ?
+        untracked(() => toSignal(source, {initialValue: undefined, injector: injector}))
+        : signal(source);
   }
 
   public hasItemIn(item: Partial<T>, arr: Partial<T>[]): boolean {
@@ -354,5 +363,19 @@ export class CollectionManager<T, UniqueStatus = unknown, Status = unknown> {
         return i;
       }
     };
+  }
+
+  public listenForItemsUpdate(items: Partial<T>[]): Observable<T[]> {
+    return merge(this.onUpdate, this.onRead).pipe(
+      map((updated) => this.findInSet(items, updated)),
+      filter(found => found.length > 0)
+    );
+  }
+
+  public listenForItemsDeletion(items: Partial<T>[]): Observable<Partial<T>[]> {
+    return this.onDelete.pipe(
+      map((updated) => this.findInSet(items, updated)),
+      filter(found => found.length > 0)
+    );
   }
 }

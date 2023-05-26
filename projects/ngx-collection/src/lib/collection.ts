@@ -13,7 +13,7 @@ export const NGX_COLLECTION_OPTIONS = new InjectionToken<CollectionOptions>('COL
 export class Collection<T, UniqueStatus = unknown, Status = unknown>
   implements SignalBasedCollection<T, UniqueStatus, Status>, CollectionCore<T, UniqueStatus, Status> {
 
-  protected readonly m = new CollectionManager<T, UniqueStatus, Status>();
+  private readonly m = new CollectionManager<T, UniqueStatus, Status>();
   private readonly injector = inject(Injector);
   private readonly equalArrays = (a: T[], b: T[]) => a === b || (a.length === 0 && b.length === 0);
   private readonly equalMaps = (a: Map<unknown, unknown>, b: Map<unknown, unknown>) => a === b || (a.size === 0 && b.size === 0);
@@ -58,7 +58,7 @@ export class Collection<T, UniqueStatus = unknown, Status = unknown>
   ));
   public readonly mutatingItems: Signal<T[]> = computed(() => (
     [...this._updatingItems(), ...this._deletingItems()]
-  ));
+  ), {equal: this.equalArrays});
 
   /***/
 
@@ -476,7 +476,7 @@ export class Collection<T, UniqueStatus = unknown, Status = unknown>
     this._statuses.update((prev) => (this.m.deleteItemStatus(prev, item, status)));
   }
 
-  public isItemDeleting(itemSource: Observable<T | undefined> | Signal<T | undefined>): Signal<boolean> {
+  public isItemDeleting(itemSource: Partial<T> | Observable<Partial<T> | undefined> | Signal<Partial<T> | undefined>): Signal<boolean> {
     const item = this.m.toSignal(itemSource, this.injector);
     return computed(() => {
       const i = item();
@@ -484,7 +484,7 @@ export class Collection<T, UniqueStatus = unknown, Status = unknown>
     });
   }
 
-  public isItemRefreshing(itemSource: Observable<T | undefined> | Signal<T | undefined>): Signal<boolean> {
+  public isItemRefreshing(itemSource: Partial<T> | Observable<Partial<T> | undefined> | Signal<Partial<T> | undefined>): Signal<boolean> {
     const item = this.m.toSignal(itemSource, this.injector);
     return computed(() => {
       const i = item();
@@ -492,7 +492,7 @@ export class Collection<T, UniqueStatus = unknown, Status = unknown>
     });
   }
 
-  public isItemUpdating(itemSource: Observable<T | undefined> | Signal<T | undefined>): Signal<boolean> {
+  public isItemUpdating(itemSource: Partial<T> | Observable<Partial<T> | undefined> | Signal<Partial<T> | undefined>): Signal<boolean> {
     const item = this.m.toSignal(itemSource, this.injector);
     return computed(() => {
       const i = item();
@@ -500,7 +500,7 @@ export class Collection<T, UniqueStatus = unknown, Status = unknown>
     });
   }
 
-  public isItemMutating(itemSource: Observable<T | undefined> | Signal<T | undefined>): Signal<boolean> {
+  public isItemMutating(itemSource: Partial<T> | Observable<Partial<T> | undefined> | Signal<Partial<T> | undefined>): Signal<boolean> {
     const item = this.m.toSignal(itemSource, this.injector);
     return computed(() => {
       const i = item();
@@ -508,7 +508,7 @@ export class Collection<T, UniqueStatus = unknown, Status = unknown>
     });
   }
 
-  public isItemProcessing(itemSource: Observable<T | undefined> | Signal<T | undefined>): Signal<boolean> {
+  public isItemProcessing(itemSource: Partial<T> | Observable<Partial<T> | undefined> | Signal<Partial<T> | undefined>): Signal<boolean> {
     const item = this.m.toSignal(itemSource, this.injector);
     return computed(() => {
       const i = item();
@@ -605,5 +605,13 @@ export class Collection<T, UniqueStatus = unknown, Status = unknown>
 
   public listenForDelete(): Observable<Partial<T>[]> {
     return this.m.onDelete.asObservable();
+  }
+
+  public listenForItemsUpdate(items: Partial<T>[]): Observable<T[]> {
+    return this.m.listenForItemsUpdate(items);
+  }
+
+  public listenForItemsDeletion(items: Partial<T>[]): Observable<Partial<T>[]> {
+    return this.m.listenForItemsDeletion(items);
   }
 }
