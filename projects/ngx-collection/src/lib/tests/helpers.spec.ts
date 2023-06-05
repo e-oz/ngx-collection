@@ -1,4 +1,4 @@
-import { getObjectPathValue, isEmptyObject, isEmptyValue } from './helpers';
+import { getObjectPathValue, isEmptyObject, isEmptyValue } from '../helpers';
 
 describe('getObjectPathValue', () => {
   it('should return undefined if path is empty', () => {

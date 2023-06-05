@@ -1,4 +1,4 @@
-import { Comparator } from './comparator';
+import { Comparator } from '../comparator';
 
 describe('comparator', () => {
   it('single field', () => {

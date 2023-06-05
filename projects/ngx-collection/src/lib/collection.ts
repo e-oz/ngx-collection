@@ -37,28 +37,27 @@ export class Collection<T, UniqueStatus = unknown, Status = unknown>
   public readonly totalCountFetched: Signal<number | undefined> = this._totalCountFetched.asReadonly();
   public readonly isCreating: Signal<boolean> = this._isCreating.asReadonly();
   public readonly isReading: Signal<boolean> = this._isReading.asReadonly();
+  /**
+   * Derived State Signals
+   */
   public readonly updatingItems: Signal<T[]> = computed(() => this._updatingItems(), {equal: this.equalArrays});
   public readonly deletingItems: Signal<T[]> = computed(() => this._deletingItems(), {equal: this.equalArrays});
   public readonly refreshingItems: Signal<T[]> = computed(() => this._refreshingItems(), {equal: this.equalArrays});
   public readonly status: Signal<Map<UniqueStatus, T>> = computed(() => this._status(), {equal: this.equalMaps});
   public readonly statuses: Signal<Map<T, Set<Status>>> = computed(() => this._statuses(), {equal: this.equalMaps});
-  /**
-   * Derived State Signals
-   */
   public readonly isUpdating: Signal<boolean> = computed(() => this._updatingItems().length > 0);
   public readonly isDeleting: Signal<boolean> = computed(() => this._deletingItems().length > 0);
-  public readonly isMutating: Signal<boolean> = computed(() => (
-    this._isCreating() || this.isUpdating() || this.isDeleting()
-  ));
-  public readonly isSaving: Signal<boolean> = computed(() => (
-    this._isCreating() || this.isUpdating()
-  ));
-  public readonly isProcessing: Signal<boolean> = computed(() => (
-    this.isMutating() || this._isReading() || this._refreshingItems().length > 0
-  ));
-  public readonly mutatingItems: Signal<T[]> = computed(() => (
-    [...this._updatingItems(), ...this._deletingItems()]
-  ), {equal: this.equalArrays});
+  public readonly isMutating: Signal<boolean> = computed(() => (this._isCreating() || this.isUpdating() || this.isDeleting()));
+  public readonly isSaving: Signal<boolean> = computed(() => (this._isCreating() || this.isUpdating()));
+  public readonly isProcessing: Signal<boolean> = computed(() => (this.isMutating() || this._isReading() || this._refreshingItems().length > 0));
+  public readonly mutatingItems: Signal<T[]> = computed(() => ([
+    ...this._updatingItems(),
+    ...this._deletingItems()
+  ]), {equal: this.equalArrays});
+  public readonly processingItems: Signal<T[]> = computed(() => ([
+    ...this.mutatingItems(),
+    ...this.refreshingItems()
+  ]), {equal: this.equalArrays});
 
   /***/
 

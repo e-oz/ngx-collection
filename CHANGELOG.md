@@ -1,7 +1,11 @@
+### 2.3.1
+* Signal-based collection: `processingItems: Signal<T[]>` field has been added;
+* Observable-based collection: `processingItems$: Observable<T[]>`, `processingItemsSignal: Signal<T[]>` fields have been added. 
+
 ### 2.3.0
 * New methods, for both versions: `listenForItemsUpdate()`, `listenForItemsDeletion()`;
 * Methods `isItemDeleting()`, `isItemRefreshing()`, `isItemUpdating()`, `isItemMutating()`, `isItemProcessing()` now accept `Partial<T>` as an argument...;
-* ...and implemented in observable-based version. They return signals there as well to have the same API. To get the same result using observables only, you can use `hasItemIn()` method.
+* ...and implemented in the observable-based version. They return signals there as well to have the same API. To get the same result using observables only, you can use `hasItemIn()` method.
 
 ### 2.2.1
 Signal-based version (class `Collection`) now uses `NGX_COLLECTION_OPTIONS` injection token to inject options, because string injection tokens are deprecated in Angular.

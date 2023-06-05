@@ -29,10 +29,13 @@ export type ItemViewModel = {
 export interface ObservableBasedCollection<T, UniqueStatus = unknown, Status = unknown> {
   items$: Observable<T[]>;
   totalCountFetched$: Observable<number | undefined>;
+
   updatingItems$: Observable<T[]>;
   deletingItems$: Observable<T[]>;
   refreshingItems$: Observable<T[]>;
   mutatingItems$: Observable<T[]>;
+  processingItems$: Observable<T[]>;
+
   isCreating$: Observable<boolean>;
   isReading$: Observable<boolean>;
   isUpdating$: Observable<boolean>;
@@ -40,15 +43,19 @@ export interface ObservableBasedCollection<T, UniqueStatus = unknown, Status = u
   isSaving$: Observable<boolean>;
   isMutating$: Observable<boolean>;
   isProcessing$: Observable<boolean>;
+
   statuses$: Observable<Map<T, Set<Status>>>;
   status$: Observable<Map<UniqueStatus, T>>;
 
   itemsSignal: Signal<T[]>;
   totalCountFetchedSignal: Signal<number | undefined>;
+
   updatingItemsSignal: Signal<T[]>;
   deletingItemsSignal: Signal<T[]>;
   refreshingItemsSignal: Signal<T[]>;
   mutatingItemsSignal: Signal<T[]>;
+  processingItemsSignal: Signal<T[]>;
+
   isCreatingSignal: Signal<boolean>;
   isReadingSignal: Signal<boolean>;
   isUpdatingSignal: Signal<boolean>;
@@ -56,6 +63,7 @@ export interface ObservableBasedCollection<T, UniqueStatus = unknown, Status = u
   isSavingSignal: Signal<boolean>;
   isMutatingSignal: Signal<boolean>;
   isProcessingSignal: Signal<boolean>;
+
   statusesSignal: Signal<Map<T, Set<Status>>>;
   statusSignal: Signal<Map<UniqueStatus, T>>;
 

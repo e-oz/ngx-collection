@@ -1,4 +1,4 @@
-import { UniqueStatusPipe, StatusesPipe } from './status.pipes';
+import { UniqueStatusPipe, StatusesPipe } from '../status.pipes';
 
 describe('UniqueStatusPipe', () => {
   let pipe: UniqueStatusPipe;

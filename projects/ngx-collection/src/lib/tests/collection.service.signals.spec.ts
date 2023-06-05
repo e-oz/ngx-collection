@@ -1,4 +1,4 @@
-import { CollectionService } from './collection.service';
+import { CollectionService } from '../collection.service';
 import { Observable } from 'rxjs';
 import { computed, Injector, signal } from '@angular/core';
 import { TestBed } from '@angular/core/testing';

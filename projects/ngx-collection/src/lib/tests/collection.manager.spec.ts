@@ -1,4 +1,4 @@
-import { CollectionManager } from './collection.manager';
+import { CollectionManager } from '../collection.manager';
 
 describe('CollectionManager', () => {
   it('getDuplicates', () => {

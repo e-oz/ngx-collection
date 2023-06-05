@@ -25,6 +25,11 @@ export class CollectionService<T, UniqueStatus = any, Status = any>
     this.deletingItems$,
     (updatingItems, deletingItems) => [...updatingItems, ...deletingItems]
   );
+  public readonly processingItems$: Observable<T[]> = this.select(
+    this.mutatingItems$,
+    this.refreshingItems$,
+    (mutatingItems, refreshingItems) => [...mutatingItems, ...refreshingItems]
+  );
 
   public readonly isCreating$ = this.select(s => s.isCreating);
   public readonly isReading$ = this.select(s => s.isReading);
@@ -110,6 +115,16 @@ export class CollectionService<T, UniqueStatus = any, Status = any>
     return this._mutatingItemsSignal ?? (
       this._mutatingItemsSignal = untracked(() => toSignal(
         this.mutatingItems$,
+        {initialValue: [] as T[], injector: this.injector}
+      )));
+  }
+
+  private _processingItemsSignal?: Signal<T[]>;
+
+  public get processingItemsSignal(): Signal<T[]> {
+    return this._processingItemsSignal ?? (
+      this._processingItemsSignal = untracked(() => toSignal(
+        this.processingItems$,
         {initialValue: [] as T[], injector: this.injector}
       )));
   }

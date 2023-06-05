@@ -4,19 +4,23 @@ import type { Observable } from 'rxjs';
 export type SignalBasedCollection<T, UniqueStatus = unknown, Status = unknown> = {
   items: Signal<T[]>;
   totalCountFetched: Signal<number | undefined>;
-  isCreating: Signal<boolean>;
-  isReading: Signal<boolean>;
+
   updatingItems: Signal<T[]>;
   deletingItems: Signal<T[]>;
   refreshingItems: Signal<T[]>;
-  status: Signal<Map<UniqueStatus, T>>;
-  statuses: Signal<Map<T, Set<Status>>>;
+  mutatingItems: Signal<T[]>;
+  processingItems: Signal<T[]>;
+
+  isCreating: Signal<boolean>;
+  isReading: Signal<boolean>;
   isUpdating: Signal<boolean>;
   isDeleting: Signal<boolean>;
   isMutating: Signal<boolean>;
   isSaving: Signal<boolean>;
   isProcessing: Signal<boolean>;
-  mutatingItems: Signal<T[]>;
+
+  status: Signal<Map<UniqueStatus, T>>;
+  statuses: Signal<Map<T, Set<Status>>>;
 
   /**
    * Creates a signal containing an item. Returned signal will be updated every time `filter` is updated.
