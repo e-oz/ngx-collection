@@ -2,18 +2,6 @@ import { Observable } from 'rxjs';
 import { Signal } from '@angular/core';
 import { ObjectsComparator, ObjectsComparatorFn } from './comparator';
 
-export type CollectionState<T, UniqueStatus = any, Status = any> = {
-  readonly items: T[];
-  readonly totalCountFetched?: number;
-  readonly isCreating: boolean;
-  readonly isReading: boolean;
-  readonly updatingItems: T[];
-  readonly deletingItems: T[];
-  readonly refreshingItems: T[];
-  readonly status: Map<UniqueStatus, T>;
-  readonly statuses: Map<T, Set<Status>>;
-}
-
 export type FetchedItems<T> = {
   items: T[];
   totalCount?: number;
@@ -80,7 +68,7 @@ export type UpdateManyParams<T> = {
  * If `readRequest` is provided, it will be the source of the new set of items (decrementTotalCount will be ignored).
  */
 export type DeleteParams<T, R = unknown> = {
-  readonly request: Observable<R> | Signal<R>;
+  readonly request?: Observable<R> | Signal<R> | null;
   readonly item: Partial<T>;
   /**
    * If `decrementTotalCount` is provided (and `readRequest` is not provided):
@@ -105,7 +93,7 @@ export type DeleteParams<T, R = unknown> = {
  * `string`: points what field of the response object (first one, if it's an array) should be used (if exist) as a source of `totalCountFetched` (should be integer, >= 0).
  */
 export type DeleteManyParams<T, R = unknown> = {
-  readonly request: Observable<R> | Observable<R>[] | Signal<R> | Signal<R>[];
+  readonly request?: Observable<R> | Observable<R>[] | Signal<R> | Signal<R>[] | null;
   readonly items: Partial<T>[];
   /**
    * If `decrementTotalCount` is provided (and `readRequest` is not provided):
@@ -166,7 +154,27 @@ export type CollectionOptions = {
   errReporter?: (...args: any[]) => any;
 }
 
-export type CollectionCore<T, UniqueStatus = unknown, Status = unknown> = {
+export type CollectionInterface<T, UniqueStatus = unknown, Status = unknown> = {
+  $items: Signal<T[]>;
+  $totalCountFetched: Signal<number | undefined>;
+
+  $updatingItems: Signal<T[]>;
+  $deletingItems: Signal<T[]>;
+  $refreshingItems: Signal<T[]>;
+  $mutatingItems: Signal<T[]>;
+  $processingItems: Signal<T[]>;
+
+  $isCreating: Signal<boolean>;
+  $isReading: Signal<boolean>;
+  $isUpdating: Signal<boolean>;
+  $isDeleting: Signal<boolean>;
+  $isMutating: Signal<boolean>;
+  $isSaving: Signal<boolean>;
+  $isProcessing: Signal<boolean>;
+
+  $status: Signal<Map<UniqueStatus, T>>;
+  $statuses: Signal<Map<T, Set<Status>>>;
+
   /**
    * Add a new item to the collection.
    */
@@ -282,27 +290,27 @@ export type CollectionCore<T, UniqueStatus = unknown, Status = unknown> = {
   /**
    * Check if item is being deleted currently (will be modified dynamically)
    */
-  isItemDeleting(itemSource: Partial<T> | Observable<Partial<T> | undefined> | Signal<Partial<T> | undefined>): Signal<boolean>;
+  isItemDeleting(itemSource: Partial<T> | Signal<Partial<T> | undefined>): Signal<boolean>;
 
   /**
    * Check if item is being refreshed currently (will be modified dynamically)
    */
-  isItemRefreshing(itemSource: Partial<T> | Observable<Partial<T> | undefined> | Signal<Partial<T> | undefined>): Signal<boolean>;
+  isItemRefreshing(itemSource: Partial<T> | Signal<Partial<T> | undefined>): Signal<boolean>;
 
   /**
    * Check if item is being updated currently (will be modified dynamically)
    */
-  isItemUpdating(itemSource: Partial<T> | Observable<Partial<T> | undefined> | Signal<Partial<T> | undefined>): Signal<boolean>;
+  isItemUpdating(itemSource: Partial<T> | Signal<Partial<T> | undefined>): Signal<boolean>;
 
   /**
    * Check if item is being updated or deleted currently (will be modified dynamically)
    */
-  isItemMutating(itemSource: Partial<T> | Observable<Partial<T> | undefined> | Signal<Partial<T> | undefined>): Signal<boolean>;
+  isItemMutating(itemSource: Partial<T> | Signal<Partial<T> | undefined>): Signal<boolean>;
 
   /**
    * Check if item is being refreshed, updated or deleted currently (will be modified dynamically)
    */
-  isItemProcessing(itemSource: Partial<T> | Observable<Partial<T> | undefined> | Signal<Partial<T> | undefined>): Signal<boolean>;
+  isItemProcessing(itemSource: Partial<T> | Signal<Partial<T> | undefined>): Signal<boolean>;
 
   /**
    * Helpers
@@ -384,4 +392,16 @@ export type CollectionCore<T, UniqueStatus = unknown, Status = unknown> = {
    * Get an observable to be notified when some particular items are deleted.
    */
   listenForItemsDeletion(items: Partial<T>[]): Observable<Partial<T>[]>;
+
+  /**
+   * Creates a signal containing an item. Returned signal will be updated every time `filter` is updated.
+   * @param filter - (partial) item to be compared with. Also accepts observables and signals.
+   */
+  getItem(filter: Partial<T> | Signal<Partial<T>>): Signal<T | undefined>;
+
+  /**
+   * Creates a signal containing an item. Returned signal will be updated every time `fieldValue` is updated.
+   * @param field - one field or array of the fields, that item can have (type-checked).
+   * @param fieldValue - value (type-checked), also accepts observables and signals.   */
+  getItemByField<K extends keyof T>(field: K | K[], fieldValue: T[K] | Signal<T[K]>): Signal<T | undefined>;
 }

@@ -1,3 +1,20 @@
+### 3.0.0
+Breaking changes:
+* Observable-based version removed;
+* `CollectionCore` renamed to `CollectionInterface`;
+* Fields, containing signals now prefixed with '$' (`$items`, `$totalCountFetched`, `$isUpdating` and so on);
+* Methods don't accept observables anymore:
+* * `isItemDeleting()`
+* * `isItemRefreshing()`
+* * `isItemUpdating()`
+* * `isItemMutating()`
+* * `isItemProcessing()`
+* `Collection` class is not `@Injectable` anymore. Easiest way to create an injectable class is to extend `Collection` with an `@Injectable` class;
+* `NGX_COLLECTION_OPTIONS` token removed - set options using `constructor()` or `setOptions()`;
+* Default value for `onDuplicateErrCallbackParam` changed from `{status: 409}` to `DuplicateError` object;
+* `postInit()` method removed - you can declare your own and call it as `Promise.resolve().then(() => this.postInit());` from `init()` if needed;
+* `CollectionManager` merged back to `Collection`.
+
 ### 2.3.2
 `getItemByPartial()` is now part of the API.
 

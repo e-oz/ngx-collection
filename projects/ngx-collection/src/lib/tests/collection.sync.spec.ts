@@ -1,5 +1,4 @@
-import { createEnvironmentInjector, EnvironmentInjector, signal } from '@angular/core';
-import { TestBed } from '@angular/core/testing';
+import { signal } from '@angular/core';
 import { Collection } from '../collection';
 
 type Item = {
@@ -8,42 +7,40 @@ type Item = {
 }
 
 function setup() {
-  const injector = createEnvironmentInjector([{
-    provide: Collection,
-    useClass: Collection,
-  }], TestBed.inject(EnvironmentInjector));
-  const coll = injector.get(Collection<Item>);
-  coll.setOptions({throwOnDuplicates: 'duplicate', comparatorFields: ['id']});
+  const coll = new Collection<Item>({
+    throwOnDuplicates: 'duplicate',
+    comparatorFields: ['id']
+  });
 
   return {
     coll,
   };
 }
 
-describe('Collection Service (Signal-based, sync)', () => {
+describe('Collection Service (sync)', () => {
   it('create', () => {
-    const {coll} = setup();
-    const newItem: Item = {id: 0, name: ':)'};
+    const { coll } = setup();
+    const newItem: Item = { id: 0, name: ':)' };
 
     coll.create({
       request: signal(newItem)
     }).subscribe();
 
-    expect(coll.items()).toStrictEqual([newItem]);
+    expect(coll.$items()).toStrictEqual([newItem]);
 
-    const secondItem: Item = {id: -1, name: ';)'};
-
-    coll.create({
-      request: signal(secondItem)
-    }).subscribe();
-
-    expect(coll.items()).toStrictEqual([newItem, secondItem]);
+    const secondItem: Item = { id: -1, name: ';)' };
 
     coll.create({
       request: signal(secondItem)
     }).subscribe();
 
-    expect(coll.items()).toStrictEqual([newItem, secondItem]);
+    expect(coll.$items()).toStrictEqual([newItem, secondItem]);
+
+    coll.create({
+      request: signal(secondItem)
+    }).subscribe();
+
+    expect(coll.$items()).toStrictEqual([newItem, secondItem]);
   });
 
   it('create many', () => {
@@ -61,7 +58,7 @@ describe('Collection Service (Signal-based, sync)', () => {
       request: signal([item1])
     }).subscribe();
 
-    expect(coll.items()).toStrictEqual([item1]);
+    expect(coll.$items()).toStrictEqual([item1]);
 
     coll.createMany({
       request: signal([item2, item3]),
@@ -72,72 +69,72 @@ describe('Collection Service (Signal-based, sync)', () => {
       request: [signal(item4), signal(item5)],
     }).subscribe();
 
-    expect(coll.items()).toStrictEqual([item1, item2, item3]);
+    expect(coll.$items()).toStrictEqual([item1, item2, item3]);
 
     coll.createMany({
       request: [signal(item4), signal(item6)],
     }).subscribe();
 
-    expect(coll.items()).toStrictEqual([item1, item2, item3, item4, item6]);
+    expect(coll.$items()).toStrictEqual([item1, item2, item3, item4, item6]);
 
     coll.createMany({
       request: signal({items: [item7], totalCount: 0}),
     }).subscribe();
 
-    expect(coll.items()).toStrictEqual([item1, item2, item3, item4, item6, item7]);
+    expect(coll.$items()).toStrictEqual([item1, item2, item3, item4, item6, item7]);
 
-    expect(coll.totalCountFetched()).toStrictEqual(0);
+    expect(coll.$totalCountFetched()).toStrictEqual(0);
 
     coll.createMany({
       request: signal({items: [], totalCount: 4815162342}),
     }).subscribe();
 
-    expect(coll.items()).toStrictEqual([item1, item2, item3, item4, item6, item7]);
+    expect(coll.$items()).toStrictEqual([item1, item2, item3, item4, item6, item7]);
 
-    expect(coll.totalCountFetched()).toStrictEqual(4815162342);
+    expect(coll.$totalCountFetched()).toStrictEqual(4815162342);
   });
 
   it('read', () => {
     const {coll} = setup();
 
     coll.read({
-      request: signal([{id: 1, name: 'A'}, {id: 2, name: 'B'}]),
+      request: signal([{ id: 1, name: 'A' }, { id: 2, name: 'B' }]),
     }).subscribe();
 
-    expect(coll.items()).toStrictEqual([{id: 1, name: 'A'}, {id: 2, name: 'B'}]);
+    expect(coll.$items()).toStrictEqual([{ id: 1, name: 'A' }, { id: 2, name: 'B' }]);
 
     coll.read({
-      request: signal({items: [{id: 1, name: 'AN'}, {id: 2, name: 'BN'}], totalCount: 12})
+      request: signal({ items: [{ id: 1, name: 'AN' }, { id: 2, name: 'BN' }], totalCount: 12 })
     }).subscribe();
 
-    expect(coll.items()).toStrictEqual([{id: 1, name: 'AN'}, {id: 2, name: 'BN'}]);
-    expect(coll.totalCountFetched()).toStrictEqual(12);
+    expect(coll.$items()).toStrictEqual([{ id: 1, name: 'AN' }, { id: 2, name: 'BN' }]);
+    expect(coll.$totalCountFetched()).toStrictEqual(12);
 
     coll.setAllowFetchedDuplicates(false);
     coll.setThrowOnDuplicates(undefined);
 
     coll.read({
-      request: signal({items: [{id: 1, name: 'AN'}, {id: 2, name: 'BN'}, {id: 2, name: 'BNX'}], totalCount: 10000}),
+      request: signal({ items: [{ id: 1, name: 'AN' }, { id: 2, name: 'BN' }, { id: 2, name: 'BNX' }], totalCount: 10000 }),
       keepExistingOnError: true,
     }).subscribe();
 
-    expect(coll.items()).toStrictEqual([{id: 1, name: 'AN'}, {id: 2, name: 'BN'}]);
-    expect(coll.totalCountFetched()).toStrictEqual(12);
+    expect(coll.$items()).toStrictEqual([{ id: 1, name: 'AN' }, { id: 2, name: 'BN' }]);
+    expect(coll.$totalCountFetched()).toStrictEqual(12);
 
     coll.read({
-      request: signal({items: [{id: 1, name: 'AN'}, {id: 2, name: 'BN'}, {id: 2, name: 'BNX'}], totalCount: 10000}),
+      request: signal({ items: [{ id: 1, name: 'AN' }, { id: 2, name: 'BN' }, { id: 2, name: 'BNX' }], totalCount: 10000 }),
       keepExistingOnError: false,
     }).subscribe();
 
-    expect(coll.items()).toStrictEqual([]);
-    expect(coll.totalCountFetched()).toStrictEqual(undefined);
+    expect(coll.$items()).toStrictEqual([]);
+    expect(coll.$totalCountFetched()).toStrictEqual(undefined);
 
     coll.read({
-      request: signal({items: [{id: 1, name: 'AN'}, {id: 2, name: 'BN'}, {id: 2, name: 'BNX'}]})
+      request: signal({ items: [{ id: 1, name: 'AN' }, { id: 2, name: 'BN' }, { id: 2, name: 'BNX' }] })
     }).subscribe();
 
-    expect(coll.items()).toStrictEqual([]);
-    expect(coll.totalCountFetched()).toStrictEqual(undefined);
+    expect(coll.$items()).toStrictEqual([]);
+    expect(coll.$totalCountFetched()).toStrictEqual(undefined);
   });
 
   it('read one', () => {
@@ -150,19 +147,19 @@ describe('Collection Service (Signal-based, sync)', () => {
 
     coll.read({request: signal([item1, item2, item3])}).subscribe();
 
-    expect(coll.items()).toStrictEqual([item1, item2, item3]);
+    expect(coll.$items()).toStrictEqual([item1, item2, item3]);
 
     coll.readOne({
       request: signal(item),
     }).subscribe();
 
-    expect(coll.items()).toStrictEqual([item1, item2, item3, item]);
+    expect(coll.$items()).toStrictEqual([item1, item2, item3, item]);
 
     coll.readOne({
       request: signal(item3v2),
     }).subscribe();
 
-    expect(coll.items()).toStrictEqual([item1, item2, item3v2, item]);
+    expect(coll.$items()).toStrictEqual([item1, item2, item3v2, item]);
   });
 
   it('read many', () => {
@@ -173,20 +170,20 @@ describe('Collection Service (Signal-based, sync)', () => {
 
     coll.read({request: signal(items)}).subscribe();
 
-    expect(coll.items()).toStrictEqual(items);
+    expect(coll.$items()).toStrictEqual(items);
 
     coll.readMany({
       request: signal(newItems),
     }).subscribe();
 
-    expect(coll.items()).toStrictEqual([...items, ...newItems]);
+    expect(coll.$items()).toStrictEqual([...items, ...newItems]);
 
     coll.readMany({
       request: signal(newItemsV2),
     }).subscribe();
 
-    expect(coll.items()).toStrictEqual([...items, ...newItemsV2.items]);
-    expect(coll.totalCountFetched()).toStrictEqual(4815162342);
+    expect(coll.$items()).toStrictEqual([...items, ...newItemsV2.items]);
+    expect(coll.$totalCountFetched()).toStrictEqual(4815162342);
   });
 
   it('refresh', () => {
@@ -202,36 +199,36 @@ describe('Collection Service (Signal-based, sync)', () => {
 
     coll.read({request: signal([item1, item2])}).subscribe();
 
-    expect(coll.items()).toStrictEqual([item1, item2]);
+    expect(coll.$items()).toStrictEqual([item1, item2]);
 
     coll.refresh({
       request: signal(item2f),
       item: item2
     }).subscribe();
 
-    expect(coll.items()).toStrictEqual([item1, item2f]);
+    expect(coll.$items()).toStrictEqual([item1, item2f]);
 
     coll.refreshMany({
       request: signal([item1f, item3]),
       items: [item1]
     }).subscribe();
 
-    expect(coll.items()).toStrictEqual([item1f, item2f, item3]);
+    expect(coll.$items()).toStrictEqual([item1f, item2f, item3]);
 
     coll.refreshMany({
       request: [signal(item3f), signal(item4)],
       items: [item3]
     }).subscribe();
 
-    expect(coll.items()).toStrictEqual([item1f, item2f, item3f, item4]);
+    expect(coll.$items()).toStrictEqual([item1f, item2f, item3f, item4]);
 
     coll.refreshMany({
-      request: signal({items: [item2f, item3f, item4f], totalCount: 4815162342}),
+      request: signal({ items: [item2f, item3f, item4f], totalCount: 4815162342 }),
       items: [item3f, item4]
     }).subscribe();
 
-    expect(coll.items()).toStrictEqual([item1f, item2f, item3f, item4f]);
-    expect(coll.totalCountFetched()).toStrictEqual(4815162342);
+    expect(coll.$items()).toStrictEqual([item1f, item2f, item3f, item4f]);
+    expect(coll.$totalCountFetched()).toStrictEqual(4815162342);
   });
 
   it('update', () => {
@@ -257,7 +254,7 @@ describe('Collection Service (Signal-based, sync)', () => {
       item: item2,
     }).subscribe();
 
-    expect(coll.items()).toStrictEqual([item1, newItem2]);
+    expect(coll.$items()).toStrictEqual([item1, newItem2]);
   });
 
   it('update many', () => {
@@ -280,7 +277,7 @@ describe('Collection Service (Signal-based, sync)', () => {
       items: [item2, item4],
     }).subscribe();
 
-    expect(coll.items()).toStrictEqual([item1, newItem2, item3, newItem4]);
+    expect(coll.$items()).toStrictEqual([item1, newItem2, item3, newItem4]);
   });
 
   it('delete', () => {
@@ -309,7 +306,7 @@ describe('Collection Service (Signal-based, sync)', () => {
       }),
     }).subscribe();
 
-    expect(coll.items()).toStrictEqual([
+    expect(coll.$items()).toStrictEqual([
       item1,
       item2,
       item3,
@@ -318,14 +315,14 @@ describe('Collection Service (Signal-based, sync)', () => {
       item6,
       item7,
     ]);
-    expect(coll.totalCountFetched()).toStrictEqual(7);
+    expect(coll.$totalCountFetched()).toStrictEqual(7);
 
     coll.delete({
       request: signal(item2),
       item: item2,
     }).subscribe();
 
-    expect(coll.items()).toStrictEqual([
+    expect(coll.$items()).toStrictEqual([
       item1,
       item3,
       item4,
@@ -333,7 +330,7 @@ describe('Collection Service (Signal-based, sync)', () => {
       item6,
       item7,
     ]);
-    expect(coll.totalCountFetched()).toStrictEqual(7);
+    expect(coll.$totalCountFetched()).toStrictEqual(7);
 
     coll.delete({
       request: signal(null),
@@ -341,7 +338,7 @@ describe('Collection Service (Signal-based, sync)', () => {
       decrementTotalCount: 3,
     }).subscribe();
 
-    expect(coll.totalCountFetched()).toStrictEqual(4);
+    expect(coll.$totalCountFetched()).toStrictEqual(4);
 
     coll.delete({
       request: signal(null),
@@ -349,7 +346,7 @@ describe('Collection Service (Signal-based, sync)', () => {
       decrementTotalCount: true,
     }).subscribe();
 
-    expect(coll.totalCountFetched()).toStrictEqual(3);
+    expect(coll.$totalCountFetched()).toStrictEqual(3);
 
     coll.delete({
       request: signal({totalItems: 1}),
@@ -357,21 +354,21 @@ describe('Collection Service (Signal-based, sync)', () => {
       decrementTotalCount: 'totalItems',
     }).subscribe();
 
-    expect(coll.totalCountFetched()).toStrictEqual(1);
+    expect(coll.$totalCountFetched()).toStrictEqual(1);
   });
 
   it('delete many', () => {
-    const {coll} = setup();
+    const { coll } = setup();
 
-    const item1 = {id: -1, name: 'A'};
-    const item2 = {id: 0, name: 'B'};
-    const item3 = {id: 1, name: 'C'};
-    const item4 = {id: 2, name: 'D'};
-    const item5 = {id: 5, name: 'B5'};
-    const item6 = {id: 6, name: 'B6'};
-    const item7 = {id: 7, name: 'B7'};
-    const item8 = {id: 8, name: 'B8'};
-    const item9 = {id: 9, name: 'B9'};
+    const item1 = { id: -1, name: 'A' };
+    const item2 = { id: 0, name: 'B' };
+    const item3 = { id: 1, name: 'C' };
+    const item4 = { id: 2, name: 'D' };
+    const item5 = { id: 5, name: 'B5' };
+    const item6 = { id: 6, name: 'B6' };
+    const item7 = { id: 7, name: 'B7' };
+    const item8 = { id: 8, name: 'B8' };
+    const item9 = { id: 9, name: 'B9' };
 
     coll.read({
       request: signal({
@@ -380,15 +377,15 @@ describe('Collection Service (Signal-based, sync)', () => {
       })
     }).subscribe();
 
-    expect(coll.items()).toStrictEqual([item1, item2, item3, item4, item5, item6, item7, item8, item9]);
-    expect(coll.totalCountFetched()).toStrictEqual(200);
+    expect(coll.$items()).toStrictEqual([item1, item2, item3, item4, item5, item6, item7, item8, item9]);
+    expect(coll.$totalCountFetched()).toStrictEqual(200);
 
     coll.deleteMany({
       request: signal('ok'),
       items: [item3, item4],
     }).subscribe();
 
-    expect(coll.items()).toStrictEqual([item1, item2, item5, item6, item7, item8, item9]);
+    expect(coll.$items()).toStrictEqual([item1, item2, item5, item6, item7, item8, item9]);
 
     coll.deleteMany({
       request: signal('ok'),
@@ -396,7 +393,7 @@ describe('Collection Service (Signal-based, sync)', () => {
       decrementTotalCount: 110,
     }).subscribe();
 
-    expect(coll.totalCountFetched()).toStrictEqual(90);
+    expect(coll.$totalCountFetched()).toStrictEqual(90);
 
     coll.deleteMany({
       request: signal('ok'),
@@ -404,7 +401,7 @@ describe('Collection Service (Signal-based, sync)', () => {
       decrementTotalCount: true,
     }).subscribe();
 
-    expect(coll.totalCountFetched()).toStrictEqual(88);
+    expect(coll.$totalCountFetched()).toStrictEqual(88);
 
     coll.deleteMany({
       request: signal({total: 10}),
@@ -412,82 +409,82 @@ describe('Collection Service (Signal-based, sync)', () => {
       decrementTotalCount: 'total',
     }).subscribe();
 
-    expect(coll.totalCountFetched()).toStrictEqual(10);
+    expect(coll.$totalCountFetched()).toStrictEqual(10);
   });
 
   it('status', () => {
-    const {coll} = setup();
+    const { coll } = setup();
 
-    const item1 = {id: 1, name: 'A'};
-    const item2 = {id: 2, name: 'B'};
+    const item1 = { id: 1, name: 'A' };
+    const item2 = { id: 2, name: 'B' };
 
-    coll.read({request: signal([item1, item2])}).subscribe();
-    expect(coll.items()).toStrictEqual([item1, item2]);
+    coll.read({ request: signal([item1, item2]) }).subscribe();
+    expect(coll.$items()).toStrictEqual([item1, item2]);
 
-    expect(coll.statuses().get(item1)?.has('selected')).toBeFalsy();
+    expect(coll.$statuses().get(item1)?.has('selected')).toBeFalsy();
 
     coll.setItemStatus(item1, 'selected');
 
-    expect(coll.statuses().get(item1)?.has('selected')).toBeTruthy();
+    expect(coll.$statuses().get(item1)?.has('selected')).toBeTruthy();
 
     coll.setItemStatus(item1, 'awesome');
 
-    expect(coll.statuses().get(item1)?.has('selected')).toBeTruthy();
-    expect(coll.statuses().get(item1)?.has('awesome')).toBeTruthy();
+    expect(coll.$statuses().get(item1)?.has('selected')).toBeTruthy();
+    expect(coll.$statuses().get(item1)?.has('awesome')).toBeTruthy();
 
     coll.deleteItemStatus(item1, 'awesome');
 
-    expect(coll.statuses().get(item1)?.has('selected')).toBeTruthy();
-    expect(coll.statuses().get(item1)?.has('awesome')).toBeFalsy();
+    expect(coll.$statuses().get(item1)?.has('selected')).toBeTruthy();
+    expect(coll.$statuses().get(item1)?.has('awesome')).toBeFalsy();
 
     coll.deleteItemStatus(item1, 'selected');
 
-    expect(coll.statuses().get(item1)?.has('selected')).toBeFalsy();
-    expect(coll.statuses().get(item1)?.has('awesome')).toBeFalsy();
+    expect(coll.$statuses().get(item1)?.has('selected')).toBeFalsy();
+    expect(coll.$statuses().get(item1)?.has('awesome')).toBeFalsy();
 
     coll.setItemStatus(item1, 'awesome');
 
-    expect(coll.statuses().get(item1)?.has('awesome')).toBeTruthy();
+    expect(coll.$statuses().get(item1)?.has('awesome')).toBeTruthy();
   });
 
   it('unique status', () => {
-    const {coll} = setup();
+    const { coll } = setup();
 
-    const item1 = {id: -1, name: '#!'};
-    const item2 = {id: 0, name: '!@'};
+    const item1 = { id: -1, name: '#!' };
+    const item2 = { id: 0, name: '!@' };
 
-    coll.read({request: signal([item1, item2])}).subscribe();
-    expect(coll.items()).toStrictEqual([item1, item2]);
+    coll.read({ request: signal([item1, item2]) }).subscribe();
+    expect(coll.$items()).toStrictEqual([item1, item2]);
 
-    expect(coll.status().get('focused')).toBeFalsy();
+    expect(coll.$status().get('focused')).toBeFalsy();
 
     coll.setUniqueStatus('focused', item2);
     coll.setUniqueStatus('reserved', item2);
 
-    expect(coll.status().get('focused')).toStrictEqual(item2);
+    expect(coll.$status().get('focused')).toStrictEqual(item2);
 
     coll.setUniqueStatus('chosen', item1);
 
-    expect(coll.status().get('focused')).toStrictEqual(item2);
-    expect(coll.status().get('chosen')).toStrictEqual(item1);
-    expect(coll.status().get('reserved')).toStrictEqual(item2);
+    expect(coll.$status().get('focused')).toStrictEqual(item2);
+    expect(coll.$status().get('chosen')).toStrictEqual(item1);
+    expect(coll.$status().get('reserved')).toStrictEqual(item2);
 
     coll.setUniqueStatus('chosen', item2, false);
 
-    expect(coll.status().get('chosen')).toStrictEqual(item1);
+    expect(coll.$status().get('chosen')).toStrictEqual(item1);
 
     coll.setUniqueStatus('chosen', item1, false);
 
-    expect(coll.status().get('chosen')).toBeFalsy();
+    expect(coll.$status().get('chosen')).toBeFalsy();
 
     coll.deleteUniqueStatus('focused');
 
-    expect(coll.status().get('focused')).toBeFalsy();
-    expect(coll.status().get('chosen')).toBeFalsy();
+    expect(coll.$status().get('focused')).toBeFalsy();
+    expect(coll.$status().get('chosen')).toBeFalsy();
 
-    expect(coll.status().get('reserved')).toStrictEqual(item2);
+    expect(coll.$status().get('reserved')).toStrictEqual(item2);
     coll.setUniqueStatus('reserved', item1);
-    expect(coll.status().get('reserved')).toStrictEqual(item1);
+    expect(coll.$status().get('reserved')).toStrictEqual(item1);
   });
 
   it('getItem', () => {
@@ -551,7 +548,7 @@ describe('Collection Service (Signal-based, sync)', () => {
 
     coll.read({
       request: signal([item1, item2, item3, item4]),
-      onError: (err) => errMsg = err as string,
+      onError: (err: any) => errMsg = err as string,
     }).subscribe();
 
     expect(errMsg).toBe('DRY');
@@ -744,9 +741,48 @@ describe('Collection Service (Signal-based, sync)', () => {
 
     coll.deleteMany({
       request: signal(null),
-      items: [{id: 1}, {id: 2}]
+      items: [{ id: 1 }, { id: 2 }]
     }).subscribe();
 
-    expect(lastEmitted).toStrictEqual([{id: 1}, {id: 2}]);
+    expect(lastEmitted).toStrictEqual([{ id: 1 }, { id: 2 }]);
+  });
+
+  it('getDuplicates', () => {
+    class CollectionTest extends Collection<any> {
+      public override hasDuplicates(items: any[]) {
+        return super.hasDuplicates(items);
+      }
+    }
+
+    const m = new CollectionTest();
+
+    const item1 = { id: 1, name: 'A' };
+    const item2 = { id: 2, name: 'B' };
+    const item3 = { id: 3, name: 'C' };
+    const item2d = { id: 1, name: '!A' };
+
+    expect(m.getDuplicates([item1, item2, item3])).toStrictEqual(null);
+
+    const expected = new Map();
+    expected.set(1, { 1: item2, 3: item2d });
+    expect(m.getDuplicates([item1, item2, item3, item2d])).toMatchObject(expected);
+
+    m.setComparator((a: unknown, b: unknown) => a === b);
+
+    expect(m.hasDuplicates(
+      [0, 1, 2, 3, 4, 5, 2]
+    )).toStrictEqual(2);
+    expect(m.hasDuplicates(
+      [0, 0, 2, 3, 4, 5, 2]
+    )).toStrictEqual(0);
+    expect(m.hasDuplicates(
+      [0, 1, 1, 3, 4, 5, 2]
+    )).toStrictEqual(1);
+    expect(m.hasDuplicates(
+      [0, 1, 2, 3, 4, 5, 5]
+    )).toStrictEqual(5);
+    expect(m.hasDuplicates(
+      [0, 1, 2, 3, 2, 4, 5]
+    )).toStrictEqual(2);
   });
 });

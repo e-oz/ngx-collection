@@ -58,3 +58,16 @@ function fieldValuesAreNotEmptyAndEqual(obj1: unknown, obj2: unknown, field: str
     && value1 === value2
   );
 }
+
+export class DuplicateError extends Error {
+  constructor(...params: Parameters<typeof Error>) {
+    super(...params);
+    this.name = 'DuplicateError';
+
+    // @ts-ignore
+    if (Error.captureStackTrace) {
+      // @ts-ignore
+      Error.captureStackTrace(this, DuplicateError);
+    }
+  }
+}

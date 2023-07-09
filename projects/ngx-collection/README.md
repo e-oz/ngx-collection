@@ -5,17 +5,13 @@ Collection
 
 # Introduction
 
-By using this service, you can easily and safely mutate collections of items and monitor their state (as well as the state of their mutations).
+By using this service, you can easily and safely modify collections of items and monitor their state (as well as the state of their modifications).
 
-All the actions are asynchronous and immutable - items and collections will not be modified: new items and new collections will be created on every mutation.
+All the actions are immutable - items will not be modified.
 
-To monitor the state, you can use one of the predefined selectors or a view model.
+Collection method calls can be completely synchronous, or asynchronous (preventing data race in asynchronous calls).  
 
 Out of the box, without any additional code, you'll be able to control your "loading" spinners, temporarily disable buttons, display success/error messages, and much more.
-
-Observable-based version extends [NgRx ComponentStore](https://ngrx.io/guide/component-store), all selectors (including view models) are generated using `ComponentStore.select()` method.  
-
-Signal-based version uses only Angular Signals to manage the state (doesn't extend ComponentStore).
 
 # Example Application
 
@@ -26,7 +22,7 @@ You can read an [introductory article](https://medium.com/@eugeniyoz/collection-
 Here you can see how little code you need to gently manipulate your collection of art! 
 
 # Benefits
-✅  Every mutation is asynchronous:  
+✅  No data race in asynchronous calls:  
 * works in reactive apps with the OnPush change detection strategy;  
 * works in components with the Default change detection strategy;  
 * can be used with just the `async` pipe and `subscribe()`, or with some store;
@@ -46,7 +42,6 @@ Here you can see how little code you need to gently manipulate your collection o
 # Installation
 
 Requires Angular 16.   
-Observable-based `CollectionService` also requires [NgRx ComponentStore](https://ngrx.io/guide/component-store) 15 or 16.  
 
 [Yarn](https://yarnpkg.com/package/ngx-collection): 
 ```
@@ -61,118 +56,27 @@ npm i ngx-collection
 In your code:
 
 ```ts
-import { CollectionService } from 'ngx-collection';
-```
-
-Or, to use the signal-based version:  
-```ts
 import { Collection } from 'ngx-collection';
 ```
 
 # API
-The API has a lot of fields and methods, but you don't have to learn and use all of them. Just use the fields and methods that your application needs.
+The API has a lot of fields and methods, but you don't have to learn and use all of them.   
+Just use the fields and methods that your application needs.  
+No worries, in your app you'll use just a few methods and even fewer fields.   
+API has all these methods and fields to be flexible for many different types of usage.
 
-This library provides 2 ways of managing the collection's state: 
-* "Observable-based" [CollectionService](projects/ngx-collection/src/lib/collection.service.ts)
-* "Signal-based" [Collection](projects/ngx-collection/src/lib/collection.ts)  
-
-Which one to use is your choice :)
-
-* [Core API](projects/ngx-collection/src/lib/types.ts)
-* [Observable-based APIs of CollectionService](projects/ngx-collection/src/lib/observable-based.ts)
-* [Signal-based APIs of CollectionService](projects/ngx-collection/src/lib/signal-based.ts)
+* [API](projects/ngx-collection/src/lib/types.ts)
 
 # Usage
-Both the signal-based and observable-based classes are designed to be used in 2 ways:  
+You can use `Collection` class as is, or you can use it inside an `@Injectable` class, or you can create an `@Injectable` class, extending `Collection` class.    
 
-1. Local collection - a temporary instance with a lifecycle bound to a component;
-2. Shared collection - a global singleton.
+With `@Injectable`, you can control how the instance will be shared across the components.
 
-## Examples
+## Mutations
 
-While it is possible to use this service directly in your component, it is good practice to move all the state management out of a component and into a "store".   
-Therefore, examples will rely on usage with [ComponentStore](https://ngrx.io/guide/component-store).
+The Collection Service has four main methods to mutate a collection: `create()`, `read()`, `update()`, `delete()`.
 
-### Local collection
-A local collection will be destroyed with its associated component.
-
-#### In your Component:
-To use a local collection instance, you need to add it to the "providers" array of your component (or module):
-```ts
-@Component({
-  selector: 'example',
-  standalone: true,
-  ///...
-  providers: [
-    ExampleStore, 
-    CollectionService
-  ],
-})
-export class ExampleComponent {
-  
-  // Usage of `inject()` is required here (to make the CollectionService instance accessible in the ExampleStore).
-  // Declare it before usage of the "store" field.
-  protected readonly store = inject(ExampleStore);
-
-  // you can now use the "store" field.
-  protected readonly vm$ = this.store.examplesCollection.getViewModel();
-
-}
-```
-
-#### In your Component Store:
-
-```ts
-export class ExampleStore extends ComponentStore<ExampleState> {
-  readonly examplesCollection = inject(CollectionService<Example>);
-}
-```
-
-### Shared collection
-
-If you want to share a collection of items between multiple components, you can create a shared collection.  
-
-One example use case is having a list of items (ListComponent), and every item is rendered using a component (ListItemComponent). 
-If both ListComponent and ListItemComponent use the same shared collection, changes made to one of them will be instantly reflected in the other.  
-
-To create a shared collection, create a new class that extends this service and add the `@Injectable({providedIn: 'root'})` decorator:
-```ts
-@Injectable({providedIn: 'root'})
-export class BooksCollectionService extends Collection<Book> {
-  // to use a global instance, do not add this service to the "providers" array 
-  // otherwise, a new (local) instance will be injected.
-}
-```
-For your convenience, there is a protected `init()` method that you can override if you want some special initialization logic, so you don't have to deal with overriding the `constructor()` method.
-
-#### In your Component Store:
-
-```ts
-export class BookStore extends ComponentStore<BookStoreState> {
-  public readonly coll = inject(BooksCollectionService);
-}
-```
-
-#### In your Component:
-
-```ts
-@Component({
-  selector: 'book',
-  standalone: true,
-  ///...
-  providers: [BookStore], // BooksCollectionService should not be added here
-})
-export class BookComponent {
-  protected readonly store = inject(BookStore);
-  protected readonly booksSignal = this.store.coll.items;
-}
-```
-
-### Mutations
-
-The Collection Service has four main methods to mutate a collection: `create()`, `read()`, `update()`, `delete()`.  
-
-#### Create
+### Create
 Call `create` to add a new item to a collection:
 
 ```ts
@@ -183,8 +87,8 @@ this.booksCollection.create({
 })
 ```
 
-#### Read
-`read()` will load the list of items: 
+### Read
+`read()` will load the list of items:
 ```ts
 this.booksCollection.read({
     request: this.booksService.getBooks(),
@@ -192,7 +96,7 @@ this.booksCollection.read({
   })
 ```
 
-#### Update
+### Update
 Use `update()` to modify some particular item in your collection:
 ```ts
 this.booksCollection.update({
@@ -203,7 +107,7 @@ this.booksCollection.update({
 })
 ```
 
-#### Delete
+### Delete
 The usage of `delete()` is obvious. Let's explore a more detailed example:
 ```ts
 export class BookStore extends ComponentStore<BookStoreState> {
@@ -220,7 +124,7 @@ export class BookStore extends ComponentStore<BookStoreState> {
         exhaustMap((result) => {
           if (result) {
             return this.booksCollection.delete({
-              request: book.uuId ? this.booksService.removeBook(book.uuId) : of(null),
+              request: book.uuId ? this.booksService.removeBook(book.uuId) : undefined,
               item: book,
               onSuccess: () => this.messageService.success('Removed'),
               onError: () => this.messageService.error('Error'),
@@ -231,6 +135,90 @@ export class BookStore extends ComponentStore<BookStoreState> {
       );
     })
   ));
+}
+```
+
+## Instantiation Examples
+
+### Local collection
+```ts
+@Component({
+  selector: 'example',
+  standalone: true,
+  ///...
+})
+export class ExampleComponent {
+  // this collection will be only accessible to this component
+  protected readonly collection = new ExampleCollection({comparatorFields: ['id']});
+}
+```
+
+### "Feature" collection
+
+```ts
+@Injectable()
+export class ExampleCollection extends Collection<Example> {
+   constructor() {
+      super({comparatorFields: ['id']});
+   }
+}
+
+@Component({
+   selector: 'example',
+   // ...
+   providers: [
+      ExampleCollection, // 👈 You need to declare it as a provider 
+                         // in the "container" component of the "feature" 
+                         // or in the Route object, that declares a route to the "feature".
+                         // Other components (of the "feature") will inherit it from the parent components.
+   ]
+})
+export class ExampleComponent {
+   protected readonly coll = inject(ExampleCollection);
+}
+```
+
+### Global collection
+
+If you want to access some collection from any component, you can create a global collection.  
+
+One example use case is having a list of items (ListComponent), and every item is rendered using a component (ListItemComponent). 
+If both ListComponent and ListItemComponent use the same shared collection, changes made to one of them will be instantly reflected in the other.  
+
+To create a global collection, create a new class that extends this service and add the `@Injectable({providedIn: 'root'})` decorator:
+
+```ts
+@Injectable({ providedIn: 'root' })
+export class BooksCollection extends Collection<Book> {
+   constructor() {
+      super({comparatorFields: ['id']});
+   }
+}
+```
+For your convenience, there is a protected `init()` method that you can override if you want some special initialization logic, so you don't have to deal with overriding the `constructor()` method.
+
+#### In your component:
+
+```ts
+@Component({
+  selector: 'book',
+  standalone: true,
+  ///...
+  providers: [
+    //...
+    // BooksCollection should not be added here ⚠️
+  ], 
+})
+export class BookComponent {
+  protected readonly books = inject(BooksCollection);
+}
+```
+
+#### If you want to use it in a store:
+
+```ts
+export class BookStore extends ComponentStore<BookStoreState> {
+  public readonly coll = inject(BooksCollection);
 }
 ```
 
@@ -245,31 +233,26 @@ The comparator will first compare items using `===`, then it will use id fields.
 
 You can check the default id fields list of the default comparator in the [comparator.ts](projects/ngx-collection/src/lib/comparator.ts) file.
 
-You can easily configure this using Angular DI:
-```ts
-    {
-      provide: 'COLLECTION_SERVICE_OPTIONS',
-      useValue: {
-        comparatorFields: ['uuId', 'url'],
-      }
-    },
-```
-
-or using `setOptions()`,  
-or by re-instantiating a Comparator:
+You can easily configure it using `constructor()`, `setOptions()`, or by re-instantiating a Comparator, or by providing your own Comparator - it can be a class, implementing `ObjectsComparator` interface, or a function, implementing `ObjectsComparatorFn`.
 
 ```ts
-export class NotificationsCollectionService extends CollectionService<Notification> {
+export class NotificationsCollection extends Collection<Notification> {
+  constructor() {
+    super({ comparatorFields: ['id'] });
+  }
+
   override init() {
-    this.setOptions({comparatorFields: ['uuId', 'url']});
-    
-    // another way:
-    this.setComparator(new Comparator(['signature']))
+    // or
+    this.setOptions({ comparatorFields: ['uuId', 'url'] });
+
+    // or:
+    this.setComparator(new Comparator(['signature']));
+
+    // or:
+    this.setComparator((a, b) => a.id === b.id);
   }
 }
 ```
-
-or by providing your own Comparator - it can be a class, implementing `ObjectsComparator` interface, or a function, implementing `ObjectsComparatorFn`.
 
 ## Comparator fields
 
@@ -348,38 +331,6 @@ See "Items comparison" for details.
   ));
 ```
 
-# View Model
-
-The simplest way to watch the state of an observable-based collection is to use `collection.getViewModel() | async` in your template.
-
-The ViewModel contains a lot of useful fields:
-
-* `items$`[]
-* `isCreating$`
-* `isReading$`
-* `isUpdating$`
-* `isDeleting$`
-* `isMutating$`
-* `isSaving$`
-* `updatingItems$`[]
-* `deletingItems$`[]
-
-and some others.
-
-Alternatively, you can use `collection.state$` or any other public field and method of the Collection Service class.  
-
-If your component is rendering one of the collection's items, you can use `getItemViewModel()` method to monitor the state changes of your item.
-
-The item's view model is more simple:
-
-* `isDeleting$`
-* `isRefreshing$`
-* `isUpdating$`
-* `isMutating$`
-* `isProcessing$`
-
-In both models, `mutating` = (`updating` OR `deleting`).
-
 # Pipes
 
 This library provides two Angular pipes to make it easier to use collection statuses:  
@@ -392,18 +343,3 @@ This library provides two Angular pipes to make it easier to use collection stat
 The `read()` method additionally supports a specific type from the request execution result, not just a list of items but a wrapper containing a list of items: `FetchedItems` type.   
 
 You can (optionally) use this or a similar structure to don't lose meta information, such as the total count of items (usually needed for pagination).
-
-# Global configuration
-You can (optionally) declare Collection Service configuration details in your module or component providers:
-```ts
-providers: [
-  {
-    provide: 'COLLECTION_SERVICE_OPTIONS',
-    useValue: {
-      allowFetchedDuplicates: environment.production,
-      errReporter: environment.production ? undefined : console.error
-    }
-  },
-]
-```
-Token `COLLECTION_SERVICE_OPTIONS` is just a string to don't break lazy-loading (if you are using it).
