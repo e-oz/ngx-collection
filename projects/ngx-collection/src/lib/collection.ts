@@ -13,7 +13,7 @@ export const NGX_COLLECTION_OPTIONS = new InjectionToken<CollectionOptions>('COL
 export class Collection<T, UniqueStatus = unknown, Status = unknown>
   implements SignalBasedCollection<T, UniqueStatus, Status>, CollectionCore<T, UniqueStatus, Status> {
 
-  private readonly m = new CollectionManager<T, UniqueStatus, Status>();
+  protected readonly m = new CollectionManager<T, UniqueStatus, Status>();
   private readonly injector = inject(Injector);
   private readonly equalArrays = (a: T[], b: T[]) => a === b || (a.length === 0 && b.length === 0);
   private readonly equalMaps = (a: Map<unknown, unknown>, b: Map<unknown, unknown>) => a === b || (a.size === 0 && b.size === 0);
@@ -560,6 +560,10 @@ export class Collection<T, UniqueStatus = unknown, Status = unknown>
         ));
       }
     }
+  }
+
+  public getItemByPartial(partItem: Partial<T>, items: T[]): T | undefined {
+    return this.m.getItemByPartial(partItem, items);
   }
 
   public setComparator(comparator: ObjectsComparator | ObjectsComparatorFn) {

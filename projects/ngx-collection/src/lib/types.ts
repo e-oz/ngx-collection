@@ -315,6 +315,8 @@ export type CollectionCore<T, UniqueStatus = unknown, Status = unknown> = {
 
   getDuplicates(items: T[]): DuplicatesMap<T> | null;
 
+  getItemByPartial(partItem: Partial<T>, items: T[]): T | undefined;
+
   /**
    * Set message for an error that will be thrown on duplicates error.
    */

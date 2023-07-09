@@ -897,6 +897,10 @@ export class CollectionService<T, UniqueStatus = any, Status = any>
     return this.m.getDuplicates(items);
   }
 
+  public getItemByPartial(partItem: Partial<T>, items: T[]): T | undefined {
+    return this.m.getItemByPartial(partItem, items);
+  }
+
   public setThrowOnDuplicates(message: string | undefined) {
     this.m.throwOnDuplicates = message;
   }
