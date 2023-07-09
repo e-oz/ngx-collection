@@ -656,7 +656,7 @@ export class CollectionService<T, UniqueStatus = any, Status = any>
                 params.decrementTotalCount
               );
 
-              const newItems = items.filter(item => !this.m.has(item, params.items));
+              const newItems = items.filter(item => !this.m.hasItemIn(item, params.items));
               if (newTotalCount == null) {
                 this.patchState({
                   items: newItems

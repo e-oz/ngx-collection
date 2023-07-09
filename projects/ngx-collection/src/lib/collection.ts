@@ -436,7 +436,7 @@ export class Collection<T, UniqueStatus = unknown, Status = unknown>
             prevTotalCount,
             params.decrementTotalCount
           ) ?? prevTotalCount);
-          this._items.update((items) => items.filter(item => !this.m.has(item, params.items)));
+          this._items.update((items) => items.filter(item => !this.m.hasItemIn(item, params.items)));
           this.m.callCb(params.onSuccess, response);
           if (this.m.onDelete.observed) {
             this.m.onDelete.next(params.items);

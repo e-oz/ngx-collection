@@ -59,13 +59,6 @@ export class CollectionManager<T, UniqueStatus = unknown, Status = unknown> {
     );
   }
 
-  public has(item: Partial<T>, items: Partial<T>[], excludeIndex?: number): boolean {
-    if (excludeIndex != null) {
-      return !!(items.find((i, j) => j === excludeIndex ? false : this.comparator.equal(item, i)));
-    }
-    return !!(items.find((i) => this.comparator.equal(item, i)));
-  }
-
   public getWith(items: T[], item: Partial<T> | Partial<T>[]): T[] {
     const addItems = Array.isArray(item) ?
       item.map(i => this.getItemByPartial(i, items) ?? i as T)
@@ -78,14 +71,14 @@ export class CollectionManager<T, UniqueStatus = unknown, Status = unknown> {
 
   public getWithout(items: T[], item: Partial<T> | Partial<T>[]): T[] {
     if (Array.isArray(item)) {
-      return items.filter(i => !this.has(i, item));
+      return items.filter(i => !this.hasItemIn(i, item));
     } else {
       return items.filter(i => !this.comparator.equal(i, item));
     }
   }
 
   public findInSet<Ret extends Partial<T>>(seek: Partial<T>[], items: Ret[]): Ret[] {
-    return items.filter(i => this.has(i, seek));
+    return items.filter(i => this.hasItemIn(i, seek));
   }
 
   public getItemByPartial(partItem: Partial<T>, items: T[]): T | undefined {
@@ -344,10 +337,10 @@ export class CollectionManager<T, UniqueStatus = unknown, Status = unknown> {
   }
 
   public hasItemIn(item: Partial<T>, arr: Partial<T>[]): boolean {
-    if (!Array.isArray(arr)) {
+    if (!arr || !Array.isArray(arr) || arr.length === 0) {
       return false;
     }
-    return arr.includes(item) || ((arr.findIndex(i => this.comparator.equal(i, item))) > -1);
+    return ((arr.findIndex(i => this.comparator.equal(i, item))) > -1);
   }
 
   public getTrackByFieldFn(field: string): (i: number, item: any) => any {
