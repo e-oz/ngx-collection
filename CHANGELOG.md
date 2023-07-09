@@ -1,3 +1,6 @@
+### 2.3.2
+`getItemByPartial()` is now part of the API.
+
 ### 2.3.1
 * Signal-based collection: `processingItems: Signal<T[]>` field has been added;
 * Observable-based collection: `processingItems$: Observable<T[]>`, `processingItemsSignal: Signal<T[]>` fields have been added. 
