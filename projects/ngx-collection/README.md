@@ -303,7 +303,7 @@ The `item` parameter is the item that you are mutating.
 You receive this item from the items field of the collection state.
 
 ```ts
-  remove = this.effect<Example>(_ => _.pipe(
+  remove = effect<Example>(_ => _.pipe(
     exhaustMap((example) => {
       return this.examplesCollection.delete({
         request: example.uuId ? this.exampleService.removeExample(example.uuId) : signal(null),
@@ -319,7 +319,7 @@ You can send just a part of the item object, but this part should contain at lea
 See "Items comparison" for details.
 
 ```ts
-  remove = this.effect<string>(_ => _.pipe(
+  remove = effect<string>(_ => _.pipe(
     exhaustMap((uuId) => {
       return this.examplesCollection.delete({
         request: uuId ? this.exampleService.removeExample(uuId) : signal(null),
@@ -343,3 +343,44 @@ This library provides two Angular pipes to make it easier to use collection stat
 The `read()` method additionally supports a specific type from the request execution result, not just a list of items but a wrapper containing a list of items: `FetchedItems` type.   
 
 You can (optionally) use this or a similar structure to don't lose meta information, such as the total count of items (usually needed for pagination).
+
+## Helpers
+
+### getTrackByFieldFn()
+Returns a function you can use with "trackBy" in `ngFor`
+#### Parameters
+* `field: string` - field name
+
+Usage example:
+```angular2html
+<div *ngFor="let item of $items(); trackBy: coll.getTrackByFieldFn('uuId')"></div>
+```
+
+---
+
+### effect()
+Copy of `effect()` method of NgRx ComponentStore, where `takeUntil(this.destroy$)` is replaced with `takeUntilDestroyed(destroyRef)`, to use it as a function.  
+
+`effect()` is not a method of `Collection` class, it's a function.  
+
+You can find documentation and usage examples here: https://ngrx.io/guide/component-store/effect#effect-method  
+
+---
+
+### hasItemIn()
+Checks if some item belongs to some array of items - a comparator of this collection will be used.
+#### Parameters
+* `item`
+* `array`
+
+Example of usage:
+```angular2html
+<mat-chip-option
+    *ngFor="let role of $allRoles()" 
+    [value]="role"
+    [selected]="coll.hasItemIn(role, $roles())"
+    [selectable]="false"
+>
+<span>{{role.name}}</span>
+</mat-chip-option>
+```

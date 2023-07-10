@@ -1,3 +1,7 @@
+### 3.0.1
+New helper: `effect()` function.  
+Copy of `effect()` method of NgRx ComponentStore, where `takeUntil(this.destroy$)` is replaced with `takeUntilDestroyed(destroyRef)`, to use it as a function.
+
 ### 3.0.0
 Breaking changes:
 * Observable-based version removed;
