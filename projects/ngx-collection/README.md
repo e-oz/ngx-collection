@@ -1,6 +1,6 @@
 Collection
 ==========
-<p align="center"><img src="./ngx-collection-shield.svg" height="300px"></p>
+<p align="center"><img src="./ngx-collection.svg" height="300px"></p>
 <p align="center">Collection State Management Service</p>
 
 # Introduction
