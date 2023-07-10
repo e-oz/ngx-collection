@@ -195,7 +195,6 @@ export class BooksCollection extends Collection<Book> {
    }
 }
 ```
-For your convenience, there is a protected `init()` method that you can override if you want some special initialization logic, so you don't have to deal with overriding the `constructor()` method.
 
 #### In your component:
 
@@ -384,3 +383,15 @@ Example of usage:
 <span>{{role.name}}</span>
 </mat-chip-option>
 ```
+
+---
+
+### postInit()
+For your convenience, there is a protected `init()` method that you can override if you want some special initialization logic, so you don't have to deal with overriding the `constructor()` method.  
+Original method is guaranteed to be empty, so you don't have to call `super.init()`.  
+Will be called from the `constructor()`.
+
+### asyncInit()
+Another method you can safely override.  
+Original method is guaranteed to be empty, so you don't have to call `super.asyncInit()`.  
+Will be called in the next microtask from the constructor (`init()` will be called first and in the current microtask).

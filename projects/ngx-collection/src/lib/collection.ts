@@ -1,8 +1,9 @@
-import { computed, isSignal, Signal, signal } from '@angular/core';
+import { computed, isDevMode, isSignal, Signal, signal } from '@angular/core';
 import type { CollectionInterface, CollectionOptions, CreateManyParams, CreateParams, DeleteManyParams, DeleteParams, DuplicatesMap, FetchedItems, ReadManyParams, ReadOneParams, ReadParams, RefreshManyParams, RefreshParams, UpdateManyParams, UpdateParams } from './types';
 import { catchError, defaultIfEmpty, defer, EMPTY, filter, finalize, first, forkJoin, isObservable, map, merge, Observable, of, Subject, switchMap, tap } from 'rxjs';
 import { Comparator, DuplicateError, ObjectsComparator, ObjectsComparatorFn } from './comparator';
 import { isEmptyValue } from "./helpers";
+import { defaultComparatorFields } from "./internal-types";
 
 export class Collection<T, UniqueStatus = unknown, Status = unknown>
   implements CollectionInterface<T, UniqueStatus, Status> {
@@ -71,12 +72,34 @@ export class Collection<T, UniqueStatus = unknown, Status = unknown>
   constructor(options?: CollectionOptions) {
     this.setOptions(options);
     this.init();
+
+    Promise.resolve().then(() => {
+      this.asyncInit();
+
+      if (isDevMode() && this.comparator.hasOwnProperty('renderDefaultComparatorError') && (this.comparator as any).renderDefaultComparatorError === true) {
+        this.reportRuntimeError('Default Comparator with default id fields will be used.\n' +
+          'Don\'t forget to set option \'comparatorFields\' or \'comparator\' using constructor(), setComparator(), init(), or asyncInit().',
+          'Collection:',
+          this.constructor.name,
+          'Comparator fields:',
+          defaultComparatorFields);
+      }
+    });
   }
 
   /**
-   * Created to be overridden
+   * Created to be overridden.
+   * Guaranteed to be empty - no need to call super.init().
    */
   protected init() {
+
+  }
+
+  /**
+   * Created to be overridden.
+   * Guaranteed to be empty - no need to call super.asyncInit().
+   */
+  protected asyncInit() {
 
   }
 

@@ -1,4 +1,5 @@
 import { getObjectPathValue, isEmptyObject, isEmptyValue } from './helpers';
+import { defaultComparatorFields } from "./internal-types";
 
 export type ObjectsComparatorFn<T = any> = (obj1: T, obj2: T) => boolean;
 
@@ -7,7 +8,18 @@ export type ObjectsComparator = {
 }
 
 export class Comparator implements ObjectsComparator {
-  constructor(private fields: (string | string[])[] = ['uuId', 'id']) {}
+  public readonly renderDefaultComparatorError: boolean;
+  private readonly fields: (string | string[])[];
+
+  constructor(fields = defaultComparatorFields) {
+    if (!fields) {
+      this.renderDefaultComparatorError = true;
+      this.fields = defaultComparatorFields;
+    } else {
+      this.fields = fields;
+      this.renderDefaultComparatorError = false;
+    }
+  }
 
   equal(obj1: unknown, obj2: unknown, byFields?: (string | string[])[]): boolean {
     if (obj1 === obj2) {

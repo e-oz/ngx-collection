@@ -1,3 +1,7 @@
+### 3.1.0
+* New method to replace previously removed `postInit()`: `asyncInit()`. Will be called in the next microtask from the constructor (`init()` will be called first).
+* `Collection.constructor()` will complain in dev mode, if the comparator has to use default id fields, because no custom id fields are provided and no custom comparator is provided - that's exactly why `Collection` is not `@Injectable` anymore: providing this information is critically important for the correct functioning of `Collection`, so comparator fields (or a custom comparator) should be set explicitly. This error will help you not forget about it but will not pollute the console in production mode.
+
 ### 3.0.1
 New helper: `effect()` function.  
 Copy of `effect()` method of NgRx ComponentStore, where `takeUntil(this.destroy$)` is replaced with `takeUntilDestroyed(destroyRef)`, to use it as a function.
