@@ -485,86 +485,61 @@ export class Collection<T, UniqueStatus = unknown, Status = unknown>
   }
 
   public setUniqueStatus(status: UniqueStatus, item: T, active: boolean = true) {
-    const currMap = this.state.$status();
-    const currentItem = currMap.get(status);
+    const map = this.state.$status();
+    const currentItem = map.get(status);
     if (!active) {
       if (currentItem == null || !this.comparator.equal(item, currentItem)) {
         return;
+      } else {
+        const newMap = new Map(map);
+        newMap.delete(status);
+        this.state.$status.set(newMap);
       }
     } else {
       if (currentItem != null && this.comparator.equal(item, currentItem)) {
         return;
+      } else {
+        const newMap = new Map(map);
+        newMap.set(status, item);
+        this.state.$status.set(newMap);
       }
     }
-    this.state.$status.update((map) => {
-      const current = map.get(status);
-      if (!active) {
-        if (current != null && this.comparator.equal(item, current)) {
-          const newMap = new Map(map);
-          newMap.delete(status);
-          return newMap;
-        } else {
-          return map;
-        }
-      } else {
-        if (current == null || !this.comparator.equal(item, current)) {
-          const newMap = new Map(map);
-          newMap.set(status, item);
-          return newMap;
-        } else {
-          return map;
-        }
-      }
-    });
   }
 
   public deleteUniqueStatus(status: UniqueStatus) {
-    if (!this.state.$status().has(status)) {
-      return;
+    const map = this.state.$status();
+    if (map.has(status)) {
+      const newMap = new Map(map);
+      newMap.delete(status);
+      this.state.$status.set(newMap);
     }
-    this.state.$status.update((map) => {
-      if (map.has(status)) {
-        const newMap = new Map(map);
-        newMap.delete(status);
-        return newMap;
-      } else {
-        return map;
-      }
-    });
   }
 
   public setItemStatus(item: T, status: Status) {
-    if (this.state.$statuses().get(item)?.has(status)) {
+    const map = this.state.$statuses();
+    if (map.get(item)?.has(status)) {
       return;
     }
-    this.state.$statuses.update((map) => {
-      if (map.get(item)?.has(status)) {
-        return map;
-      }
-      const newMap = new Map(map);
-      const itemStatuses = newMap.get(item) ?? new Set<Status>();
-      itemStatuses.add(status);
-      newMap.set(item, itemStatuses);
-      return newMap;
-    });
+    const newMap = new Map(map);
+    const itemStatuses = newMap.get(item) ?? new Set<Status>();
+    itemStatuses.add(status);
+    newMap.set(item, itemStatuses);
+    this.state.$statuses.set(newMap);
   }
 
   public deleteItemStatus(item: T, status: Status) {
-    this.state.$statuses.update((map) => {
-      const current = map.get(item);
-      if (current && !current.has(status)) {
-        return map;
-      }
-      const newMap = new Map(map);
-      const itemStatuses = newMap.get(item);
-      if (itemStatuses) {
-        itemStatuses.delete(status);
-        newMap.set(item, itemStatuses);
-        return newMap;
-      } else {
-        return map;
-      }
-    });
+    const map = this.state.$statuses();
+    const current = map.get(item);
+    if (current && !current.has(status)) {
+      return;
+    }
+    const newMap = new Map(map);
+    const itemStatuses = newMap.get(item);
+    if (itemStatuses) {
+      itemStatuses.delete(status);
+      newMap.set(item, itemStatuses);
+      this.state.$statuses.set(newMap);
+    }
   }
 
   public isItemDeleting(itemSource: Partial<T> | Signal<Partial<T> | undefined>): Signal<boolean> {
