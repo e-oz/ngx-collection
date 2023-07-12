@@ -139,3 +139,17 @@ export function equalObjects<T>(a: T, b: T): boolean {
     return false;
   }
 }
+
+/**
+ * Contains functions for equality checks, optimized for array, maps, sets and objects.
+ * First of all, if objects are equal by reference (`===`), they are equal.
+ * In case of arrays, maps and sets, these functions will check only the first level of contained items, using `===`.
+ * Objects will be compared just by reference. If objects are not only have `object` type, but are maps, sets, or arrays - specialized function will be used.
+ * If both objects are "null" - they are equal.
+ */
+export const signalEqual = {
+  arrays: equalArrays,
+  sets: equalSets,
+  maps: equalMaps,
+  objects: equalObjects,
+};
