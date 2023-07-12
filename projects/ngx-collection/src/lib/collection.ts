@@ -485,6 +485,17 @@ export class Collection<T, UniqueStatus = unknown, Status = unknown>
   }
 
   public setUniqueStatus(status: UniqueStatus, item: T, active: boolean = true) {
+    const currMap = this.state.$status();
+    const currentItem = currMap.get(status);
+    if (!active) {
+      if (currentItem == null || !this.comparator.equal(item, currentItem)) {
+        return;
+      }
+    } else {
+      if (currentItem != null && this.comparator.equal(item, currentItem)) {
+        return;
+      }
+    }
     this.state.$status.update((map) => {
       const current = map.get(status);
       if (!active) {
@@ -508,6 +519,9 @@ export class Collection<T, UniqueStatus = unknown, Status = unknown>
   }
 
   public deleteUniqueStatus(status: UniqueStatus) {
+    if (!this.state.$status().has(status)) {
+      return;
+    }
     this.state.$status.update((map) => {
       if (map.has(status)) {
         const newMap = new Map(map);
@@ -520,6 +534,9 @@ export class Collection<T, UniqueStatus = unknown, Status = unknown>
   }
 
   public setItemStatus(item: T, status: Status) {
+    if (this.state.$statuses().get(item)?.has(status)) {
+      return;
+    }
     this.state.$statuses.update((map) => {
       if (map.get(item)?.has(status)) {
         return map;
