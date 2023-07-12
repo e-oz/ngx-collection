@@ -1,3 +1,7 @@
+### 3.1.2 - 3.1.4
+* Only update status$ signals when needed.
+* `signalEqual` object is exposed as public API - here you can find functions to use for custom equality checks.
+
 ### 3.1.1
 Better equality functions for signals.
 

@@ -391,7 +391,19 @@ For your convenience, there is a protected `init()` method that you can override
 Original method is guaranteed to be empty, so you don't have to call `super.init()`.  
 Will be called from the `constructor()`.
 
+---
+
 ### asyncInit()
 Another method you can safely override.  
 Original method is guaranteed to be empty, so you don't have to call `super.asyncInit()`.  
 Will be called in the next microtask from the constructor (`init()` will be called first and in the current microtask).
+
+---
+
+### signalEqual
+Object you can import.   
+Contains functions for equality checks, optimized for array, maps, sets and objects.  
+First of all, if objects are equal by reference (`===`), they are equal.  
+In case of arrays, maps and sets, these functions will check only the first level of contained items, using `===`.      
+Objects will be compared just by reference. If objects are not only have `object` type, but are maps, sets, or arrays - specialized function will be used.    
+If both objects are "null" - they are equal.
