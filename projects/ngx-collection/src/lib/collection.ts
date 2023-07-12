@@ -486,8 +486,8 @@ export class Collection<T, UniqueStatus = unknown, Status = unknown>
 
   public setUniqueStatus(status: UniqueStatus, item: T, active: boolean = true) {
     this.state.$status.update((map) => {
+      const current = map.get(status);
       if (!active) {
-        const current = map.get(status);
         if (current != null && this.comparator.equal(item, current)) {
           const newMap = new Map(map);
           newMap.delete(status);
@@ -496,23 +496,34 @@ export class Collection<T, UniqueStatus = unknown, Status = unknown>
           return map;
         }
       } else {
-        const newMap = new Map(map);
-        newMap.set(status, item);
-        return newMap;
+        if (current == null || !this.comparator.equal(item, current)) {
+          const newMap = new Map(map);
+          newMap.set(status, item);
+          return newMap;
+        } else {
+          return map;
+        }
       }
     });
   }
 
   public deleteUniqueStatus(status: UniqueStatus) {
     this.state.$status.update((map) => {
-      const newMap = new Map(map);
-      newMap.delete(status);
-      return newMap;
+      if (map.has(status)) {
+        const newMap = new Map(map);
+        newMap.delete(status);
+        return newMap;
+      } else {
+        return map;
+      }
     });
   }
 
   public setItemStatus(item: T, status: Status) {
     this.state.$statuses.update((map) => {
+      if (map.get(item)?.has(status)) {
+        return map;
+      }
       const newMap = new Map(map);
       const itemStatuses = newMap.get(item) ?? new Set<Status>();
       itemStatuses.add(status);
@@ -523,6 +534,10 @@ export class Collection<T, UniqueStatus = unknown, Status = unknown>
 
   public deleteItemStatus(item: T, status: Status) {
     this.state.$statuses.update((map) => {
+      const current = map.get(item);
+      if (current && !current.has(status)) {
+        return map;
+      }
       const newMap = new Map(map);
       const itemStatuses = newMap.get(item);
       if (itemStatuses) {
