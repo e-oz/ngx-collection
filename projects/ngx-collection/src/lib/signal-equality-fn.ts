@@ -19,7 +19,18 @@ function equalArrValues<A>(a: A[], b: A[]): boolean {
   if (a.length !== b.length) {
     return false;
   }
-  return a.every((v, i) => v === b[i]);
+  if (a.length === 0 && b.length === 0) {
+    return true;
+  }
+  return a.every((v, i) => {
+    const x = v;
+    const y = b[i];
+    return x === y
+      || (x == null && y == null)
+      || (Array.isArray(x) && Array.isArray(y) && x.length === 0 && y.length === 0)
+      || ((x instanceof Map) && (y instanceof Map) && x.size === 0 && y.size === 0)
+      || ((x instanceof Set) && (y instanceof Set) && x.size === 0 && y.size === 0)
+  });
 }
 
 export function equalMaps<M, N>(a: Map<M, N>, b: Map<M, N>): boolean {
@@ -141,12 +152,19 @@ export function equalObjects<T>(a: T, b: T): boolean {
 }
 
 /**
- * Contains functions for equality checks, optimized for array, maps, sets and objects.
- * First of all, if objects are equal by reference (`===`), they are equal.
- * In case of arrays, maps and sets, these functions will check only the first level of contained items, using `===`.
- * Objects will be compared just by reference. If objects are not only have `object` type, but are maps, sets, or arrays - specialized function will be used.
- * If both objects are "null" - they are equal.
- */
+ * Contains functions for checking the equality of values, optimized for arrays, maps, sets, and objects.
+ *
+ * The goals of these functions are:
+ * 1. To reduce the number of unnecessary computations;
+ * 2. To compare values as quickly as possible.
+ *
+ * First of all, if values are equal by reference (`===`), they are considered equal.
+ * After that, for arrays, sets, maps, and objects, the first level of contained items (keys) will be compared using `===`.
+ * If values are empty sets, arrays, or maps, they are equal. Empty objects are not equal.
+ * If both values are `null` or `undefined`, they are equal.
+ * The check is non-recursive and shallow.
+ * For a recursive, deep equality check, use specialized and optimized functions that you trust.
+ **/
 export const signalEqual = {
   arrays: equalArrays,
   sets: equalSets,

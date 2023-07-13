@@ -1,3 +1,7 @@
+### 3.1.5
+* Specialized equality check functions will be used in `getItem()` and `getItemByField()`. 
+* Better documentation and more tests for equality check functions.
+
 ### 3.1.2 - 3.1.4
 * Only update status$ signals when needed.
 * `signalEqual` object is exposed as public API - here you can find functions to use for custom equality checks.

@@ -3,7 +3,11 @@ import { equalArrays, equalMaps, equalObjects, equalSets } from "../signal-equal
 describe('equalArrays', () => {
   it('returns true for equal arrays', () => {
     expect(equalArrays([1, 2, 3], [1, 2, 3])).toBe(true);
+    expect(equalArrays([1, new Set(), 3], [1, new Set(), 3])).toBe(true);
+    expect(equalArrays([1, 2, null], [1, 2, null])).toBe(true);
+    expect(equalArrays([1, 2, null], [1, 2, undefined])).toBe(true);
     expect(equalArrays([], [])).toBe(true);
+    expect(equalArrays([[]], [[]])).toBe(true);
   });
 
   it('returns false for non-equal arrays', () => {
@@ -11,6 +15,9 @@ describe('equalArrays', () => {
     expect(equalArrays([1, 2], [1, 2, 3])).toBe(false);
     expect(equalArrays([1, 2, 3], [3, 2, 1])).toBe(false);
     expect(equalArrays([1, 2, { a: 3 }], [1, 2, { a: 3 }])).toBe(false);
+    expect(equalArrays([[[]]], [[[]]])).toBe(false);
+    expect(equalArrays([1, new Set(), 3], [1, new Map() as any, 3])).toBe(false);
+    expect(equalArrays([1, 2, null], [1, 2, 0])).toBe(false);
   });
 
   it('returns false for non-array inputs', () => {
@@ -30,12 +37,49 @@ describe('equalMaps', () => {
     const map1 = new Map<number, string>([[1, 'one'], [2, 'two'], [3, 'three']]);
     const map2 = new Map<number, string>([[1, 'one'], [2, 'two'], [3, 'three']]);
     expect(equalMaps(map1, map2)).toBe(true);
+    expect(equalMaps(map1, map1)).toBe(true);
+
+    expect(equalMaps(
+      new Map([['a', 1], ['b', 2], ['c', null]]),
+      new Map([['a', 1], ['b', 2], ['c', undefined]])
+    )).toBe(true);
+
+    expect(equalMaps(
+      new Map([['a', []], ['b', []], ['c', []]]),
+      new Map([['a', []], ['b', []], ['c', []]])
+    )).toBe(true);
+
+    expect(equalMaps(
+      new Map([['a', new Map()], ['b', new Map()]]),
+      new Map([['a', new Map()], ['b', new Map()]]),
+    )).toBe(true);
+
+    expect(equalMaps(
+      new Map([['a', new Set()], ['b', new Set()]]),
+      new Map([['a', new Set()], ['b', new Set()]]),
+    )).toBe(true);
   });
 
   it('returns false for non-equal maps', () => {
     const map1 = new Map<number, string>([[1, 'one'], [2, 'two'], [3, 'three']]);
     const map2 = new Map<number, string>([[1, 'one'], [2, 'two'], [4, 'four']]);
     expect(equalMaps(map1, map2)).toBe(false);
+
+    expect(equalMaps(
+      new Map([['a', []], ['b', []], ['c', []]]),
+      new Map([['a', []], ['b', []], ['c', [1, 2]]])
+    )).toBe(false);
+
+    expect(equalMaps(
+      new Map([['a', new Map()], ['b', new Map()]]),
+      new Map([['a', new Map()], ['b', new Set() as any]]),
+    )).toBe(false);
+
+    expect(equalMaps(
+      new Map([['a', new Set()], ['b', new Set()]]),
+      new Map([['a', new Set()], ['b', {} as any]]),
+    )).toBe(false);
+
   });
 
   it('returns false for non-map inputs', () => {
