@@ -4,7 +4,7 @@ import { catchError, defaultIfEmpty, defer, EMPTY, filter, finalize, first, fork
 import { Comparator, DuplicateError, ObjectsComparator, ObjectsComparatorFn } from './comparator';
 import { isEmptyValue } from "./helpers";
 import { defaultComparatorFields } from "./internal-types";
-import { equalArrays, equalMaps } from "./signal-equality-fn";
+import { equalArrays, equalMaps, equalObjects } from "./signal-equality-fn";
 
 export class Collection<T, UniqueStatus = unknown, Status = unknown>
   implements CollectionInterface<T, UniqueStatus, Status> {
@@ -582,9 +582,11 @@ export class Collection<T, UniqueStatus = unknown, Status = unknown>
       return computed(() => {
         const item = filter();
         return item ? this.getItemByPartial(item, this.state.$items()) : undefined;
-      });
+      }, { equal: equalObjects });
     } else {
-      return computed(() => this.getItemByPartial(filter, this.state.$items()));
+      return computed(() => this.getItemByPartial(filter, this.state.$items()), {
+        equal: equalObjects
+      });
     }
   }
 
@@ -597,11 +599,11 @@ export class Collection<T, UniqueStatus = unknown, Status = unknown>
           return undefined;
         }
         return this.state.$items().find((i) => fields.find((f) => i[f] === fv) !== undefined);
-      });
+      }, { equal: equalObjects });
     } else {
       return computed(() => this.state.$items().find((i) =>
         fields.find((f) => i[f] === fieldValue) !== undefined
-      ));
+      ), { equal: equalObjects });
     }
   }
 
