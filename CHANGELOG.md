@@ -1,3 +1,6 @@
+### 3.1.6
+`getItem()` and `getItemByField()` now accept `equalFn` parameter - you can set your own equality check function or set `undefined` to use the default one.
+
 ### 3.1.5
 * Specialized equality check functions will be used in `getItem()` and `getItemByField()`. 
 * Better documentation and more tests for equality check functions.

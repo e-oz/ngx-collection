@@ -1,4 +1,4 @@
-import { computed, isDevMode, isSignal, Signal, signal } from '@angular/core';
+import { computed, isDevMode, isSignal, Signal, signal, ValueEqualityFn } from '@angular/core';
 import type { CollectionInterface, CollectionOptions, CreateManyParams, CreateParams, DeleteManyParams, DeleteParams, DuplicatesMap, FetchedItems, ReadManyParams, ReadOneParams, ReadParams, RefreshManyParams, RefreshParams, UpdateManyParams, UpdateParams } from './types';
 import { catchError, defaultIfEmpty, defer, EMPTY, filter, finalize, first, forkJoin, isObservable, map, merge, Observable, of, Subject, switchMap, tap } from 'rxjs';
 import { Comparator, DuplicateError, ObjectsComparator, ObjectsComparatorFn } from './comparator';
@@ -577,20 +577,27 @@ export class Collection<T, UniqueStatus = unknown, Status = unknown>
     });
   }
 
-  public getItem(filter: Partial<T> | Signal<Partial<T>>): Signal<T | undefined> {
+  public getItem(
+    filter: Partial<T> | Signal<Partial<T>>,
+    equalFn: ValueEqualityFn<T | undefined> | undefined = equalObjects
+  ): Signal<T | undefined> {
     if (isSignal(filter)) {
       return computed(() => {
         const item = filter();
         return item ? this.getItemByPartial(item, this.state.$items()) : undefined;
-      }, { equal: equalObjects });
+      }, { equal: equalFn });
     } else {
       return computed(() => this.getItemByPartial(filter, this.state.$items()), {
-        equal: equalObjects
+        equal: equalFn
       });
     }
   }
 
-  public getItemByField<K extends keyof T>(field: K | K[], fieldValue: T[K] | Signal<T[K]>): Signal<T | undefined> {
+  public getItemByField<K extends keyof T>(
+    field: K | K[],
+    fieldValue: T[K] | Signal<T[K]>,
+    equalFn: ValueEqualityFn<T | undefined> | undefined = equalObjects
+  ): Signal<T | undefined> {
     const fields = Array.isArray(field) ? field : [field];
     if (isSignal(fieldValue)) {
       return computed(() => {
@@ -599,11 +606,11 @@ export class Collection<T, UniqueStatus = unknown, Status = unknown>
           return undefined;
         }
         return this.state.$items().find((i) => fields.find((f) => i[f] === fv) !== undefined);
-      }, { equal: equalObjects });
+      }, { equal: equalFn });
     } else {
       return computed(() => this.state.$items().find((i) =>
         fields.find((f) => i[f] === fieldValue) !== undefined
-      ), { equal: equalObjects });
+      ), { equal: equalFn });
     }
   }
 

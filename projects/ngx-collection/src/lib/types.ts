@@ -1,5 +1,5 @@
 import { Observable } from 'rxjs';
-import { Signal } from '@angular/core';
+import { Signal, ValueEqualityFn } from '@angular/core';
 import { ObjectsComparator, ObjectsComparatorFn } from './comparator';
 
 export type FetchedItems<T> = {
@@ -396,12 +396,22 @@ export type CollectionInterface<T, UniqueStatus = unknown, Status = unknown> = {
   /**
    * Creates a signal containing an item. Returned signal will be updated every time `filter` is updated.
    * @param filter - (partial) item to be compared with. Also accepts observables and signals.
+   * @param equalFn - equality check function (Angular will use its default one if this param is `undefined`)
    */
-  getItem(filter: Partial<T> | Signal<Partial<T>>): Signal<T | undefined>;
+  getItem(
+    filter: Partial<T> | Signal<Partial<T>>,
+    equalFn: ValueEqualityFn<T | undefined> | undefined
+  ): Signal<T | undefined>;
 
   /**
    * Creates a signal containing an item. Returned signal will be updated every time `fieldValue` is updated.
    * @param field - one field or array of the fields, that item can have (type-checked).
-   * @param fieldValue - value (type-checked), also accepts observables and signals.   */
-  getItemByField<K extends keyof T>(field: K | K[], fieldValue: T[K] | Signal<T[K]>): Signal<T | undefined>;
+   * @param fieldValue - value (type-checked), also accepts observables and signals.
+   * @param equalFn - equality check function (Angular will use its default one if this param is `undefined`)
+   */
+  getItemByField<K extends keyof T>(
+    field: K | K[],
+    fieldValue: T[K] | Signal<T[K]>,
+    equalFn: ValueEqualityFn<T | undefined> | undefined
+  ): Signal<T | undefined>;
 }

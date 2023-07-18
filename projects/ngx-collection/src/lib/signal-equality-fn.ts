@@ -30,6 +30,7 @@ function equalArrValues<A>(a: A[], b: A[]): boolean {
       || (Array.isArray(x) && Array.isArray(y) && x.length === 0 && y.length === 0)
       || ((x instanceof Map) && (y instanceof Map) && x.size === 0 && y.size === 0)
       || ((x instanceof Set) && (y instanceof Set) && x.size === 0 && y.size === 0)
+      || ((x instanceof Date) && (y instanceof Date) && x.getTime() === y.getTime())
   });
 }
 
