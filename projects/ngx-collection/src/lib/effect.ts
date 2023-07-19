@@ -1,9 +1,9 @@
-import { isObservable, Observable, of, Subject, Subscription } from 'rxjs';
+import { isObservable, Observable, of, retry, Subject, Subscription } from 'rxjs';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { DestroyRef, inject } from '@angular/core';
 
 /**
- * This code is copied from NgRx ComponentStore (just a few lines edited to add `takeUntilDestroyed()`)
+ * This code is copied from NgRx ComponentStore and edited to add `takeUntilDestroyed()` and to resubscribe on errors.
  * Credits: NgRx Team
  * https://ngrx.io/
  * Source: https://github.com/ngrx/platform/blob/main/modules/component-store/src/component-store.ts#L382
@@ -25,15 +25,16 @@ export function effect<
 
   const destroyRef = inject(DestroyRef);
   const origin$ = new Subject<ObservableType>();
-  generator(origin$ as OriginType)
-  .pipe(takeUntilDestroyed(destroyRef))
-  .subscribe();
+  generator(origin$ as OriginType).pipe(
+    retry(),
+    takeUntilDestroyed(destroyRef)
+  ).subscribe();
 
   return ((
     observableOrValue?: ObservableType | Observable<ObservableType>
   ): Subscription => {
     const observable$ = isObservable(observableOrValue)
-      ? observableOrValue
+      ? observableOrValue.pipe(retry())
       : of(observableOrValue);
     return observable$.pipe(takeUntilDestroyed(destroyRef)).subscribe((value) => {
       origin$.next(value as ObservableType);
