@@ -1,3 +1,7 @@
+### 3.1.7
+`effect()` helper will now resubscribe on errors, so if you forgot to catch an error - it's not an issue anymore.  
+Also, if a value, passed to the effect, is an observable, and this observable throws an error, observable will be resubscribed automatically. 
+
 ### 3.1.6
 `getItem()` and `getItemByField()` now accept `equalFn` parameter - you can set your own equality check function or set `undefined` to use the default one.
 
