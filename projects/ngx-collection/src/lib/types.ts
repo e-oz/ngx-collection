@@ -171,6 +171,12 @@ export type CollectionInterface<T, UniqueStatus = unknown, Status = unknown> = {
   $isMutating: Signal<boolean>;
   $isSaving: Signal<boolean>;
   $isProcessing: Signal<boolean>;
+  /**
+   * Initialized with 'true', will be set to `false` after
+   * the first execution of `read()`, `readOne()`, or `readMany()`.
+   * It is designed to be used with 'Not entries found' placeholders.
+   */
+  $isBeforeFirstRead: Signal<boolean>;
 
   $status: Signal<Map<UniqueStatus, T>>;
   $statuses: Signal<Map<T, Set<Status>>>;

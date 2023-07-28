@@ -28,6 +28,7 @@ export class Collection<T, UniqueStatus = unknown, Status = unknown>
     $totalCountFetched: signal<number | undefined>(undefined),
     $isCreating: signal<boolean>(false),
     $isReading: signal<boolean>(false),
+    $isBeforeFirstRead: signal<boolean>(true),
     $updatingItems: signal<T[]>([]),
     $deletingItems: signal<T[]>([]),
     $refreshingItems: signal<T[]>([]),
@@ -42,6 +43,7 @@ export class Collection<T, UniqueStatus = unknown, Status = unknown>
   public readonly $totalCountFetched: Signal<number | undefined> = this.state.$totalCountFetched.asReadonly();
   public readonly $isCreating: Signal<boolean> = this.state.$isCreating.asReadonly();
   public readonly $isReading: Signal<boolean> = this.state.$isReading.asReadonly();
+  public readonly $isBeforeFirstRead: Signal<boolean> = this.state.$isBeforeFirstRead.asReadonly();
 
   /**
    * Derived State Signals
@@ -169,7 +171,10 @@ export class Collection<T, UniqueStatus = unknown, Status = unknown>
   public read(params: ReadParams<T>): Observable<T[] | FetchedItems<T>> {
     this.state.$isReading.set(true);
     return this.toObservableFirstValue(params.request).pipe(
-      finalize(() => this.state.$isReading.set(false)),
+      finalize(() => {
+        this.state.$isReading.set(false);
+        this.state.$isBeforeFirstRead.set(false);
+      }),
       tap((fetched) => {
         const items = fetched == null ? ([] as T[]) : (Array.isArray(fetched) ? fetched : fetched.items);
         if (items.length > 0) {
@@ -208,7 +213,10 @@ export class Collection<T, UniqueStatus = unknown, Status = unknown>
   public readOne(params: ReadOneParams<T>): Observable<T> {
     this.state.$isReading.set(true);
     return this.toObservableFirstValue(params.request).pipe(
-      finalize(() => this.state.$isReading.set(false)),
+      finalize(() => {
+        this.state.$isReading.set(false);
+        this.state.$isBeforeFirstRead.set(false);
+      }),
       tap((newItem) => {
         if (newItem != null) {
           this.state.$items.update((items) => {
@@ -238,7 +246,10 @@ export class Collection<T, UniqueStatus = unknown, Status = unknown>
     this.state.$isReading.set(true);
     const request = Array.isArray(params.request) ? this.forkJoinSafe(params.request) : this.toObservableFirstValue(params.request);
     return request.pipe(
-      finalize(() => this.state.$isReading.set(false)),
+      finalize(() => {
+        this.state.$isReading.set(false);
+        this.state.$isBeforeFirstRead.set(false);
+      }),
       tap((fetched) => {
         this.state.$totalCountFetched.set(!Array.isArray(fetched) ? fetched.totalCount : undefined);
         const readItems = fetched == null ? ([] as T[]) : (Array.isArray(fetched) ? fetched : fetched.items);

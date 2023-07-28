@@ -97,10 +97,13 @@ describe('Collection Service (sync)', () => {
   it('read', () => {
     const {coll} = setup();
 
+    expect(coll.$isBeforeFirstRead()).toBeTruthy();
+
     coll.read({
       request: signal([{ id: 1, name: 'A' }, { id: 2, name: 'B' }]),
     }).subscribe();
 
+    expect(coll.$isBeforeFirstRead()).toBeFalsy();
     expect(coll.$items()).toStrictEqual([{ id: 1, name: 'A' }, { id: 2, name: 'B' }]);
 
     coll.read({

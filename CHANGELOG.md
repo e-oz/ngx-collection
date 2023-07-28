@@ -1,3 +1,10 @@
+### 4.0.0
+* `effect()` helper was renamed to `createEffect()` to don't interfere with Angular's `effect()` function.  
+It is quite a small, but still a breaking change for the apps that use this helper, so the version is changed to 4.0.0;
+* New state field: `$isBeforeFirstRead: Signal<boolean>`.    
+Initialized with 'true', will be set to `false` after  the first execution of `read()`, `readOne()`, or `readMany()`.  
+  It is designed to be used with 'No entries found' placeholders.
+
 ### 3.1.7
 `effect()` helper will now resubscribe on errors, so if you forgot to catch an error - it's not an issue anymore.  
 Also, if a value, passed to the effect, is an observable, and this observable throws an error, observable will be resubscribed automatically. 
