@@ -302,7 +302,7 @@ The `item` parameter is the item that you are mutating.
 You receive this item from the items field of the collection state.
 
 ```ts
-  remove = effect<Example>(_ => _.pipe(
+  remove = createEffect<Example>(_ => _.pipe(
     exhaustMap((example) => {
       return this.examplesCollection.delete({
         request: example.uuId ? this.exampleService.removeExample(example.uuId) : signal(null),
@@ -318,7 +318,7 @@ You can send just a part of the item object, but this part should contain at lea
 See "Items comparison" for details.
 
 ```ts
-  remove = effect<string>(_ => _.pipe(
+  remove = createEffect<string>(_ => _.pipe(
     exhaustMap((uuId) => {
       return this.examplesCollection.delete({
         request: uuId ? this.exampleService.removeExample(uuId) : signal(null),
@@ -357,10 +357,10 @@ Usage example:
 
 ---
 
-### effect()
-Copy of `effect()` method of NgRx ComponentStore, where `takeUntil(this.destroy$)` is replaced with `takeUntilDestroyed(destroyRef)`, to use it as a function.  
+### createEffect()
+Copy of `ComponentStore.effect()` method from NgRx, where `takeUntil(this.destroy$)` is replaced with `takeUntilDestroyed(destroyRef)`, to use it as a function.  
 
-`effect()` is not a method of `Collection` class, it's a function.  
+`createEffect()` is not a method of `Collection` class, it's a standalone function.  
 
 You can find documentation and usage examples here: https://ngrx.io/guide/component-store/effect#effect-method  
 

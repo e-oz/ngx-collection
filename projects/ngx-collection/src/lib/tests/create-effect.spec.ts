@@ -1,9 +1,9 @@
-import { effect } from '../effect';
+import { createEffect } from '../create-effect';
 import { EMPTY, of, Subject, switchMap, tap, throwError } from "rxjs";
 import { TestBed } from "@angular/core/testing";
 
-describe('effect', () => {
-  let eff: ReturnType<typeof effect<string>>;
+describe('createEffect', () => {
+  let effect: ReturnType<typeof createEffect<string>>;
   let lastResult: string | undefined;
   let lastError: string | undefined;
 
@@ -12,7 +12,7 @@ describe('effect', () => {
     lastResult = undefined;
 
     TestBed.runInInjectionContext(() => {
-      eff = effect<string>(_ => _.pipe(
+      effect = createEffect<string>(_ => _.pipe(
         tap((r) => lastResult = r),
         switchMap((v) => {
           if (v === 'error') {
@@ -27,22 +27,22 @@ describe('effect', () => {
   })
 
   it('should work', () => {
-    eff('a');
+    effect('a');
     expect(lastResult).toEqual('a');
-    eff('b');
+    effect('b');
     expect(lastResult).toEqual('b');
 
-    eff(of('c'));
+    effect(of('c'));
     expect(lastResult).toEqual('c');
   });
 
   it('should keep working when generator throws an error', () => {
     expect(lastError).toEqual(undefined);
-    eff('error');
+    effect('error');
     expect(lastResult).toEqual('error');
     expect(lastError).toEqual('error');
 
-    eff('next');
+    effect('next');
     expect(lastResult).toEqual('next');
     expect(lastError).toEqual(undefined);
   });
@@ -61,7 +61,7 @@ describe('effect', () => {
         return of(v)
       })
     );
-    eff(m);
+    effect(m);
     s.next('a');
     expect(lastResult).toEqual('a');
     s.next('error');
@@ -69,7 +69,7 @@ describe('effect', () => {
     s.next('b');
     expect(lastResult).toEqual('b');
 
-    eff('next');
+    effect('next');
     expect(lastResult).toEqual('next');
     expect(lastError).toEqual(undefined);
   });
@@ -88,7 +88,7 @@ describe('effect', () => {
         return of(v)
       })
     );
-    eff(m);
+    effect(m);
     s.next('a');
     expect(lastResult).toEqual('a');
     s.next('empty');
@@ -96,7 +96,7 @@ describe('effect', () => {
     s.next('b');
     expect(lastResult).toEqual('b');
 
-    eff('next');
+    effect('next');
     expect(lastResult).toEqual('next');
     expect(lastError).toEqual(undefined);
   });

@@ -10,7 +10,7 @@ import { DestroyRef, inject } from '@angular/core';
  * Docs:
  * https://ngrx.io/guide/component-store/effect#effect-method
  */
-export function effect<
+export function createEffect<
   ProvidedType = void,
   OriginType extends | Observable<ProvidedType> | unknown = Observable<ProvidedType>,
   ObservableType = OriginType extends Observable<infer A> ? A : never,
