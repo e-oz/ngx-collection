@@ -1,12 +1,9 @@
-### 4.0.1  
-Performance improvements.
-
-### 4.0.0
-* `effect()` helper was renamed to `createEffect()` to don't interfere with Angular's `effect()` function.  
-It is quite a small, but still a breaking change for the apps that use this helper, so the version is changed to 4.0.0;
+### 3.2.0
 * New state field: `$isBeforeFirstRead: Signal<boolean>`.    
 Initialized with 'true', will be set to `false` after  the first execution of `read()`, `readOne()`, or `readMany()`.  
   It is designed to be used with 'No entries found' placeholders.
+* `effect()` helper was renamed to `createEffect()` to don't conflict with Angular's `effect()` function.  
+  `createEffect()` is still exported as `effect()` for backwards compatibility, and as `sideEffect()` to don't conflict with NgRx.Store's `createEffect()`.
 
 ### 3.1.7
 `effect()` helper will now resubscribe on errors, so if you forgot to catch an error - it's not an issue anymore.  
