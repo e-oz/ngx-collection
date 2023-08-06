@@ -4,7 +4,7 @@ import { catchError, defaultIfEmpty, defer, EMPTY, filter, finalize, first, fork
 import { Comparator, DuplicateError, ObjectsComparator, ObjectsComparatorFn } from './comparator';
 import { isEmptyValue } from "./helpers";
 import { defaultComparatorFields } from "./internal-types";
-import { equalArrays, equalMaps, equalObjects } from "./signal-equality-fn";
+import { equalMaps, equalObjects } from "./signal-equality-fn";
 
 export class Collection<T, UniqueStatus = unknown, Status = unknown>
   implements CollectionInterface<T, UniqueStatus, Status> {
@@ -20,6 +20,18 @@ export class Collection<T, UniqueStatus = unknown, Status = unknown>
   protected readonly onUpdate = new Subject<T[]>();
   protected readonly onDelete = new Subject<Partial<T>[]>();
 
+  protected readonly equalItems: ValueEqualityFn<T[]> = (a: T[], b: T[]) => {
+    if (!a || !b || a == null || b == null || !Array.isArray(a) || !Array.isArray(b) || a.length !== b.length) {
+      return false;
+    }
+    for (let i = 0; i < a.length; i++) {
+      if (!this.comparator.equal(a[i], b[i])) {
+        return false;
+      }
+    }
+    return true;
+  };
+
   /**
    * Writeable State Signals
    */
@@ -29,43 +41,43 @@ export class Collection<T, UniqueStatus = unknown, Status = unknown>
     $isCreating: signal<boolean>(false),
     $isReading: signal<boolean>(false),
     $isBeforeFirstRead: signal<boolean>(true),
-    $updatingItems: signal<T[]>([]),
-    $deletingItems: signal<T[]>([]),
-    $refreshingItems: signal<T[]>([]),
-    $status: signal<Map<UniqueStatus, T>>(new Map<UniqueStatus, T>()),
-    $statuses: signal<Map<T, Set<Status>>>(new Map<T, Set<Status>>()),
+    $updatingItems: signal<T[]>([], { equal: this.equalItems }),
+    $deletingItems: signal<T[]>([], { equal: this.equalItems }),
+    $refreshingItems: signal<T[]>([], { equal: this.equalItems }),
+    $status: signal<Map<UniqueStatus, T>>(new Map<UniqueStatus, T>(), { equal: equalMaps }),
+    $statuses: signal<Map<T, Set<Status>>>(new Map<T, Set<Status>>(), { equal: equalMaps }),
   } as const;
 
   /**
    * State Signals
    */
-  public readonly $items: Signal<T[]> = computed(() => this.state.$items(), { equal: equalArrays });
-  public readonly $totalCountFetched: Signal<number | undefined> = this.state.$totalCountFetched.asReadonly();
-  public readonly $isCreating: Signal<boolean> = this.state.$isCreating.asReadonly();
-  public readonly $isReading: Signal<boolean> = this.state.$isReading.asReadonly();
-  public readonly $isBeforeFirstRead: Signal<boolean> = this.state.$isBeforeFirstRead.asReadonly();
+  public readonly $items = this.state.$items.asReadonly();
+  public readonly $totalCountFetched = this.state.$totalCountFetched.asReadonly();
+  public readonly $isCreating = this.state.$isCreating.asReadonly();
+  public readonly $isReading = this.state.$isReading.asReadonly();
+  public readonly $isBeforeFirstRead = this.state.$isBeforeFirstRead.asReadonly();
 
   /**
    * Derived State Signals
    */
-  public readonly $updatingItems: Signal<T[]> = computed(() => this.state.$updatingItems(), { equal: equalArrays });
-  public readonly $deletingItems: Signal<T[]> = computed(() => this.state.$deletingItems(), { equal: equalArrays });
-  public readonly $refreshingItems: Signal<T[]> = computed(() => this.state.$refreshingItems(), { equal: equalArrays });
-  public readonly $status: Signal<Map<UniqueStatus, T>> = computed(() => this.state.$status(), { equal: equalMaps });
-  public readonly $statuses: Signal<Map<T, Set<Status>>> = computed(() => this.state.$statuses(), { equal: equalMaps });
-  public readonly $isUpdating: Signal<boolean> = computed(() => this.state.$updatingItems().length > 0);
-  public readonly $isDeleting: Signal<boolean> = computed(() => this.state.$deletingItems().length > 0);
-  public readonly $isMutating: Signal<boolean> = computed(() => (this.state.$isCreating() || this.$isUpdating() || this.$isDeleting()));
-  public readonly $isSaving: Signal<boolean> = computed(() => (this.state.$isCreating() || this.$isUpdating()));
-  public readonly $isProcessing: Signal<boolean> = computed(() => (this.$isMutating() || this.state.$isReading() || this.state.$refreshingItems().length > 0));
-  public readonly $mutatingItems: Signal<T[]> = computed(() => ([
+  public readonly $updatingItems = this.state.$updatingItems.asReadonly();
+  public readonly $deletingItems = this.state.$deletingItems.asReadonly();
+  public readonly $refreshingItems = this.state.$refreshingItems.asReadonly();
+  public readonly $status = this.state.$status.asReadonly();
+  public readonly $statuses = this.state.$statuses.asReadonly();
+  public readonly $isUpdating = computed<boolean>(() => this.state.$updatingItems().length > 0);
+  public readonly $isDeleting = computed<boolean>(() => this.state.$deletingItems().length > 0);
+  public readonly $isMutating = computed<boolean>(() => (this.state.$isCreating() || this.$isUpdating() || this.$isDeleting()));
+  public readonly $isSaving = computed<boolean>(() => (this.state.$isCreating() || this.$isUpdating()));
+  public readonly $isProcessing = computed<boolean>(() => (this.$isMutating() || this.state.$isReading() || this.state.$refreshingItems().length > 0));
+  public readonly $mutatingItems = computed<T[]>(() => ([
     ...this.state.$updatingItems(),
     ...this.state.$deletingItems()
-  ]), { equal: equalArrays });
-  public readonly $processingItems: Signal<T[]> = computed(() => ([
+  ]), { equal: this.equalItems });
+  public readonly $processingItems = computed<T[]>(() => ([
     ...this.$mutatingItems(),
     ...this.$refreshingItems()
-  ]), { equal: equalArrays });
+  ]), { equal: this.equalItems });
 
   /*** Public API Methods ***/
 

@@ -1,3 +1,6 @@
+### 4.0.1  
+Performance improvements.
+
 ### 4.0.0
 * `effect()` helper was renamed to `createEffect()` to don't interfere with Angular's `effect()` function.  
 It is quite a small, but still a breaking change for the apps that use this helper, so the version is changed to 4.0.0;
