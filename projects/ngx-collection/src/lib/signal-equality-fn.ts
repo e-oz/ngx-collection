@@ -154,6 +154,7 @@ export function equalObjects<T>(a: T, b: T): boolean {
 
 /**
  * Contains functions for checking the equality of values, optimized for arrays, maps, sets, and objects.
+ * Use them only with immutable data structures - non-shallow modifications will not be detected.
  *
  * The goals of these functions are:
  * 1. To reduce the number of unnecessary computations;
@@ -163,6 +164,7 @@ export function equalObjects<T>(a: T, b: T): boolean {
  * After that, for arrays, sets, maps, and objects, the first level of contained items (keys) will be compared using `===`.
  * If values are empty sets, arrays, or maps, they are equal. Empty objects are not equal.
  * If both values are `null` or `undefined`, they are equal.
+ *
  * The check is non-recursive and shallow.
  * For a recursive, deep equality check, use specialized and optimized functions that you trust.
  **/
