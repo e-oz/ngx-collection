@@ -742,7 +742,10 @@ export class Collection<T, UniqueStatus = unknown, Status = unknown>
     );
   }
 
-  public getItemByPartial(partItem: Partial<T>, items: T[]): T | undefined {
+  public getItemByPartial(partItem: Partial<T>, items?: T[]): T | undefined {
+    if (!items) {
+      items = this.$items();
+    }
     return items.find(i => this.comparator.equal(i, partItem));
   }
 
