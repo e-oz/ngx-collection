@@ -1,3 +1,6 @@
+### 3.3.0
+Workaround for Angular Signals [issue #51812](https://github.com/angular/angular/issues/51812).  
+
 ### 3.2.0
 * New state field: `$isBeforeFirstRead: Signal<boolean>`.    
 Initialized with 'true', will be set to `false` after  the first execution of `read()`, `readOne()`, or `readMany()`.  

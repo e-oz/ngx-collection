@@ -67,9 +67,23 @@ export class Collection<T, UniqueStatus = unknown, Status = unknown>
   public readonly $statuses = this.state.$statuses.asReadonly();
   public readonly $isUpdating = computed<boolean>(() => this.state.$updatingItems().length > 0);
   public readonly $isDeleting = computed<boolean>(() => this.state.$deletingItems().length > 0);
-  public readonly $isMutating = computed<boolean>(() => (this.state.$isCreating() || this.$isUpdating() || this.$isDeleting()));
-  public readonly $isSaving = computed<boolean>(() => (this.state.$isCreating() || this.$isUpdating()));
-  public readonly $isProcessing = computed<boolean>(() => (this.$isMutating() || this.state.$isReading() || this.state.$refreshingItems().length > 0));
+  public readonly $isMutating = computed<boolean>(() => {
+    const isCreating = this.state.$isCreating();
+    const isUpdating = this.$isUpdating();
+    const isDeleting = this.$isDeleting();
+    return isCreating || isUpdating || isDeleting;
+  });
+  public readonly $isSaving = computed<boolean>(() => {
+    const isCreating = this.state.$isCreating();
+    const isUpdating = this.$isUpdating();
+    return isCreating || isUpdating;
+  });
+  public readonly $isProcessing = computed<boolean>(() => {
+    const isMutating = this.$isMutating();
+    const isReading = this.state.$isReading();
+    const isRefreshing = this.state.$refreshingItems().length > 0;
+    return isMutating || isReading || isRefreshing;
+  });
   public readonly $mutatingItems = computed<T[]>(() => ([
     ...this.state.$updatingItems(),
     ...this.state.$deletingItems()
