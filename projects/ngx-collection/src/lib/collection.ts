@@ -615,7 +615,7 @@ export class Collection<T, UniqueStatus = unknown, Status = unknown>
   }
 
   public getItem(
-    filter: Partial<T> | Signal<Partial<T>>,
+    filter: Partial<T> | undefined | Signal<Partial<T> | undefined>,
     equalFn: ValueEqualityFn<T | undefined> | undefined = equalObjects
   ): Signal<T | undefined> {
     if (isSignal(filter)) {
@@ -624,7 +624,7 @@ export class Collection<T, UniqueStatus = unknown, Status = unknown>
         return item ? this.getItemByPartial(item, this.state.$items()) : undefined;
       }, { equal: equalFn });
     } else {
-      return computed(() => this.getItemByPartial(filter, this.state.$items()), {
+      return computed(() => filter ? this.getItemByPartial(filter, this.state.$items()) : undefined, {
         equal: equalFn
       });
     }

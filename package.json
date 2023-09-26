@@ -1,6 +1,6 @@
 {
   "name": "ngx-collection",
-  "version": "3.3.0",
+  "version": "3.3.1",
   "license": "MIT",
   "author": {
     "name": "Evgeniy OZ",
@@ -24,26 +24,26 @@
   },
   "private": false,
   "dependencies": {
-    "@angular/core": "^17.0.0-next.4",
+    "@angular/core": "^17.0.0-next.5",
     "rxjs": "^8.0.0-alpha.12"
   },
   "devDependencies": {
-    "@angular-devkit/build-angular": "^17.0.0-next.4",
-    "@angular-devkit/core": "^17.0.0-next.4",
-    "@angular-devkit/schematics": "^17.0.0-next.4",
-    "@angular/cli": "^17.0.0-next.4",
-    "@angular/common": "^17.0.0-next.4",
-    "@angular/compiler": "^17.0.0-next.4",
-    "@angular/compiler-cli": "^17.0.0-next.4",
-    "@angular/platform-browser": "^17.0.0-next.4",
-    "@angular/platform-browser-dynamic": "^17.0.0-next.4",
+    "@angular-devkit/build-angular": "^17.0.0-next.5",
+    "@angular-devkit/core": "^17.0.0-next.5",
+    "@angular-devkit/schematics": "^17.0.0-next.5",
+    "@angular/cli": "^17.0.0-next.5",
+    "@angular/common": "^17.0.0-next.5",
+    "@angular/compiler": "^17.0.0-next.5",
+    "@angular/compiler-cli": "^17.0.0-next.5",
+    "@angular/platform-browser": "^17.0.0-next.5",
+    "@angular/platform-browser-dynamic": "^17.0.0-next.5",
     "@types/jest": "^29.5.5",
     "jest": "^29.7.0",
-    "jest-preset-angular": "^13.1.1",
+    "jest-preset-angular": "^13.1.2",
     "ng-packagr": "^17.0.0-next.1",
     "ts-node": "^10.9.1",
     "typescript": "~5.2.2",
-    "zone.js": "~0.13.3"
+    "zone.js": "~0.14.0"
   },
   "sideEffects": false
 }

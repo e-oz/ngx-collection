@@ -405,7 +405,7 @@ export type CollectionInterface<T, UniqueStatus = unknown, Status = unknown> = {
    * @param equalFn - equality check function (Angular will use its default one if this param is `undefined`)
    */
   getItem(
-    filter: Partial<T> | Signal<Partial<T>>,
+    filter: Partial<T> | undefined | Signal<Partial<T> | undefined>,
     equalFn: ValueEqualityFn<T | undefined> | undefined
   ): Signal<T | undefined>;
 

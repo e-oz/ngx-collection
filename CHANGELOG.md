@@ -1,3 +1,6 @@
+### 3.3.1
+Allow `getItem()` to accept `undefined` as input (return type has not been changed).  
+
 ### 3.3.0
 Workaround for Angular Signals [issue #51812](https://github.com/angular/angular/issues/51812).  
 
