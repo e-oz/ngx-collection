@@ -76,6 +76,9 @@ export class DuplicateError extends Error {
     super(...params);
     this.name = 'DuplicateError';
 
+    // Reasons of ts-ignore usage you can find here:
+    // https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Error#sect3
+    //
     // @ts-ignore
     if (Error.captureStackTrace) {
       // @ts-ignore
