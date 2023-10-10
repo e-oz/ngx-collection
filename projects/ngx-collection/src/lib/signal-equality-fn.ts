@@ -152,6 +152,10 @@ export function equalObjects<T>(a: T, b: T): boolean {
   }
 }
 
+export function equalPrimitives<T>(a: T, b: T): boolean {
+  return (a === null || typeof a !== 'object') && Object.is(a, b);
+}
+
 /**
  * Contains functions for checking the equality of values, optimized for arrays, maps, sets, and objects.
  * Use them only with immutable data structures - non-shallow modifications will not be detected.
@@ -173,4 +177,5 @@ export const signalEqual = {
   sets: equalSets,
   maps: equalMaps,
   objects: equalObjects,
+  primitives: equalPrimitives,
 };

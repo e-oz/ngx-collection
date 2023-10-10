@@ -4,7 +4,7 @@ import { catchError, defaultIfEmpty, defer, EMPTY, filter, finalize, first, fork
 import { Comparator, DuplicateError, ObjectsComparator, ObjectsComparatorFn } from './comparator';
 import { isEmptyValue } from "./helpers";
 import { defaultComparatorFields } from "./internal-types";
-import { equalMaps, equalObjects } from "./signal-equality-fn";
+import { equalMaps, equalObjects, equalPrimitives } from "./signal-equality-fn";
 
 export class Collection<T, UniqueStatus = unknown, Status = unknown>
   implements CollectionInterface<T, UniqueStatus, Status> {
@@ -36,7 +36,7 @@ export class Collection<T, UniqueStatus = unknown, Status = unknown>
    * Writeable State Signals
    */
   protected readonly state = {
-    $items: signal<T[]>([]),
+    $items: signal<T[]>([], { equal: equalPrimitives }),
     $totalCountFetched: signal<number | undefined>(undefined),
     $isCreating: signal<boolean>(false),
     $isReading: signal<boolean>(false),

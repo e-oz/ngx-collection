@@ -1,4 +1,4 @@
-import { equalArrays, equalMaps, equalObjects, equalSets } from "../signal-equality-fn";
+import { equalArrays, equalMaps, equalObjects, equalPrimitives, equalSets } from "../signal-equality-fn";
 
 describe('equalArrays', () => {
   it('returns true for equal arrays', () => {
@@ -142,5 +142,52 @@ describe('equalObjects', () => {
     expect(equalObjects({}, [])).toBe(false);
     expect(equalObjects('', {} as any)).toBe(false);
     expect(equalObjects({} as any, '')).toBe(false);
+  });
+});
+
+describe('equalPrimitives', () => {
+  it('returns false for non-primitives', () => {
+    expect(equalPrimitives(1, 0)).toBe(false);
+    const symbN = Symbol('test');
+    const symbM = symbN;
+    const symbR = Symbol('test');
+    expect(equalPrimitives(symbN, symbM)).toBe(true);
+    expect(equalPrimitives(symbM, symbN)).toBe(true);
+    expect(equalPrimitives(symbM, symbM)).toBe(true);
+    expect(equalPrimitives(symbM, symbR)).toBe(false);
+    expect(equalPrimitives(symbR, symbM)).toBe(false);
+    expect(equalPrimitives('1', '1')).toBe(true);
+    expect(equalPrimitives('1', '1a')).toBe(false);
+    expect(equalPrimitives('1a', '1')).toBe(false);
+    expect(equalPrimitives(1, '1' as any)).toBe(false);
+    expect(equalPrimitives(undefined, 1)).toBe(false);
+    expect(equalPrimitives(undefined, '1')).toBe(false);
+    expect(equalPrimitives(1, undefined)).toBe(false);
+    expect(equalPrimitives(1, null)).toBe(false);
+    expect(equalPrimitives(null, 1)).toBe(false);
+    expect(equalPrimitives(null, '1')).toBe(false);
+    expect(equalPrimitives(null, undefined)).toBe(false);
+    expect(equalPrimitives(undefined, null)).toBe(false);
+    expect(equalPrimitives(undefined, undefined)).toBe(true);
+    expect(equalPrimitives(null, null)).toBe(true);
+    expect(equalPrimitives(NaN, NaN)).toBe(true);
+    expect(equalPrimitives(0, 0)).toBe(true);
+    expect(equalPrimitives(false, false)).toBe(true);
+    expect(equalPrimitives(+0, -0)).toBe(false);
+    expect(equalPrimitives(-0, +0)).toBe(false);
+    expect(equalPrimitives(-0, -0)).toBe(true);
+    expect(equalPrimitives(-0, false as any)).toBe(false);
+    expect(equalPrimitives(false as any, -0)).toBe(false);
+    expect(equalPrimitives(false as any, undefined)).toBe(false);
+    expect(equalPrimitives(false as any, null)).toBe(false);
+    expect(equalPrimitives(undefined, false as any)).toBe(false);
+    expect(equalPrimitives(null, false as any)).toBe(false);
+    expect(equalPrimitives(false, true)).toBe(false);
+    expect(equalPrimitives(true, false)).toBe(false);
+    expect(equalPrimitives(true, true)).toBe(true);
+    expect(equalPrimitives(false, false)).toBe(true);
+    expect(equalPrimitives(BigInt(9007199254740991), BigInt(9007199254740991))).toBe(true);
+    expect(equalPrimitives(BigInt(9007199254740991), BigInt(9007199254740990))).toBe(false);
+    expect(equalPrimitives(BigInt(9007199254740990), BigInt(9007199254740991))).toBe(false);
   });
 });
