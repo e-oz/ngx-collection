@@ -1,3 +1,6 @@
+### 3.3.2
+As preparation for [this change](https://github.com/angular/angular/commit/c7ff9dff2c14aba70e92b9e216a2d4d97d6ef71e) in Angular Signals, `collection.$items` now uses the first version of Angular Signals' default equality function. This function will always treat items as non-equal, so the `$items` signal will send a notification even if items still point to the same objects after the collection was mutated. This library treats items as immutable structures and will not compare them.
+
 ### 3.3.1
 Allow `getItem()` to accept `undefined` as input (return type has not been changed).  
 
