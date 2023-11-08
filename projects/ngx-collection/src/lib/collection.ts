@@ -1,10 +1,10 @@
-import { computed, isDevMode, isSignal, Signal, signal, ValueEqualityFn } from '@angular/core';
-import type { CollectionInterface, CollectionOptions, CreateManyParams, CreateParams, DeleteManyParams, DeleteParams, DuplicatesMap, FetchedItems, ReadManyParams, ReadOneParams, ReadParams, RefreshManyParams, RefreshParams, UpdateManyParams, UpdateParams } from './types';
-import { catchError, defaultIfEmpty, defer, EMPTY, filter, finalize, first, forkJoin, isObservable, map, merge, Observable, of, Subject, switchMap, tap } from 'rxjs';
-import { Comparator, DuplicateError, ObjectsComparator, ObjectsComparatorFn } from './comparator';
+import { computed, isDevMode, isSignal, type Signal, signal, type ValueEqualityFn } from "@angular/core";
+import { catchError, defaultIfEmpty, defer, EMPTY, filter, finalize, first, forkJoin, isObservable, map, merge, type Observable, of, Subject, switchMap, tap } from "rxjs";
+import { Comparator, DuplicateError, type ObjectsComparator, type ObjectsComparatorFn } from "./comparator";
 import { isEmptyValue } from "./helpers";
 import { defaultComparatorFields } from "./internal-types";
 import { equalMaps, equalObjects, equalPrimitives } from "./signal-equality-fn";
+import type { CollectionInterface, CollectionOptions, CreateManyParams, CreateParams, DeleteManyParams, DeleteParams, DuplicatesMap, FetchedItems, ReadManyParams, ReadOneParams, ReadParams, RefreshManyParams, RefreshParams, UpdateManyParams, UpdateParams } from "./types";
 
 export class Collection<T, UniqueStatus = unknown, Status = unknown>
   implements CollectionInterface<T, UniqueStatus, Status> {
@@ -19,6 +19,9 @@ export class Collection<T, UniqueStatus = unknown, Status = unknown>
   protected readonly onRead = new Subject<T[]>();
   protected readonly onUpdate = new Subject<T[]>();
   protected readonly onDelete = new Subject<Partial<T>[]>();
+
+  protected isFirstItemsRequest = true;
+  protected onFirstItemsRequest?: Function;
 
   protected readonly equalItems: ValueEqualityFn<T[]> = (a: T[], b: T[]) => {
     if (!a || !b || a == null || b == null || !Array.isArray(a) || !Array.isArray(b) || a.length !== b.length) {
@@ -51,7 +54,21 @@ export class Collection<T, UniqueStatus = unknown, Status = unknown>
   /**
    * State Signals
    */
-  public readonly $items = this.state.$items.asReadonly();
+  public readonly $items = computed(() => {
+    if (this.isFirstItemsRequest) {
+      this.isFirstItemsRequest = false;
+      if (this.onFirstItemsRequest) {
+        Promise.resolve().then(() => {
+          try {
+            this.onFirstItemsRequest?.();
+          } catch (e) {
+            this.reportRuntimeError(e);
+          }
+        });
+      }
+    }
+    return this.state.$items();
+  }, { equal: equalPrimitives });
   public readonly $totalCountFetched = this.state.$totalCountFetched.asReadonly();
   public readonly $isCreating = this.state.$isCreating.asReadonly();
   public readonly $isReading = this.state.$isReading.asReadonly();
@@ -787,6 +804,10 @@ export class Collection<T, UniqueStatus = unknown, Status = unknown>
       }
     }
     return hasDupes ? duplicates : null;
+  }
+
+  public setAfterFirstReadHandler(handler: Function | undefined) {
+    this.onFirstItemsRequest = handler;
   }
 
   /*** Internal Methods ***/

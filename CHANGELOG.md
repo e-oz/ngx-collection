@@ -1,3 +1,32 @@
+### 3.4.0
+
+#### Lazy loading!  
+
+Previously, you could load the first set of items into the collection when collection is initialized, or when your service/component decide to do it.  
+
+Now, you can also use lazy loading, using the `setAfterFirstReadHandler(handlerFn)` - `handlerFn` will be called once (asynchronously), when `$items` signal is read for the first time.  
+
+Example:  
+
+```ts
+class ExampleService {
+  private readonly coll = new Collection();
+  private readonly api = inject(ApiService);
+
+  private readonly load = createEffect(_ => _.pipe(
+    switchMap(() => this.coll.read({
+      request: this.api.getItems()
+    }))
+  ));
+
+  constructor() {
+    this.coll.setAfterFirstReadHandler(() => this.load());
+  }
+}
+```
+
+It is just an example - it's up to you how your handler will load the first set of items.
+
 ### 3.3.2
 As preparation for [this change](https://github.com/angular/angular/commit/c7ff9dff2c14aba70e92b9e216a2d4d97d6ef71e) in Angular Signals, `collection.$items` now uses the first version of Angular Signals' default equality function. This function will always treat items as non-equal, so the `$items` signal will send a notification even if items still point to the same objects after the collection was mutated. This library treats items as immutable structures and will not compare them.
 

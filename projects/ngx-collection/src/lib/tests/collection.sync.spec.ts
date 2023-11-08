@@ -809,4 +809,33 @@ describe('Collection Service (sync)', () => {
     coll.$testingItems.set([item1, item3]);
     expect(coll.$testingItems()).toStrictEqual([item1, item3]);
   });
+
+  it('should call first read handler', (done) => {
+    const item1 = { id: 1, name: 'A' };
+    const item2 = { id: 2, name: 'B' };
+    const item3 = { id: 3, name: 'C' };
+
+    const { coll } = setup();
+
+    let handlerWasCalled = false;
+
+    coll.setAfterFirstReadHandler(() => {
+      handlerWasCalled = true;
+      coll.read({
+        request: signal([item1, item2, item3])
+      }).subscribe();
+    });
+
+    expect(handlerWasCalled).toBeFalsy();
+    const items = coll.$items();
+    expect(items).toStrictEqual([]);
+    setTimeout(() => {
+      done();
+      expect(handlerWasCalled).toBeTruthy();
+      handlerWasCalled = false;
+      const items = coll.$items();
+      expect(handlerWasCalled).toBeFalsy();
+      expect(items).toStrictEqual([item1, item2, item3]);
+    }, 1);
+  });
 });

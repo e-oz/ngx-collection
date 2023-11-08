@@ -1,5 +1,5 @@
-import { map, of, timer } from 'rxjs';
 import { signal } from '@angular/core';
+import { map, of, timer } from 'rxjs';
 import { Collection } from '../collection';
 
 beforeEach(() => {
@@ -67,15 +67,15 @@ describe('Collection Service (async)', () => {
   });
 
   it('create many', () => {
-    const {coll} = setup();
+    const { coll } = setup();
 
-    const item1 = {id: -1, name: 'A'};
-    const item2 = {id: 0, name: 'B'};
-    const item3 = {id: 1, name: 'C'};
-    const item4 = {id: 2, name: 'D'};
-    const item5 = {id: 2, name: 'E'};
-    const item6 = {id: 3, name: 'F'};
-    const item7 = {id: 4, name: 'G'};
+    const item1 = { id: -1, name: 'A' };
+    const item2 = { id: 0, name: 'B' };
+    const item3 = { id: 1, name: 'C' };
+    const item4 = { id: 2, name: 'D' };
+    const item5 = { id: 2, name: 'E' };
+    const item6 = { id: 3, name: 'F' };
+    const item7 = { id: 4, name: 'G' };
 
     coll.read({
       request: of([item1])
@@ -279,8 +279,8 @@ describe('Collection Service (async)', () => {
   });
 
   it('refresh', () => {
-    const {coll} = setup();
-    const item1 = {id: 0, name: 'A'};
+    const { coll } = setup();
+    const item1 = { id: 0, name: 'A' };
     const item2 = { id: 1, name: 'B' };
     const item3 = { id: 2, name: 'C' };
     const item4 = { id: 3, name: 'D' };
@@ -441,12 +441,12 @@ describe('Collection Service (async)', () => {
   });
 
   it('update many', () => {
-    const {coll} = setup();
+    const { coll } = setup();
 
-    const item1 = {id: -1, name: 'A'};
-    const item2 = {id: 0, name: 'B'};
-    const item3 = {id: 1, name: 'C'};
-    const item4 = {id: 2, name: 'D'};
+    const item1 = { id: -1, name: 'A' };
+    const item2 = { id: 0, name: 'B' };
+    const item3 = { id: 1, name: 'C' };
+    const item4 = { id: 2, name: 'D' };
 
     coll.read({
       request: of([item1, item2, item3, item4])
@@ -502,15 +502,15 @@ describe('Collection Service (async)', () => {
   });
 
   it('delete', () => {
-    const {coll} = setup();
+    const { coll } = setup();
 
-    const item1 = {id: 1, name: 'A'};
-    const item2 = {id: 0, name: 'B'};
-    const item3 = {id: 3, name: 'B3'};
-    const item4 = {id: 4, name: 'B4'};
-    const item5 = {id: 5, name: 'B5'};
-    const item6 = {id: 6, name: 'B6'};
-    const item7 = {id: 7, name: 'B7'};
+    const item1 = { id: 1, name: 'A' };
+    const item2 = { id: 0, name: 'B' };
+    const item3 = { id: 3, name: 'B3' };
+    const item4 = { id: 4, name: 'B4' };
+    const item5 = { id: 5, name: 'B5' };
+    const item6 = { id: 6, name: 'B6' };
+    const item7 = { id: 7, name: 'B7' };
 
     coll.read({
       request: of({
@@ -631,7 +631,7 @@ describe('Collection Service (async)', () => {
     expect(coll.$totalCountFetched()).toStrictEqual(3);
 
     coll.delete({
-      request: of({totalItems: 1}),
+      request: of({ totalItems: 1 }),
       item: item5,
       decrementTotalCount: 'totalItems',
     }).subscribe();
@@ -640,15 +640,15 @@ describe('Collection Service (async)', () => {
   });
 
   it('delete many', () => {
-    const {coll} = setup();
+    const { coll } = setup();
 
-    const item1 = {id: -1, name: 'A'};
-    const item2 = {id: 0, name: 'B'};
-    const item3 = {id: 1, name: 'C'};
-    const item4 = {id: 2, name: 'D'};
-    const item5 = {id: 5, name: 'B5'};
-    const item6 = {id: 6, name: 'B6'};
-    const item7 = {id: 7, name: 'B7'};
+    const item1 = { id: -1, name: 'A' };
+    const item2 = { id: 0, name: 'B' };
+    const item3 = { id: 1, name: 'C' };
+    const item4 = { id: 2, name: 'D' };
+    const item5 = { id: 5, name: 'B5' };
+    const item6 = { id: 6, name: 'B6' };
+    const item7 = { id: 7, name: 'B7' };
     const item8 = { id: 8, name: 'B8' };
     const item9 = { id: 9, name: 'B9' };
 
@@ -724,7 +724,7 @@ describe('Collection Service (async)', () => {
     expect(coll.$totalCountFetched()).toStrictEqual(88);
 
     coll.deleteMany({
-      request: emit({total: 10}),
+      request: emit({ total: 10 }),
       items: [item8],
       decrementTotalCount: 'total',
     }).subscribe();
@@ -733,10 +733,10 @@ describe('Collection Service (async)', () => {
   });
 
   it('status', () => {
-    const {coll} = setup();
+    const { coll } = setup();
 
-    const item1 = {id: 1, name: 'A'};
-    const item2 = {id: 2, name: 'B'};
+    const item1 = { id: 1, name: 'A' };
+    const item2 = { id: 2, name: 'B' };
 
     coll.read({ request: of([item1, item2]) }).subscribe();
     expect(coll.$items()).toStrictEqual([item1, item2]);
@@ -776,10 +776,10 @@ describe('Collection Service (async)', () => {
   });
 
   it('unique status', () => {
-    const {coll} = setup();
+    const { coll } = setup();
 
-    const item1 = {id: -1, name: '#!'};
-    const item2 = {id: 0, name: '!@'};
+    const item1 = { id: -1, name: '#!' };
+    const item2 = { id: 0, name: '!@' };
 
     coll.read({ request: of([item1, item2]) }).subscribe();
     expect(coll.$items()).toStrictEqual([item1, item2]);
@@ -816,23 +816,23 @@ describe('Collection Service (async)', () => {
   });
 
   it('getItem', () => {
-    const {coll} = setup();
+    const { coll } = setup();
 
-    expect(coll.getItem({id: 1})()).toStrictEqual(undefined);
+    expect(coll.getItem({ id: 1 })()).toStrictEqual(undefined);
 
-    const item1 = {id: 1, name: 'A'};
-    const item2 = {id: 2, name: 'B'};
-    const item3 = {id: 3, name: 'C'};
+    const item1 = { id: 1, name: 'A' };
+    const item2 = { id: 2, name: 'B' };
+    const item3 = { id: 3, name: 'C' };
 
     coll.read({
       request: emit([item1, item2, item3])
     }).subscribe();
 
-    expect(coll.getItem({id: 1})()).toStrictEqual(undefined);
+    expect(coll.getItem({ id: 1 })()).toStrictEqual(undefined);
 
     jest.runOnlyPendingTimers();
 
-    expect(coll.getItem({id: 1})()).toStrictEqual(item1);
+    expect(coll.getItem({ id: 1 })()).toStrictEqual(item1);
 
     const itemSource = coll.getItem(item2);
 
@@ -840,13 +840,13 @@ describe('Collection Service (async)', () => {
   });
 
   it('getItemByField', () => {
-    const {coll} = setup();
+    const { coll } = setup();
 
     expect(coll.getItemByField('id', 1)()).toStrictEqual(undefined);
 
-    const item1 = {id: 0, name: '!'};
-    const item2 = {id: -1, name: '?'};
-    const item3 = {id: 1, name: '*'};
+    const item1 = { id: 0, name: '!' };
+    const item2 = { id: -1, name: '?' };
+    const item3 = { id: 1, name: '*' };
 
     coll.read({
       request: emit([item1, item2, item3])
@@ -866,7 +866,7 @@ describe('Collection Service (async)', () => {
   });
 
   it('custom comparator fn with multiple fields', () => {
-    const {coll} = setup();
+    const { coll } = setup();
     coll.setOptions({
       comparator: (item1: Item, item2: Item) => (item1.id + item1.name) === (item2.id + item2.name),
       allowFetchedDuplicates: false,
@@ -874,10 +874,10 @@ describe('Collection Service (async)', () => {
       throwOnDuplicates: false
     });
 
-    const item1 = {id: 1, name: 'A'};
-    const item2 = {id: 2, name: 'B'};
-    const item3 = {id: 1, name: 'B'};
-    const item4 = {id: 2, name: 'B'};
+    const item1 = { id: 1, name: 'A' };
+    const item2 = { id: 2, name: 'B' };
+    const item3 = { id: 1, name: 'B' };
+    const item4 = { id: 2, name: 'B' };
 
     let errMsg = '';
 
@@ -890,15 +890,15 @@ describe('Collection Service (async)', () => {
     expect(coll.getDuplicates([item1, item2, item3, item4])).toMatchObject(
       {
         '1': {
-          '1': {'id': 2, 'name': 'B'},
-          '3': {'id': 2, 'name': 'B'}
+          '1': { 'id': 2, 'name': 'B' },
+          '3': { 'id': 2, 'name': 'B' }
         }
       }
     );
   });
 
   it('should emit onCreate', () => {
-    const {coll} = setup();
+    const { coll } = setup();
     let lastEmitted: any = undefined;
     coll.listenForCreate().subscribe((v: any) => lastEmitted = v);
 
@@ -906,16 +906,16 @@ describe('Collection Service (async)', () => {
     expect(lastEmitted).toBeFalsy();
 
     coll.create({
-      request: emit({id: 1, name: 'A'})
+      request: emit({ id: 1, name: 'A' })
     }).subscribe();
 
     expect(lastEmitted).toBeFalsy();
     jest.runAllTimers();
-    expect(lastEmitted).toStrictEqual([{id: 1, name: 'A'}]);
+    expect(lastEmitted).toStrictEqual([{ id: 1, name: 'A' }]);
   });
 
   it('should emit onCreate for createMany', () => {
-    const {coll} = setup();
+    const { coll } = setup();
     let lastEmitted: any = undefined;
     coll.listenForCreate().subscribe((v: any) => lastEmitted = v);
 
@@ -923,16 +923,16 @@ describe('Collection Service (async)', () => {
     expect(lastEmitted).toBeFalsy();
 
     coll.createMany({
-      request: emit([{id: 1, name: 'A'}, {id: 2, name: 'B'}])
+      request: emit([{ id: 1, name: 'A' }, { id: 2, name: 'B' }])
     }).subscribe();
 
     expect(lastEmitted).toBeFalsy();
     jest.runAllTimers();
-    expect(lastEmitted).toStrictEqual([{id: 1, name: 'A'}, {id: 2, name: 'B'}]);
+    expect(lastEmitted).toStrictEqual([{ id: 1, name: 'A' }, { id: 2, name: 'B' }]);
   });
 
   it('should not emit onCreate without subscribers', () => {
-    const {coll} = setup();
+    const { coll } = setup();
     let lastEmitted: any = undefined;
     const s = coll.listenForCreate().subscribe((v: any) => lastEmitted = v);
 
@@ -941,7 +941,7 @@ describe('Collection Service (async)', () => {
     s.unsubscribe();
 
     coll.create({
-      request: emit({id: 1, name: 'A'})
+      request: emit({ id: 1, name: 'A' })
     }).subscribe();
 
     expect(lastEmitted).toBeFalsy();
@@ -950,7 +950,7 @@ describe('Collection Service (async)', () => {
   });
 
   it('should emit onRead', () => {
-    const {coll} = setup();
+    const { coll } = setup();
     let lastEmitted: any = undefined;
     coll.listenForRead().subscribe((v: any) => lastEmitted = v);
 
@@ -958,16 +958,16 @@ describe('Collection Service (async)', () => {
     expect(lastEmitted).toBeFalsy();
 
     coll.read({
-      request: emit([{id: 1, name: 'A'}])
+      request: emit([{ id: 1, name: 'A' }])
     }).subscribe();
 
     expect(lastEmitted).toBeFalsy();
     jest.runAllTimers();
-    expect(lastEmitted).toStrictEqual([{id: 1, name: 'A'}]);
+    expect(lastEmitted).toStrictEqual([{ id: 1, name: 'A' }]);
   });
 
   it('should emit onRead for readMany', () => {
-    const {coll} = setup();
+    const { coll } = setup();
     let lastEmitted: any = undefined;
     coll.listenForRead().subscribe((v: any) => lastEmitted = v);
 
@@ -975,83 +975,83 @@ describe('Collection Service (async)', () => {
     expect(lastEmitted).toBeFalsy();
 
     coll.readMany({
-      request: emit([{id: 1, name: 'A'}, {id: 2, name: 'B'}])
+      request: emit([{ id: 1, name: 'A' }, { id: 2, name: 'B' }])
     }).subscribe();
 
     expect(lastEmitted).toBeFalsy();
     jest.runAllTimers();
-    expect(lastEmitted).toStrictEqual([{id: 1, name: 'A'}, {id: 2, name: 'B'}]);
+    expect(lastEmitted).toStrictEqual([{ id: 1, name: 'A' }, { id: 2, name: 'B' }]);
   });
 
   it('should emit onRead for refresh', () => {
-    const {coll} = setup();
+    const { coll } = setup();
     let lastEmitted: any = undefined;
     coll.listenForRead().subscribe((v: any) => lastEmitted = v);
 
     coll.read({
-      request: emit([{id: 1, name: 'A'}])
+      request: emit([{ id: 1, name: 'A' }])
     }).subscribe();
 
     jest.runOnlyPendingTimers();
-    expect(lastEmitted).toStrictEqual([{id: 1, name: 'A'}]);
+    expect(lastEmitted).toStrictEqual([{ id: 1, name: 'A' }]);
 
     coll.refresh({
-      request: emit({id: 1, name: 'B'}),
-      item: {id: 1},
+      request: emit({ id: 1, name: 'B' }),
+      item: { id: 1 },
     }).subscribe();
 
-    expect(lastEmitted).toStrictEqual([{id: 1, name: 'A'}]);
+    expect(lastEmitted).toStrictEqual([{ id: 1, name: 'A' }]);
     jest.runAllTimers();
-    expect(lastEmitted).toStrictEqual([{id: 1, name: 'B'}]);
+    expect(lastEmitted).toStrictEqual([{ id: 1, name: 'B' }]);
   });
 
   it('should emit onRead for refreshMany', () => {
-    const {coll} = setup();
+    const { coll } = setup();
     let lastEmitted: any = undefined;
     coll.listenForRead().subscribe((v: any) => lastEmitted = v);
 
     coll.read({
-      request: emit([{id: 1, name: 'A'}, {id: 2, name: 'B'}])
+      request: emit([{ id: 1, name: 'A' }, { id: 2, name: 'B' }])
     }).subscribe();
 
     jest.runOnlyPendingTimers();
-    expect(lastEmitted).toStrictEqual([{id: 1, name: 'A'}, {id: 2, name: 'B'}]);
+    expect(lastEmitted).toStrictEqual([{ id: 1, name: 'A' }, { id: 2, name: 'B' }]);
 
     coll.refreshMany({
-      request: emit([{id: 1, name: 'C'}, {id: 2, name: 'D'}]),
-      items: [{id: 1}, {id: 2}],
+      request: emit([{ id: 1, name: 'C' }, { id: 2, name: 'D' }]),
+      items: [{ id: 1 }, { id: 2 }],
     }).subscribe();
 
-    expect(lastEmitted).toStrictEqual([{id: 1, name: 'A'}, {id: 2, name: 'B'}]);
+    expect(lastEmitted).toStrictEqual([{ id: 1, name: 'A' }, { id: 2, name: 'B' }]);
     jest.runAllTimers();
-    expect(lastEmitted).toStrictEqual([{id: 1, name: 'C'}, {id: 2, name: 'D'}]);
+    expect(lastEmitted).toStrictEqual([{ id: 1, name: 'C' }, { id: 2, name: 'D' }]);
   });
 
   it('should emit onUpdate', () => {
-    const {coll} = setup();
+    const { coll } = setup();
     let lastEmitted: any = undefined;
     coll.listenForUpdate().subscribe((v: any) => lastEmitted = v);
 
     coll.read({
-      request: emit([{id: 1, name: 'A'}])
+      request: emit([{ id: 1, name: 'A' }])
     }).subscribe();
 
     jest.runOnlyPendingTimers();
     expect(lastEmitted).toBeFalsy();
 
     coll.update({
-      request: emit({id: 1, name: 'B'}),
-      item: {id: 1},
+      request: emit({ id: 1, name: 'B' }),
+      item: { id: 1 },
     }).subscribe();
 
     expect(lastEmitted).toBeFalsy();
     jest.runAllTimers();
-    expect(lastEmitted).toStrictEqual([{id: 1, name: 'B'}]);
+    expect(lastEmitted).toStrictEqual([{ id: 1, name: 'B' }]);
   });
 
   it('should emit onItemsUpdate', () => {
-    const {coll} = setup();
-    const item = {id: 1, name: 'A'};
+    const { coll } = setup();
+    const item = { id: 1, name: 'A' };
 
     let lastEmitted: any = undefined;
     coll.listenForItemsUpdate([item]).subscribe((v: any) => lastEmitted = v);
@@ -1065,44 +1065,44 @@ describe('Collection Service (async)', () => {
     lastEmitted = undefined;
 
     coll.update({
-      request: emit({id: 1, name: 'B'}),
+      request: emit({ id: 1, name: 'B' }),
       item: item,
     }).subscribe();
 
     expect(lastEmitted).toBeFalsy();
     jest.runAllTimers();
-    expect(lastEmitted).toStrictEqual([{id: 1, name: 'B'}]);
+    expect(lastEmitted).toStrictEqual([{ id: 1, name: 'B' }]);
   });
 
   it('should emit onUpdate for updateMany', () => {
-    const {coll} = setup();
+    const { coll } = setup();
     let lastEmitted: any = undefined;
     coll.listenForUpdate().subscribe((v: any) => lastEmitted = v);
 
     coll.read({
-      request: emit([{id: 1, name: 'A'}])
+      request: emit([{ id: 1, name: 'A' }])
     }).subscribe();
 
     jest.runOnlyPendingTimers();
     expect(lastEmitted).toBeFalsy();
 
     coll.updateMany({
-      request: emit([{id: 1, name: 'B'}, {id: 2, name: 'A'}]),
-      items: [{id: 1}, {id: 2}],
+      request: emit([{ id: 1, name: 'B' }, { id: 2, name: 'A' }]),
+      items: [{ id: 1 }, { id: 2 }],
     }).subscribe();
 
     expect(lastEmitted).toBeFalsy();
     jest.runAllTimers();
-    expect(lastEmitted).toStrictEqual([{id: 1, name: 'B'}, {id: 2, name: 'A'}]);
+    expect(lastEmitted).toStrictEqual([{ id: 1, name: 'B' }, { id: 2, name: 'A' }]);
   });
 
   it('should emit onDelete', () => {
-    const {coll} = setup();
+    const { coll } = setup();
     let lastEmitted: any = undefined;
     coll.listenForDelete().subscribe((v: any) => lastEmitted = v);
 
     coll.read({
-      request: emit([{id: 1, name: 'A'}])
+      request: emit([{ id: 1, name: 'A' }])
     }).subscribe();
 
     jest.runOnlyPendingTimers();
@@ -1110,17 +1110,17 @@ describe('Collection Service (async)', () => {
 
     coll.delete({
       request: emit(null),
-      item: {id: 1}
+      item: { id: 1 }
     }).subscribe();
 
     expect(lastEmitted).toBeFalsy();
     jest.runAllTimers();
-    expect(lastEmitted).toStrictEqual([{id: 1}]);
+    expect(lastEmitted).toStrictEqual([{ id: 1 }]);
   });
 
   it('should emit onItemsDelete', () => {
-    const {coll} = setup();
-    const item = {id: 1, name: 'A'};
+    const { coll } = setup();
+    const item = { id: 1, name: 'A' };
     let lastEmitted: any = undefined;
     coll.listenForItemsDeletion([item]).subscribe((v: any) => lastEmitted = v);
 
@@ -1133,21 +1133,21 @@ describe('Collection Service (async)', () => {
 
     coll.delete({
       request: emit(null),
-      item: {id: 1}
+      item: { id: 1 }
     }).subscribe();
 
     expect(lastEmitted).toBeFalsy();
     jest.runAllTimers();
-    expect(lastEmitted).toStrictEqual([{id: 1}]);
+    expect(lastEmitted).toStrictEqual([{ id: 1 }]);
   });
 
   it('should emit onDelete for deleteMany', () => {
-    const {coll} = setup();
+    const { coll } = setup();
     let lastEmitted: any = undefined;
     coll.listenForDelete().subscribe((v: any) => lastEmitted = v);
 
     coll.read({
-      request: emit([{id: 1, name: 'A'}, {id: 2, name: 'B'}])
+      request: emit([{ id: 1, name: 'A' }, { id: 2, name: 'B' }])
     }).subscribe();
 
     jest.runOnlyPendingTimers();
@@ -1155,11 +1155,43 @@ describe('Collection Service (async)', () => {
 
     coll.deleteMany({
       request: emit(null),
-      items: [{id: 1}, {id: 2}]
+      items: [{ id: 1 }, { id: 2 }]
     }).subscribe();
 
     expect(lastEmitted).toBeFalsy();
     jest.runAllTimers();
-    expect(lastEmitted).toStrictEqual([{id: 1}, {id: 2}]);
+    expect(lastEmitted).toStrictEqual([{ id: 1 }, { id: 2 }]);
+  });
+
+  it('should call first read handler', (done) => {
+    const item1 = { id: 1, name: 'A' };
+    const item2 = { id: 2, name: 'B' };
+    const item3 = { id: 3, name: 'C' };
+
+    jest.useRealTimers();
+
+    const { coll } = setup();
+
+    let handlerWasCalled = false;
+
+    coll.setAfterFirstReadHandler(() => {
+      handlerWasCalled = true;
+      coll.read({
+        request: of({ items: [item1, item2, item3] })
+      }).subscribe();
+    });
+
+    expect(handlerWasCalled).toBeFalsy();
+    const items = coll.$items();
+    expect(items).toStrictEqual([]);
+
+    setTimeout(() => {
+      done();
+      expect(handlerWasCalled).toBeTruthy();
+      handlerWasCalled = false;
+      const items = coll.$items();
+      expect(handlerWasCalled).toBeFalsy();
+      expect(items).toStrictEqual([item1, item2, item3]);
+    }, 1);
   });
 });
