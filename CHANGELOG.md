@@ -1,3 +1,6 @@
+### 3.4.1
+Fix: `getItem()` and `getItemByField()` should trigger lazy-loading. 
+
 ### 3.4.0
 
 #### Lazy loading!  

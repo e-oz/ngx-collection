@@ -638,10 +638,10 @@ export class Collection<T, UniqueStatus = unknown, Status = unknown>
     if (isSignal(filter)) {
       return computed(() => {
         const item = filter();
-        return item ? this.getItemByPartial(item, this.state.$items()) : undefined;
+        return item ? this.getItemByPartial(item, this.$items()) : undefined;
       }, { equal: equalFn });
     } else {
-      return computed(() => filter ? this.getItemByPartial(filter, this.state.$items()) : undefined, {
+      return computed(() => filter ? this.getItemByPartial(filter, this.$items()) : undefined, {
         equal: equalFn
       });
     }
@@ -659,10 +659,10 @@ export class Collection<T, UniqueStatus = unknown, Status = unknown>
         if (fv == null) {
           return undefined;
         }
-        return this.state.$items().find((i) => fields.find((f) => i[f] === fv) !== undefined);
+        return this.$items().find((i) => fields.find((f) => i[f] === fv) !== undefined);
       }, { equal: equalFn });
     } else {
-      return computed(() => this.state.$items().find((i) =>
+      return computed(() => this.$items().find((i) =>
         fields.find((f) => i[f] === fieldValue) !== undefined
       ), { equal: equalFn });
     }
