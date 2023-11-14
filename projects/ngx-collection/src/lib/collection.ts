@@ -649,7 +649,7 @@ export class Collection<T, UniqueStatus = unknown, Status = unknown>
 
   public getItemByField<K extends keyof T>(
     field: K | K[],
-    fieldValue: T[K] | Signal<T[K]>,
+    fieldValue: T[K] | Signal<T[K] | undefined>,
     equalFn: ValueEqualityFn<T | undefined> | undefined = equalObjects
   ): Signal<T | undefined> {
     const fields = Array.isArray(field) ? field : [field];

@@ -429,7 +429,7 @@ export type CollectionInterface<T, UniqueStatus = unknown, Status = unknown> = {
    */
   getItemByField<K extends keyof T>(
     field: K | K[],
-    fieldValue: T[K] | Signal<T[K]>,
+    fieldValue: T[K] | Signal<T[K] | undefined>,
     equalFn: ValueEqualityFn<T | undefined> | undefined
   ): Signal<T | undefined>;
 }

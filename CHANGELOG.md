@@ -1,3 +1,6 @@
+### 3.4.3
+Method `getItemByField()` now accepts `Signal<T|undefined>` as `fieldValue`.
+
 ### 3.4.2
 * Method `setAfterFirstReadHandler()` renamed to `setOnFirstItemsRequest()`. Previous method is not removed, but deprecated.
 * Now it's possible to set onFirstItemsRequest in the constructor (using the options object).
