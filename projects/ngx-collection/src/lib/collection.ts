@@ -761,6 +761,9 @@ export class Collection<T, UniqueStatus = unknown, Status = unknown>
       if (options.errReporter != null && typeof options.errReporter === 'function') {
         this.errReporter = options.errReporter;
       }
+      if (options.onFirstItemsRequest) {
+        this.onFirstItemsRequest = options.onFirstItemsRequest;
+      }
     }
   }
 
@@ -806,8 +809,15 @@ export class Collection<T, UniqueStatus = unknown, Status = unknown>
     return hasDupes ? duplicates : null;
   }
 
-  public setAfterFirstReadHandler(handler: Function | undefined) {
-    this.onFirstItemsRequest = handler;
+  /**
+   * @deprecated Use `setOnFirstItemsRequest()`
+   */
+  public setAfterFirstReadHandler(cb: Function | undefined) {
+    this.onFirstItemsRequest = cb;
+  }
+
+  public setOnFirstItemsRequest(cb: Function | undefined) {
+    this.onFirstItemsRequest = cb;
   }
 
   /*** Internal Methods ***/

@@ -152,6 +152,10 @@ export type CollectionOptions = {
    * print errors. Example: ` errReporter: environment.production ? undefined : console.error `
    */
   errReporter?: (...args: any[]) => any;
+  /**
+   * @see CollectionInterface.setOnFirstItemsRequest
+   */
+  onFirstItemsRequest?: Function;
 }
 
 export type CollectionInterface<T, UniqueStatus = unknown, Status = unknown> = {
@@ -347,12 +351,12 @@ export type CollectionInterface<T, UniqueStatus = unknown, Status = unknown> = {
   setOnDuplicateErrCallbackParam(onDuplicateErrCallbackParam: any): void;
 
   /**
-   * Handler function will be called once: after $items() signal is read for the first time.
+   * Callback function will be called once: after $items() signal is read for the first time.
    * It will be called asynchronously, in the next microtask.
    * You can mutate collection in this handler function.
    * Thrown exceptions will not mark the $items() signal as erroneous.
    */
-  setAfterFirstReadHandler(handler: Function | undefined): void;
+  setOnFirstItemsRequest(cb: Function | undefined): void;
 
   /**
    * Returns a function you can use with "trackBy" in `ngFor`

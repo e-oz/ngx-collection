@@ -1,3 +1,7 @@
+### 3.4.2
+* Method `setAfterFirstReadHandler()` renamed to `setOnFirstItemsRequest()`. Previous method is not removed, but deprecated.
+* Now it's possible to set onFirstItemsRequest in the constructor (using the options object).
+
 ### 3.4.1
 Fix: `getItem()` and `getItemByField()` should trigger lazy-loading. 
 
