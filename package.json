@@ -1,6 +1,6 @@
 {
   "name": "ngx-collection",
-  "version": "4.0.3",
+  "version": "4.0.4",
   "license": "MIT",
   "author": {
     "name": "Evgeniy OZ",
@@ -42,7 +42,7 @@
     "jest-preset-angular": "^13.1.4",
     "ng-packagr": "^17.1.0-next.1",
     "ts-node": "^10.9.1",
-    "typescript": "~5.2.2",
+    "typescript": "~5.3.2",
     "zone.js": "~0.14.2"
   },
   "sideEffects": false
