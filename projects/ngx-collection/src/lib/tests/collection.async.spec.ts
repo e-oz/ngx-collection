@@ -1174,7 +1174,7 @@ describe('Collection Service (async)', () => {
 
     let handlerWasCalled = false;
 
-    coll.setAfterFirstReadHandler(() => {
+    coll.setOnFirstItemsRequest(() => {
       handlerWasCalled = true;
       coll.read({
         request: of({ items: [item1, item2, item3] })

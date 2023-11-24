@@ -5,7 +5,8 @@
 #### BREAKING CHANGES
 * Status pipes removed: it's quite easy to read status from the collection directly in the template;
 * Custom equality functions for Angular Signals removed: this library only operates on immutable data structures, and was using these functions only to guarantee updates even when items were mutated outside. In Angular v17.1 custom equality functions are [ignored for mutable structures](https://github.com/angular/angular/pull/52465/files), so they are useless even as a tool for other parts of your application;
-* `getTrackByFieldFn()` helper is removed: with Angular v17 built-in control flow, it is not needed anymore.
+* `getTrackByFieldFn()` helper is removed: with Angular v17 built-in control flow, it is not needed anymore;
+* `setAfterFirstReadHandler()` is removed: use `setOnFirstItemsRequest()`.
 
 #### Fixes
 * `$updatingItems`, `$deletingItems`, `$refreshingItems`, `$mutatingItems`, `$processingItems` will only contain items that currently exist in the `$items` list. Previously, they could potentially contain non-existing items for a short time. For example, if `read()` or `delete()` operations were executed faster than `update()`, and `update()` was started earlier, than `update()` would contain items that were removed by `delete()`, until its (`update()`) request is not completed. It was quite difficult to achieve (and even more difficult to notice), but now it's fixed;

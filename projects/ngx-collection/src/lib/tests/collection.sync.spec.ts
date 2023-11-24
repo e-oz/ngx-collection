@@ -819,7 +819,7 @@ describe('Collection Service (sync)', () => {
 
     let handlerWasCalled = false;
 
-    coll.setAfterFirstReadHandler(() => {
+    coll.setOnFirstItemsRequest(() => {
       handlerWasCalled = true;
       coll.read({
         request: signal([item1, item2, item3])

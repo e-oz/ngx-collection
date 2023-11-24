@@ -804,13 +804,6 @@ export class Collection<T, UniqueStatus = unknown, Status = unknown>
     return hasDupes ? duplicates : null;
   }
 
-  /**
-   * @deprecated Use `setOnFirstItemsRequest()`
-   */
-  public setAfterFirstReadHandler(cb: Function | undefined) {
-    this.onFirstItemsRequest = cb;
-  }
-
   public setOnFirstItemsRequest(cb: Function | undefined) {
     this.onFirstItemsRequest = cb;
   }
