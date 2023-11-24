@@ -359,19 +359,6 @@ export type CollectionInterface<T, UniqueStatus = unknown, Status = unknown> = {
   setOnFirstItemsRequest(cb: Function | undefined): void;
 
   /**
-   * Returns a function you can use with "trackBy" in `ngFor`
-   * @param field - field name
-   *
-   * Usage example:
-   * ```html
-   *
-   * <div *ngFor="let item of $.items; trackBy: collection.getTrackByFieldFn('uuId')"></div>
-   *
-   * ```
-   */
-  getTrackByFieldFn(field: string): (i: number, item: any) => any;
-
-  /**
    * Set multiple options at once. Useful during initialization.
    */
   setOptions(options?: CollectionOptions | null): void;

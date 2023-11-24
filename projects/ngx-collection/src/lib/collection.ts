@@ -1,9 +1,7 @@
 import { computed, isDevMode, isSignal, type Signal, signal, type ValueEqualityFn } from "@angular/core";
 import { catchError, defaultIfEmpty, defer, EMPTY, filter, finalize, first, forkJoin, isObservable, map, merge, type Observable, of, Subject, switchMap, tap } from "rxjs";
 import { Comparator, DuplicateError, type ObjectsComparator, type ObjectsComparatorFn } from "./comparator";
-import { isEmptyValue } from "./helpers";
 import { defaultComparatorFields } from "./internal-types";
-import { equalMaps, equalObjects, equalPrimitives } from "./signal-equality-fn";
 import type { CollectionInterface, CollectionOptions, CreateManyParams, CreateParams, DeleteManyParams, DeleteParams, DuplicatesMap, FetchedItems, ReadManyParams, ReadOneParams, ReadParams, RefreshManyParams, RefreshParams, UpdateManyParams, UpdateParams } from "./types";
 
 export class Collection<T, UniqueStatus = unknown, Status = unknown>
@@ -39,7 +37,7 @@ export class Collection<T, UniqueStatus = unknown, Status = unknown>
    * Writeable State Signals
    */
   protected readonly state = {
-    $items: signal<T[]>([], { equal: equalPrimitives }),
+    $items: signal<T[]>([]),
     $totalCountFetched: signal<number | undefined>(undefined),
     $isCreating: signal<boolean>(false),
     $isReading: signal<boolean>(false),
@@ -47,8 +45,8 @@ export class Collection<T, UniqueStatus = unknown, Status = unknown>
     $updatingItems: signal<T[]>([], { equal: this.equalItems }),
     $deletingItems: signal<T[]>([], { equal: this.equalItems }),
     $refreshingItems: signal<T[]>([], { equal: this.equalItems }),
-    $status: signal<Map<UniqueStatus, T>>(new Map<UniqueStatus, T>(), { equal: equalMaps }),
-    $statuses: signal<Map<T, Set<Status>>>(new Map<T, Set<Status>>(), { equal: equalMaps }),
+    $status: signal<Map<UniqueStatus, T>>(new Map<UniqueStatus, T>()),
+    $statuses: signal<Map<T, Set<Status>>>(new Map<T, Set<Status>>()),
   } as const;
 
   /**
@@ -68,7 +66,7 @@ export class Collection<T, UniqueStatus = unknown, Status = unknown>
       }
     }
     return this.state.$items();
-  }, { equal: equalPrimitives });
+  });
   public readonly $totalCountFetched = this.state.$totalCountFetched.asReadonly();
   public readonly $isCreating = this.state.$isCreating.asReadonly();
   public readonly $isReading = this.state.$isReading.asReadonly();
@@ -77,9 +75,21 @@ export class Collection<T, UniqueStatus = unknown, Status = unknown>
   /**
    * Derived State Signals
    */
-  public readonly $updatingItems = this.state.$updatingItems.asReadonly();
-  public readonly $deletingItems = this.state.$deletingItems.asReadonly();
-  public readonly $refreshingItems = this.state.$refreshingItems.asReadonly();
+  public readonly $updatingItems = computed<T[]>(() => {
+    const updating = this.state.$updatingItems();
+    const existing = this.$items();
+    return updating.filter(item => this.hasItemIn(item, existing));
+  });
+  public readonly $deletingItems = computed<T[]>(() => {
+    const deleting = this.state.$deletingItems();
+    const existing = this.$items();
+    return deleting.filter(item => this.hasItemIn(item, existing));
+  });
+  public readonly $refreshingItems = computed<T[]>(() => {
+    const refreshing = this.state.$refreshingItems();
+    const existing = this.$items();
+    return refreshing.filter(item => this.hasItemIn(item, existing));
+  });
   public readonly $status = this.state.$status.asReadonly();
   public readonly $statuses = this.state.$statuses.asReadonly();
   public readonly $isUpdating = computed<boolean>(() => this.state.$updatingItems().length > 0);
@@ -101,14 +111,14 @@ export class Collection<T, UniqueStatus = unknown, Status = unknown>
     const isRefreshing = this.state.$refreshingItems().length > 0;
     return isMutating || isReading || isRefreshing;
   });
-  public readonly $mutatingItems = computed<T[]>(() => ([
-    ...this.state.$updatingItems(),
-    ...this.state.$deletingItems()
-  ]), { equal: this.equalItems });
-  public readonly $processingItems = computed<T[]>(() => ([
+  public readonly $mutatingItems = computed<T[]>(() => this.uniqueItems([
+    ...this.$updatingItems(),
+    ...this.$deletingItems()
+  ]));
+  public readonly $processingItems = computed<T[]>(() => this.uniqueItems([
     ...this.$mutatingItems(),
     ...this.$refreshingItems()
-  ]), { equal: this.equalItems });
+  ]));
 
   /*** Public API Methods ***/
 
@@ -633,7 +643,7 @@ export class Collection<T, UniqueStatus = unknown, Status = unknown>
 
   public getItem(
     filter: Partial<T> | undefined | Signal<Partial<T> | undefined>,
-    equalFn: ValueEqualityFn<T | undefined> | undefined = equalObjects
+    equalFn?: ValueEqualityFn<T | undefined> | undefined
   ): Signal<T | undefined> {
     if (isSignal(filter)) {
       return computed(() => {
@@ -650,7 +660,7 @@ export class Collection<T, UniqueStatus = unknown, Status = unknown>
   public getItemByField<K extends keyof T>(
     field: K | K[],
     fieldValue: T[K] | Signal<T[K] | undefined>,
-    equalFn: ValueEqualityFn<T | undefined> | undefined = equalObjects
+    equalFn?: ValueEqualityFn<T | undefined> | undefined
   ): Signal<T | undefined> {
     const fields = Array.isArray(field) ? field : [field];
     if (isSignal(fieldValue)) {
@@ -685,21 +695,6 @@ export class Collection<T, UniqueStatus = unknown, Status = unknown>
       return false;
     }
     return ((arr.findIndex(i => this.comparator.equal(i, item))) > -1);
-  }
-
-  public getTrackByFieldFn(field: string): (i: number, item: any) => any {
-    return (i: number, item: any) => {
-      try {
-        return (!!item
-          && typeof item === 'object'
-          && Object.hasOwn(item, field)
-          && !isEmptyValue(item[field])
-        ) ? item[field] : i;
-      } catch (e) {
-        this.reportRuntimeError(e);
-        return i;
-      }
-    };
   }
 
   public listenForItemsUpdate(items: Partial<T>[]): Observable<T[]> {

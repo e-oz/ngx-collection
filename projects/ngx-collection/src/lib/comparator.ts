@@ -22,7 +22,7 @@ export class Comparator implements ObjectsComparator {
   }
 
   equal(obj1: unknown, obj2: unknown, byFields?: (string | string[])[]): boolean {
-    if (obj1 === obj2) {
+    if (Object.is(obj1, obj2)) {
       return true;
     }
     if (obj1 == null || obj1 !== obj1 || obj2 == null || obj2 !== obj2 || (typeof obj1 !== 'object') || (typeof obj2 !== 'object')) {

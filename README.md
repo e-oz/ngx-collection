@@ -330,13 +330,6 @@ See "Items comparison" for details.
   ));
 ```
 
-# Pipes
-
-This library provides two Angular pipes to make it easier to use collection statuses:  
-
-* [UniqueStatusPipe](projects/ngx-collection/src/lib/status.pipes.ts)
-* [StatusesPipe](projects/ngx-collection/src/lib/status.pipes.ts)
-
 # Interface `FetchedItems<T>`
 
 The `read()` method additionally supports a specific type from the request execution result, not just a list of items but a wrapper containing a list of items: `FetchedItems` type.   
@@ -344,18 +337,6 @@ The `read()` method additionally supports a specific type from the request execu
 You can (optionally) use this or a similar structure to don't lose meta information, such as the total count of items (usually needed for pagination).
 
 ## Helpers
-
-### getTrackByFieldFn()
-Returns a function you can use with "trackBy" in `ngFor`
-#### Parameters
-* `field: string` - field name
-
-Usage example:
-```angular2html
-<div *ngFor="let item of $items(); trackBy: coll.getTrackByFieldFn('uuId')"></div>
-```
-
----
 
 ### createEffect()
 Copy of `ComponentStore.effect()` method from NgRx, where `takeUntil(this.destroy$)` is replaced with `takeUntilDestroyed(destroyRef)`, to use it as a function.  
@@ -380,7 +361,7 @@ Example of usage:
     [selected]="coll.hasItemIn(role, $roles())"
     [selectable]="false"
 >
-<span>{{role.name}}</span>
+  <span>{{role.name}}</span>
 </mat-chip-option>
 ```
 
@@ -397,20 +378,3 @@ Will be called from the `constructor()`.
 Another method you can safely override.  
 Original method is guaranteed to be empty, so you don't have to call `super.asyncInit()`.  
 Will be called in the next microtask from the constructor (`init()` will be called first and in the current microtask).
-
----
-
-### signalEqual
-Object you can import.   
-Contains functions for checking the equality of values, optimized for arrays, maps, sets, and objects.
-
-The goals of these functions are:  
-1. To reduce the number of unnecessary computations;  
-2. To compare values as quickly as possible.  
-
-First of all, if values are equal by reference (`===`), they are considered equal.  
-After that, for arrays, sets, maps, and objects, the first level of contained items (keys) will be compared using `===`.  
-If values are empty sets, arrays, or maps, they are equal. Empty objects are not equal.    
-If both values are `null` or `undefined`, they are equal.    
-The check is non-recursive and shallow.  
-For a recursive, deep equality check, use specialized and optimized functions that you trust.
