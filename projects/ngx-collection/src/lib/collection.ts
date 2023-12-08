@@ -229,7 +229,7 @@ export class Collection<T, UniqueStatus = unknown, Status = unknown>
         this.state.$isBeforeFirstRead.set(false);
       }),
       tap((fetched) => {
-        const items = fetched == null ? ([] as T[]) : (Array.isArray(fetched) ? fetched : fetched.items);
+        const items = fetched == null ? ([] as T[]) : (Array.isArray(fetched) ? fetched : fetched.items).slice();
         if (items.length > 0) {
           const duplicate = this.hasDuplicates(items);
           if (duplicate != null) {
@@ -764,7 +764,7 @@ export class Collection<T, UniqueStatus = unknown, Status = unknown>
 
   public uniqueItems(items: T[]): T[] {
     if (!Array.isArray(items)) {
-      throw new Error('uniqueItems expects an array');
+      return [];
     }
     return items.filter((item, index) => items.indexOf(item as T) === index
       || items.findIndex(i => this.comparator.equal(i, item)) == index
@@ -832,6 +832,9 @@ export class Collection<T, UniqueStatus = unknown, Status = unknown>
     return items.filter(i => this.hasItemIn(i, seek));
   }
 
+  /**
+   * Mutates `items`!
+   */
   protected upsertOne(item: T, items: T[]): T[] | 'duplicate' {
     let firstIndex: number = -1;
     let duplicateIndex: number = -1;
@@ -871,6 +874,9 @@ export class Collection<T, UniqueStatus = unknown, Status = unknown>
     return null;
   }
 
+  /**
+   * Mutates `toItems`!
+   */
   protected upsertMany(items: T[], toItems: T[]): T[] | {
     duplicate: T,
     preExisting?: boolean

@@ -59,3 +59,17 @@ export function getObjectPathValue<T = any>(object: Record<string, any>, path: s
     return undefined;
   }
 }
+
+/**
+ * Non-primitive values are considered non-equal.
+ * Primitive values are compared using Object.is().
+ *
+ * Objects (including arrays) will always be non-equal,
+ * it might be useful for updating mutable structures.
+ * It is recommended to use immutable structures,
+ * but there are rare cases when mutable structures suit better,
+ * or objects can not be cloned.
+ **/
+export function equalPrimitives<T>(a: T, b: T): boolean {
+  return (a === null || typeof a !== 'object') && Object.is(a, b);
+}
