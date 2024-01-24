@@ -1186,12 +1186,12 @@ describe('Collection Service (async)', () => {
     expect(items).toStrictEqual([]);
 
     setTimeout(() => {
-      done();
       expect(handlerWasCalled).toBeTruthy();
       handlerWasCalled = false;
       const items = coll.$items();
       expect(handlerWasCalled).toBeFalsy();
       expect(items).toStrictEqual([item1, item2, item3]);
+      done();
     }, 1);
   });
 });

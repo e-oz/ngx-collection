@@ -1,6 +1,17 @@
-import { isObservable, Observable, of, retry, Subject, Subscription } from 'rxjs';
-import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
-import { DestroyRef, inject } from '@angular/core';
+import { assertInInjectionContext, DestroyRef, inject, Injector, isDevMode, isSignal, type Signal } from '@angular/core';
+import { takeUntilDestroyed, toObservable } from '@angular/core/rxjs-interop';
+import { isObservable, Observable, of, retry, type RetryConfig, Subject, Subscription } from 'rxjs';
+
+export type CreateEffectOptions = {
+  injector?: Injector,
+  /**
+   * @param retryOnError
+   * Set to 'false' to disable retrying on error.
+   * Otherwise, generated effect will use `retry()`.
+   * You can pass `RetryConfig` object here to configure `retry()` operator.
+   */
+  retryOnError?: boolean | RetryConfig,
+};
 
 /**
  * This code is copied from NgRx ComponentStore and edited to add `takeUntilDestroyed()` and to resubscribe on errors.
@@ -16,28 +27,56 @@ export function createEffect<
   ObservableType = OriginType extends Observable<infer A> ? A : never,
   ReturnType = ProvidedType | ObservableType extends void
     ? (
-      observableOrValue?: ObservableType | Observable<ObservableType>
+      observableOrValue?: ObservableType | Observable<ObservableType> | Signal<ObservableType>
     ) => Subscription
     : (
-      observableOrValue: ObservableType | Observable<ObservableType>
+      observableOrValue: ObservableType | Observable<ObservableType> | Signal<ObservableType>
     ) => Subscription
->(generator: (origin$: OriginType) => Observable<unknown>): ReturnType {
+>(generator: (origin$: OriginType) => Observable<unknown>, options?: CreateEffectOptions): ReturnType {
 
-  const destroyRef = inject(DestroyRef);
+  if (!options?.injector && isDevMode()) {
+    assertInInjectionContext(createEffect);
+  }
+
+  const injector = options?.injector ?? inject(Injector);
+  const destroyRef = injector.get(DestroyRef);
   const origin$ = new Subject<ObservableType>();
-  generator(origin$ as OriginType).pipe(
-    retry(),
-    takeUntilDestroyed(destroyRef)
-  ).subscribe();
+  const retryOnError = options?.retryOnError ?? true;
+  const retryConfig = (typeof options?.retryOnError === 'object' && options?.retryOnError) ? options?.retryOnError : {} as RetryConfig;
+
+  if (retryOnError) {
+    generator(origin$ as OriginType).pipe(
+      retry(retryConfig),
+      takeUntilDestroyed(destroyRef)
+    ).subscribe();
+  } else {
+    generator(origin$ as OriginType).pipe(
+      takeUntilDestroyed(destroyRef)
+    ).subscribe();
+  }
 
   return ((
-    observableOrValue?: ObservableType | Observable<ObservableType>
+    observableOrValue?: ObservableType | Observable<ObservableType> | Signal<ObservableType>
   ): Subscription => {
     const observable$ = isObservable(observableOrValue)
-      ? observableOrValue.pipe(retry())
-      : of(observableOrValue);
-    return observable$.pipe(takeUntilDestroyed(destroyRef)).subscribe((value) => {
-      origin$.next(value as ObservableType);
-    });
+      ? observableOrValue
+      : (isSignal(observableOrValue)
+          ? toObservable(observableOrValue, { injector })
+          : of(observableOrValue)
+      );
+    if (retryOnError) {
+      return observable$.pipe(
+        retry(retryConfig),
+        takeUntilDestroyed(destroyRef)
+      ).subscribe((value) => {
+        origin$.next(value as ObservableType);
+      });
+    } else {
+      return observable$.pipe(
+        takeUntilDestroyed(destroyRef)
+      ).subscribe((value) => {
+        origin$.next(value as ObservableType);
+      });
+    }
   }) as unknown as ReturnType;
 }

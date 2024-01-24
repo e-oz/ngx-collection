@@ -1,6 +1,7 @@
-import { createEffect } from '../create-effect';
-import { EMPTY, of, Subject, switchMap, tap, throwError } from "rxjs";
+import { signal } from "@angular/core";
 import { TestBed } from "@angular/core/testing";
+import { EMPTY, of, Subject, switchMap, tap, throwError } from "rxjs";
+import { createEffect } from '../create-effect';
 
 describe('createEffect', () => {
   let effect: ReturnType<typeof createEffect<string>>;
@@ -100,4 +101,33 @@ describe('createEffect', () => {
     expect(lastResult).toEqual('next');
     expect(lastError).toEqual(undefined);
   });
+
+  it('should accept signal as an argument', () => {
+    const s = signal<string>('a');
+    effect(s);
+    TestBed.flushEffects();
+    expect(lastResult).toEqual('a');
+    expect(lastError).toEqual(undefined);
+
+    s.set('b');
+    TestBed.flushEffects();
+    expect(lastResult).toEqual('b');
+    expect(lastError).toEqual(undefined);
+
+    s.set('error');
+    s.set('not an error');
+    TestBed.flushEffects();
+    expect(lastResult).toEqual('not an error');
+    expect(lastError).toEqual(undefined);
+
+    s.set('not an error');
+    s.set('error');
+    TestBed.flushEffects();
+    expect(lastError).toEqual('error');
+
+    s.set('c');
+    TestBed.flushEffects();
+    expect(lastResult).toEqual('c');
+    expect(lastError).toEqual(undefined);
+  })
 });

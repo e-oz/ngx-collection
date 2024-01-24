@@ -1,3 +1,7 @@
+### 4.0.6
+* Function, returned by `createEffect()` now accepts `Signal<T> | WritableSignal<T>` as an argument;
+* `createEffect()` now has optional configuration argument of type `CreateEffectOptions`. Here you can pass an injector, configure if function should retry on error (true by default), and pass `retry()` configuration options. All fields are optional.
+
 ### 4.0.5
 Because of [PR#53446](https://github.com/angular/angular/pull/53446), one custom equality check function is restored. You can import it as `equalPrimitives()`.
 
