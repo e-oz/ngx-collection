@@ -1,3 +1,6 @@
+### 4.0.7
+Angular v18 is now supported.
+
 ### 4.0.6
 * Function, returned by `createEffect()` now accepts `Signal<T> | WritableSignal<T>` as an argument;
 * `createEffect()` now has optional configuration argument of type `CreateEffectOptions`. Here you can pass an injector, configure if function should retry on error (true by default), and pass `retry()` configuration options. All fields are optional.
