@@ -1,3 +1,26 @@
+### 4.1.0
+Sometimes we know in advance the IDs of items we read, and it can be quite useful to know that these items are being read.
+
+Now, the methods `read()`, `readOne()`, and `readMany()` accept a parameter `item`/`items`, where you can pass partial items:
+
+```ts
+coll.read({
+  request: req,
+  items: [{id: 1}, {id: 2}]
+});
+```
+
+This will instantly add `{id: 1}` and `{id: 2}` to `$readingItems`, but not to `$items` (because they are not in the collection yet).
+
+Params should be objects that have *at least* the ID field (the field or multiple fields that the comparator will use to find the item). The object can also have any other fields - they will be ignored.
+
+A new method, `isItemReading()`, will return a `Signal<boolean>` - you can check (reactively) if an item with a specific ID is being read.
+
+The method `isItemProcessing()` will now also look for an item in `$readingItems` (in addition to previous states).
+
+And a new helper method to quickly convert an array of IDs into partial items:     
+`idsToPartialItems(ids: unknown[], field: string): Partial<T>[]`
+
 ### 4.0.7
 Angular v18 is now supported.
 

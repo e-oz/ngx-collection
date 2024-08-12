@@ -24,18 +24,21 @@ export type ReadParams<T> = {
   readonly onSuccess?: (items: T[]) => void;
   readonly onError?: (error: unknown) => void;
   readonly keepExistingOnError?: boolean;
+  readonly items?: Partial<T>[];
 }
 
 export type ReadOneParams<T> = {
   readonly request: Observable<T> | Signal<T>;
   readonly onSuccess?: (item: T) => void;
   readonly onError?: (error: unknown) => void;
+  readonly item?: Partial<T>;
 }
 
 export type ReadManyParams<T> = {
   readonly request: Observable<FetchedItems<T> | T[]> | Observable<T>[] | Signal<FetchedItems<T> | T[]> | Signal<T>[];
   readonly onSuccess?: (items: T[]) => void;
   readonly onError?: (error: unknown) => void;
+  readonly items?: Partial<T>[];
 }
 
 /**
@@ -182,6 +185,7 @@ export type CollectionInterface<T, UniqueStatus = unknown, Status = unknown> = {
    */
   $isBeforeFirstRead: Signal<boolean>;
 
+  $readingItems: Signal<Partial<T>[]>;
   $status: Signal<Map<UniqueStatus, T>>;
   $statuses: Signal<Map<T, Set<Status>>>;
 
@@ -268,7 +272,7 @@ export type CollectionInterface<T, UniqueStatus = unknown, Status = unknown> = {
    */
   hasItemIn(item: Partial<T>, arr: Partial<T>[]): boolean;
 
-  uniqueItems(items: T[]): T[];
+  uniqueItems<N = T | Partial<T>>(items: N[]): N[];
 
   /**
    * Set the status for an item.
@@ -316,6 +320,11 @@ export type CollectionInterface<T, UniqueStatus = unknown, Status = unknown> = {
    * Check if item is being updated or deleted currently (will be modified dynamically)
    */
   isItemMutating(itemSource: Partial<T> | Signal<Partial<T> | undefined>): Signal<boolean>;
+
+  /**
+   * Check if item is being read currently (will be modified dynamically)
+   */
+  isItemReading(itemSource: Partial<T> | Signal<Partial<T> | undefined>): Signal<boolean>;
 
   /**
    * Check if item is being refreshed, updated or deleted currently (will be modified dynamically)
@@ -419,4 +428,6 @@ export type CollectionInterface<T, UniqueStatus = unknown, Status = unknown> = {
     fieldValue: T[K] | Signal<T[K] | undefined>,
     equalFn: ValueEqualityFn<T | undefined> | undefined
   ): Signal<T | undefined>;
+
+  idsToPartialItems(ids: unknown[], field: string): Partial<T>[];
 }

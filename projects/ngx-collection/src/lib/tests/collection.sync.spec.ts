@@ -838,4 +838,10 @@ describe('Collection Service (sync)', () => {
       done();
     }, 1);
   });
+
+  it('should convert list of ids to list of partial items', () => {
+    const { coll } = setup();
+
+    expect(coll.idsToPartialItems([1, 2, 3], 'id')).toStrictEqual([{ id: 1 }, { id: 2 }, { id: 3 }]);
+  });
 });

@@ -147,12 +147,18 @@ describe('Collection Service (async)', () => {
 
     coll.read({
       request: emit([{ id: 1, name: 'A' }, { id: 2, name: 'B' }]),
+      items: [{ id: 1 }, { id: 2 }]
     }).subscribe();
 
     expect(coll.$isReading()).toStrictEqual(true);
     expect(coll.$isProcessing()).toStrictEqual(true);
     expect(coll.$isMutating()).toStrictEqual(false);
     expect(coll.$isBeforeFirstRead()).toBeTruthy();
+    expect(coll.$readingItems()).toStrictEqual([{ id: 1 }, { id: 2 }]);
+    expect(coll.isItemReading({ id: 2 })()).toBeTruthy();
+    expect(coll.isItemReading(signal({ id: 1 }))()).toBeTruthy();
+    expect(coll.isItemReading({ id: 3 })()).toBeFalsy();
+    expect(coll.isItemReading(signal({ id: 3 }))()).toBeFalsy();
 
     jest.runOnlyPendingTimers();
 
@@ -161,6 +167,9 @@ describe('Collection Service (async)', () => {
     expect(coll.$isReading()).toStrictEqual(false);
     expect(coll.$isProcessing()).toStrictEqual(false);
     expect(coll.$isMutating()).toStrictEqual(false);
+    expect(coll.$readingItems()).toStrictEqual([]);
+    expect(coll.isItemReading({ id: 2 })()).toBeFalsy();
+    expect(coll.isItemReading(signal({ id: 1 }))()).toBeFalsy();
 
     coll.read({
       request: of({ items: [{ id: 1, name: 'AN' }, { id: 2, name: 'BN' }], totalCount: 12 })
@@ -213,15 +222,22 @@ describe('Collection Service (async)', () => {
 
     coll.readOne({
       request: emit(item),
+      item: { id: 0 },
     }).subscribe();
 
     expect(coll.$isReading()).toStrictEqual(true);
     expect(coll.$isProcessing()).toStrictEqual(true);
     expect(coll.$isMutating()).toStrictEqual(false);
+    expect(coll.$readingItems()).toStrictEqual([{ id: 0 }]);
+    expect(coll.isItemReading(item)()).toBeTruthy();
+    expect(coll.isItemReading(signal(item))()).toBeTruthy();
 
     jest.runOnlyPendingTimers();
 
     expect(coll.$items()).toStrictEqual([item1, item2, item3, item]);
+    expect(coll.$readingItems()).toStrictEqual([]);
+    expect(coll.isItemReading(item)()).toBeFalsy();
+    expect(coll.isItemReading(signal(item))()).toBeFalsy();
 
     coll.readOne({
       request: emit(item3v2),
@@ -251,11 +267,16 @@ describe('Collection Service (async)', () => {
 
     coll.readMany({
       request: emit(newItems),
+      items: [{ id: 3 }, { id: 4 }],
     }).subscribe();
 
     expect(coll.$isReading()).toStrictEqual(true);
     expect(coll.$isProcessing()).toStrictEqual(true);
     expect(coll.$isMutating()).toStrictEqual(false);
+    expect(coll.$readingItems()).toStrictEqual([{ id: 3 }, { id: 4 }]);
+    expect(coll.isItemReading({ id: 3 })()).toBeTruthy();
+    expect(coll.isItemReading(signal({ id: 4 }))()).toBeTruthy();
+    expect(coll.isItemReading({ id: 2 })()).toBeFalsy();
 
     jest.runOnlyPendingTimers();
 
@@ -263,6 +284,9 @@ describe('Collection Service (async)', () => {
     expect(coll.$isProcessing()).toStrictEqual(false);
     expect(coll.$isMutating()).toStrictEqual(false);
     expect(coll.$items()).toStrictEqual([...items, ...newItems]);
+    expect(coll.$readingItems()).toStrictEqual([]);
+    expect(coll.isItemReading({ id: 3 })()).toBeFalsy();
+    expect(coll.isItemReading(signal({ id: 4 }))()).toBeFalsy();
 
     coll.readMany({
       request: emit(newItemsV2),

@@ -1,5 +1,5 @@
-export * from './collection';
-export * from './comparator';
+export { Collection } from './collection';
+export { ObjectsComparatorFn, ObjectsComparator, Comparator, DuplicateError } from './comparator';
 export { createEffect } from './create-effect';
 export { createEffect as effect } from './create-effect';
 export { createEffect as sideEffect } from './create-effect';

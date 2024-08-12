@@ -42,6 +42,7 @@ export class Collection<T, UniqueStatus = unknown, Status = unknown>
     $isCreating: signal<boolean>(false),
     $isReading: signal<boolean>(false),
     $isBeforeFirstRead: signal<boolean>(true),
+    $readingItems: signal<Partial<T>[]>([]),
     $updatingItems: signal<T[]>([], { equal: this.equalItems }),
     $deletingItems: signal<T[]>([], { equal: this.equalItems }),
     $refreshingItems: signal<T[]>([], { equal: this.equalItems }),
@@ -90,6 +91,7 @@ export class Collection<T, UniqueStatus = unknown, Status = unknown>
     const existing = this.$items();
     return refreshing.filter(item => this.hasItemIn(item, existing));
   });
+  public readonly $readingItems = this.state.$readingItems.asReadonly();
   public readonly $status = this.state.$status.asReadonly();
   public readonly $statuses = this.state.$statuses.asReadonly();
   public readonly $isUpdating = computed<boolean>(() => this.state.$updatingItems().length > 0);
@@ -223,10 +225,17 @@ export class Collection<T, UniqueStatus = unknown, Status = unknown>
 
   public read(params: ReadParams<T>): Observable<T[] | FetchedItems<T>> {
     this.state.$isReading.set(true);
+    const paramItems = params.items;
+    if (paramItems?.length) {
+      this.state.$readingItems.update((readingItems) => this.getWithPartial(readingItems, paramItems));
+    }
     return this.toObservableFirstValue(params.request).pipe(
       finalize(() => {
         this.state.$isReading.set(false);
         this.state.$isBeforeFirstRead.set(false);
+        if (paramItems?.length) {
+          this.state.$readingItems.update((readingItems) => this.getWithoutPartial(readingItems, paramItems));
+        }
       }),
       tap((fetched) => {
         const items = fetched == null ? ([] as T[]) : (Array.isArray(fetched) ? fetched : fetched.items).slice();
@@ -265,10 +274,17 @@ export class Collection<T, UniqueStatus = unknown, Status = unknown>
 
   public readOne(params: ReadOneParams<T>): Observable<T> {
     this.state.$isReading.set(true);
+    const paramItem = params.item;
+    if (paramItem) {
+      this.state.$readingItems.update((readingItems) => this.getWithPartial(readingItems, paramItem));
+    }
     return this.toObservableFirstValue(params.request).pipe(
       finalize(() => {
         this.state.$isReading.set(false);
         this.state.$isBeforeFirstRead.set(false);
+        if (paramItem) {
+          this.state.$readingItems.update((readingItems) => this.getWithoutPartial(readingItems, paramItem));
+        }
       }),
       tap((newItem) => {
         if (newItem != null) {
@@ -297,11 +313,18 @@ export class Collection<T, UniqueStatus = unknown, Status = unknown>
 
   public readMany(params: ReadManyParams<T>): Observable<T[] | FetchedItems<T>> {
     this.state.$isReading.set(true);
+    const paramItems = params.items;
+    if (paramItems?.length) {
+      this.state.$readingItems.update((readingItems) => this.getWithPartial(readingItems, paramItems));
+    }
     const request = Array.isArray(params.request) ? this.forkJoinSafe(params.request) : this.toObservableFirstValue(params.request);
     return request.pipe(
       finalize(() => {
         this.state.$isReading.set(false);
         this.state.$isBeforeFirstRead.set(false);
+        if (paramItems?.length) {
+          this.state.$readingItems.update((readingItems) => this.getWithoutPartial(readingItems, paramItems));
+        }
       }),
       tap((fetched) => {
         this.state.$totalCountFetched.set(!Array.isArray(fetched) ? fetched.totalCount : undefined);
@@ -634,10 +657,20 @@ export class Collection<T, UniqueStatus = unknown, Status = unknown>
     });
   }
 
+  public isItemReading(itemSource: Partial<T> | Signal<Partial<T> | undefined>): Signal<boolean> {
+    return computed(() => {
+      const i = isSignal(itemSource) ? itemSource() : itemSource;
+      return !!i && this.hasItemIn(i, this.$readingItems());
+    });
+  }
+
   public isItemProcessing(itemSource: Partial<T> | Signal<Partial<T> | undefined>): Signal<boolean> {
     return computed(() => {
       const i = isSignal(itemSource) ? itemSource() : itemSource;
-      return !!i && this.$isProcessing() && (this.hasItemIn(i, this.state.$refreshingItems()) || this.hasItemIn(i, this.$mutatingItems()));
+      return !!i && this.$isProcessing() && (this.hasItemIn(i, [
+        ...this.$processingItems(),
+        ...this.state.$readingItems(),
+      ]));
     });
   }
 
@@ -762,11 +795,11 @@ export class Collection<T, UniqueStatus = unknown, Status = unknown>
     }
   }
 
-  public uniqueItems(items: T[]): T[] {
+  public uniqueItems<N = T | Partial<T>>(items: N[]): N[] {
     if (!Array.isArray(items)) {
       return [];
     }
-    return items.filter((item, index) => items.indexOf(item as T) === index
+    return items.filter((item, index) => items.indexOf(item) === index
       || items.findIndex(i => this.comparator.equal(i, item)) == index
     );
   }
@@ -808,6 +841,10 @@ export class Collection<T, UniqueStatus = unknown, Status = unknown>
     this.onFirstItemsRequest = cb;
   }
 
+  public idsToPartialItems(ids: unknown[], field: string): Partial<T>[] {
+    return ids.map(id => ({ [field]: id } as Partial<T>));
+  }
+
   /*** Internal Methods ***/
 
   protected getWith(items: T[], item: Partial<T> | Partial<T>[]): T[] {
@@ -821,6 +858,22 @@ export class Collection<T, UniqueStatus = unknown, Status = unknown>
   }
 
   protected getWithout(items: T[], item: Partial<T> | Partial<T>[]): T[] {
+    if (Array.isArray(item)) {
+      return items.filter(i => !this.hasItemIn(i, item));
+    } else {
+      return items.filter(i => !this.comparator.equal(i, item));
+    }
+  }
+
+  protected getWithPartial(items: Partial<T>[], item: Partial<T> | Partial<T>[]): Partial<T>[] {
+    const addItems = Array.isArray(item) ? item : [item];
+    return this.uniqueItems([
+      ...items,
+      ...addItems
+    ]);
+  }
+
+  protected getWithoutPartial(items: Partial<T>[], item: Partial<T> | Partial<T>[]): Partial<T>[] {
     if (Array.isArray(item)) {
       return items.filter(i => !this.hasItemIn(i, item));
     } else {
