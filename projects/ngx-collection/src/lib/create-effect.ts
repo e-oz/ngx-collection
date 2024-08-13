@@ -1,13 +1,13 @@
 import { assertInInjectionContext, DestroyRef, inject, Injector, isDevMode, isSignal, type Signal } from '@angular/core';
 import { takeUntilDestroyed, toObservable } from '@angular/core/rxjs-interop';
-import { catchError, isObservable, type Observable, of, retry, type RetryConfig, Subject, type Subscription, take, tap, throwError } from 'rxjs';
+import { dematerialize, isObservable, materialize, type Observable, of, retry, type RetryConfig, Subject, type Subscription, take, tap } from 'rxjs';
 
 export type CreateEffectOptions = {
   injector?: Injector,
   /**
    * @param retryOnError
-   * This params allows your effect keep running on error.
-   * When set to `false`, any non-caught error will terminate the effect.
+   * This param allows your effect keep running on error.
+   * When set to `false`, any non-caught error will terminate the effect and consequent calls will be ignored.
    * Otherwise, generated effect will use `retry()`.
    * You can pass `RetryConfig` object here to configure `retry()` operator.
    */
@@ -15,10 +15,17 @@ export type CreateEffectOptions = {
 };
 
 export type EffectFnMethods = {
-  nextValue: (fn: ((v: unknown) => void)) => void,
-  nextError: (fn: ((v: unknown) => void)) => void,
-  onNextValue(): Observable<unknown>,
-  onNextError(): Observable<unknown>,
+  next: (fn: ((v: unknown) => void)) => void,
+  error: (fn: ((v: unknown) => void)) => void,
+  complete: (fn: (() => void)) => void,
+  next$: Observable<unknown>,
+  error$: Observable<unknown>,
+};
+
+export type EffectListeners = {
+  next?: (v: unknown) => void,
+  error?: (v: unknown) => void,
+  complete?: () => void,
 };
 
 /**
@@ -35,10 +42,12 @@ export function createEffect<
   ObservableType = OriginType extends Observable<infer A> ? A : never,
   ReturnType = ProvidedType | ObservableType extends void
     ? (
-      observableOrValue?: ObservableType | Observable<ObservableType> | Signal<ObservableType>
+      observableOrValue?: ObservableType | Observable<ObservableType> | Signal<ObservableType>,
+      next?: ((v: unknown) => void) | EffectListeners
     ) => Subscription
     : (
-      observableOrValue: ObservableType | Observable<ObservableType> | Signal<ObservableType>
+      observableOrValue: ObservableType | Observable<ObservableType> | Signal<ObservableType>,
+      next?: ((v: unknown) => void) | EffectListeners
     ) => Subscription
 >(generator: (origin$: OriginType) => Observable<unknown>, options?: CreateEffectOptions): ReturnType & EffectFnMethods {
 
@@ -52,21 +61,32 @@ export function createEffect<
   const retryOnError = options?.retryOnError ?? true;
   const retryConfig = (typeof options?.retryOnError === 'object' && options?.retryOnError) ? options?.retryOnError : {} as RetryConfig;
 
-  const nextValue = new Subject<unknown>()
-  const nextError = new Subject<unknown>()
+  const nextValue = new Subject<unknown>();
+  const nextError = new Subject<unknown>();
+  const complete = new Subject<void>();
 
   const generated = generator(origin$ as OriginType).pipe(
-    tap((v) => {
-      if (nextValue.observed) {
-        nextValue.next(v);
+    materialize(),
+    tap((n) => {
+      switch (n.kind) {
+        case 'E':
+          if (nextError.observed) {
+            nextError.next(n.error);
+          }
+          break;
+        case 'C':
+          if (complete.observed) {
+            complete.next();
+          }
+          break;
+        default:
+          if (nextValue.observed) {
+            nextValue.next(n.value);
+          }
       }
     }),
-    catchError((e) => {
-      if (nextError.observed) {
-        nextError.next(e);
-      }
-      return throwError(() => e);
-    }));
+    dematerialize()
+  );
 
   if (retryOnError) {
     generated.pipe(
@@ -80,37 +100,60 @@ export function createEffect<
   }
 
   const effectFn = ((
-    observableOrValue?: ObservableType | Observable<ObservableType> | Signal<ObservableType>
+    observableOrValue?: ObservableType | Observable<ObservableType> | Signal<ObservableType>,
+    next?: ((v: unknown) => void) | EffectListeners
   ): Subscription => {
+    if (next) {
+      if (typeof next === 'function') {
+        nextValue.pipe(take(1), takeUntilDestroyed(destroyRef)).subscribe(next);
+      } else {
+        if (next.next) {
+          nextValue.pipe(take(1), takeUntilDestroyed(destroyRef)).subscribe(next.next);
+        }
+        if (next.error) {
+          nextError.pipe(take(1), takeUntilDestroyed(destroyRef)).subscribe(next.error);
+        }
+        if (next.complete) {
+          complete.pipe(take(1), takeUntilDestroyed(destroyRef)).subscribe(next.complete);
+        }
+      }
+    }
+
     const observable$ = isObservable(observableOrValue)
       ? observableOrValue
       : (isSignal(observableOrValue)
           ? toObservable(observableOrValue, { injector })
           : of(observableOrValue)
       );
-    if (retryOnError) {
-      return observable$.pipe(
-        retry(retryConfig),
-        takeUntilDestroyed(destroyRef)
-      ).subscribe((value) => {
-        origin$.next(value as ObservableType);
-      });
-    } else {
-      return observable$.pipe(
-        takeUntilDestroyed(destroyRef)
-      ).subscribe((value) => {
-        origin$.next(value as ObservableType);
-      });
-    }
-  }) as unknown as ReturnType & EffectFnMethods;
 
-  effectFn.nextValue = (fn: ((v: unknown) => void)) => {
+    return observable$.pipe(
+      takeUntilDestroyed(destroyRef)
+    ).subscribe((value) => {
+      origin$.next(value as ObservableType);
+    });
+  }) as ReturnType & EffectFnMethods;
+
+  effectFn.next = (fn: ((v: unknown) => void)) => {
     nextValue.pipe(take(1), takeUntilDestroyed(destroyRef)).subscribe(fn);
   };
-  effectFn.nextError = (fn: ((v: unknown) => void)) => {
+
+  effectFn.error = (fn: ((v: unknown) => void)) => {
     nextError.pipe(take(1), takeUntilDestroyed(destroyRef)).subscribe(fn);
   };
-  effectFn.onNextValue = () => nextValue.asObservable();
-  effectFn.onNextError = () => nextError.asObservable();
+
+  effectFn.complete = (fn: (() => void)) => {
+    complete.pipe(take(1), takeUntilDestroyed(destroyRef)).subscribe(fn);
+  };
+
+  Object.defineProperty(effectFn, 'next$', {
+    get: () => nextValue.asObservable(),
+    configurable: false
+  });
+
+  Object.defineProperty(effectFn, 'error$', {
+    get: () => nextError.asObservable(),
+    configurable: false
+  });
+
   return effectFn;
 }

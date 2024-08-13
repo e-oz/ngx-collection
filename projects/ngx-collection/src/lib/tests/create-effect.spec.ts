@@ -68,8 +68,14 @@ describe('createEffect', () => {
     s.next('error');
     expect(lastResult).toEqual('a');
     s.next('b');
-    expect(lastResult).toEqual('b');
+    // s has error and will not accept emissions anymore.
+    // {retryOnError} in effect's config should only affect
+    // the effect's event loop, not the observable that is
+    // passed as a value - resubscribing to that observable
+    // might cause unexpected behavior.
+    expect(lastResult).toEqual('a');
 
+    // but the effect's event loop should still work
     effect('next');
     expect(lastResult).toEqual('next');
     expect(lastError).toEqual(undefined);

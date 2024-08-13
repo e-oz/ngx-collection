@@ -1,3 +1,36 @@
+### 4.1.2
+Improved API for `createEffect()` listeners, introduced in v4.1.1.    
+
+Methods of the function, returned by `createEffect()`:
+```ts
+export type EffectFnMethods = {
+  next: (fn: ((v: unknown) => void)) => void,
+  error: (fn: ((v: unknown) => void)) => void,
+  complete: (fn: (() => void)) => void,
+  next$: Observable<unknown>,
+  error$: Observable<unknown>,
+};
+```
+
+Also, you can set `next` listener or an object with listeners as a second argument, when you call an effect:
+```ts
+class Component {
+  store = inject(Store);
+  dialog = inject(Dialog);
+  toasts = inject(Toasts);
+  
+  changeZipCode(zipCode: string) {
+    this.store.changeZipCode(zipCode, () => this.dialog.close());
+    
+    // or:
+    this.store.changeZipCode(zipCode, {
+      next: () => this.dialog.close(),
+      error: () => this.toasts.error('Error, please try again.'),
+    });
+  }
+}
+```
+
 ### 4.1.1
 `createEffect()` now returns not just a function, but a function with methods! :)
 API is experimental and might change,  so it's documented only here for now.
