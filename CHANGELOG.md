@@ -1,3 +1,47 @@
+### 4.1.1
+`createEffect()` now returns not just a function, but a function with methods! :)
+API is experimental and might change,  so it's documented only here for now.
+
+In your store:  
+
+```ts
+import { createEffect } from './create-effect';
+
+class Store extends Collection<Item> {
+  readonly changeZipCode = createEffect<string>(_ => _.pipe(
+    // code to change zipcode
+  ));
+}
+```
+
+In your component:  
+
+```ts
+class Component {
+  store = inject(Store);
+  dialog = inject(Dialog);
+  
+  changeZipCode(zipCode: string) {
+    this.store.changeZipCode.nextValue(() => this.dialog.close());
+    this.store.changeZipCode(zipCode);
+  }
+}
+```
+
+In this example, the dialog window will be closed only *after* the service response, and only if it was successful.
+
+Alongside nextValue, there are other methods:
+```ts
+export type EffectFnMethods = {
+  nextValue: (fn: ((v: unknown) => void)) => void,
+  nextError: (fn: ((v: unknown) => void)) => void,
+  onNextValue(): Observable<unknown>,
+  onNextError(): Observable<unknown>,
+};
+```
+
+Internally, values and errors will not be saved in memory if you don't use these methods.
+
 ### 4.1.0
 Sometimes we know in advance the IDs of items we read, and it can be quite useful to know that these items are being read.
 
