@@ -1,3 +1,7 @@
+### 4.1.3
+* Use `untracked()` every time when reactive context should not be affected;
+* Use `take(1)` instead of `first()` to prevent `no elements in sequence` exception.
+
 ### 4.1.2
 Improved API for `createEffect()` listeners, introduced in v4.1.1.    
 

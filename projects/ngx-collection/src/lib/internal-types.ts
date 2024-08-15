@@ -1,1 +1,1 @@
-export const defaultComparatorFields: (string | string[])[] = ['uuId', 'id'];
+export const defaultComparatorFields: (string | string[])[] = ['id', 'uuId'];

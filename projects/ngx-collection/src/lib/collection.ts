@@ -1,5 +1,5 @@
-import { computed, isDevMode, isSignal, type Signal, signal, type ValueEqualityFn } from "@angular/core";
-import { catchError, defaultIfEmpty, defer, EMPTY, filter, finalize, first, forkJoin, isObservable, map, merge, type Observable, of, Subject, switchMap, tap } from "rxjs";
+import { computed, isDevMode, isSignal, type Signal, signal, untracked, type ValueEqualityFn } from "@angular/core";
+import { catchError, defaultIfEmpty, defer, EMPTY, filter, finalize, forkJoin, isObservable, map, merge, type Observable, of, Subject, switchMap, take, tap } from "rxjs";
 import { Comparator, DuplicateError, type ObjectsComparator, type ObjectsComparatorFn } from "./comparator";
 import { defaultComparatorFields } from "./internal-types";
 import type { CollectionInterface, CollectionOptions, CreateManyParams, CreateParams, DeleteManyParams, DeleteParams, DuplicatesMap, FetchedItems, ReadManyParams, ReadOneParams, ReadParams, RefreshManyParams, RefreshParams, UpdateManyParams, UpdateParams } from "./types";
@@ -58,11 +58,13 @@ export class Collection<T, UniqueStatus = unknown, Status = unknown>
       this.isFirstItemsRequest = false;
       if (this.onFirstItemsRequest) {
         Promise.resolve().then(() => {
-          try {
-            this.onFirstItemsRequest?.();
-          } catch (e) {
-            this.reportRuntimeError(e);
-          }
+          untracked(() => {
+            try {
+              this.onFirstItemsRequest?.();
+            } catch (e) {
+              this.reportRuntimeError(e);
+            }
+          });
         });
       }
     }
@@ -422,7 +424,7 @@ export class Collection<T, UniqueStatus = unknown, Status = unknown>
     this.state.$updatingItems.update((updatingItems) => this.getWith(updatingItems, params.item));
     return this.toObservableFirstValue(params.request).pipe(
       finalize(() => this.state.$updatingItems.update((updatingItems) => this.getWithout(updatingItems, params.item))),
-      first(),
+      take(1),
       switchMap((newItem) => {
         if (params.refreshRequest) {
           return this.refresh({
@@ -463,7 +465,7 @@ export class Collection<T, UniqueStatus = unknown, Status = unknown>
     const request = Array.isArray(params.request) ? this.forkJoinSafe(params.request) : this.toObservableFirstValue(params.request);
     return request.pipe(
       finalize(() => this.state.$updatingItems.update((updatingItems) => this.getWithout(updatingItems, params.items))),
-      first(),
+      take(1),
       switchMap((updatedItems) => {
         if (params.refreshRequest) {
           return this.refreshMany({
@@ -541,7 +543,7 @@ export class Collection<T, UniqueStatus = unknown, Status = unknown>
       : this.forkJoinSafe([params.request ?? of(null as R)]);
     return requests.pipe(
       finalize(() => this.state.$deletingItems.update((deletingItems) => this.getWithout(deletingItems, params.items))),
-      first(),
+      take(1),
       switchMap((response) => {
         if (params.readRequest) {
           return this.read({
@@ -572,7 +574,7 @@ export class Collection<T, UniqueStatus = unknown, Status = unknown>
   }
 
   public setUniqueStatus(status: UniqueStatus, item: T, active: boolean = true) {
-    const map = this.state.$status();
+    const map = untracked(this.state.$status);
     const currentItem = map.get(status);
     if (!active) {
       if (currentItem == null || !this.comparator.equal(item, currentItem)) {
@@ -594,7 +596,7 @@ export class Collection<T, UniqueStatus = unknown, Status = unknown>
   }
 
   public deleteUniqueStatus(status: UniqueStatus) {
-    const map = this.state.$status();
+    const map = untracked(this.state.$status);
     if (map.has(status)) {
       const newMap = new Map(map);
       newMap.delete(status);
@@ -603,7 +605,7 @@ export class Collection<T, UniqueStatus = unknown, Status = unknown>
   }
 
   public setItemStatus(item: T, status: Status) {
-    const map = this.state.$statuses();
+    const map = untracked(this.state.$statuses);
     if (map.get(item)?.has(status)) {
       return;
     }
@@ -615,7 +617,7 @@ export class Collection<T, UniqueStatus = unknown, Status = unknown>
   }
 
   public deleteItemStatus(item: T, status: Status) {
-    const map = this.state.$statuses();
+    const map = untracked(this.state.$statuses);
     const current = map.get(item);
     if (current && !current.has(status)) {
       return;
@@ -1035,7 +1037,7 @@ export class Collection<T, UniqueStatus = unknown, Status = unknown>
   }
 
   protected toObservableFirstValue<Src>(s: Observable<Src> | Signal<Src>): Observable<Src> {
-    return isObservable(s) ? s.pipe(first()) : defer(() => of(s()));
+    return isObservable(s) ? s.pipe(take(1)) : defer(() => of(untracked(s)));
   }
 
   protected forkJoinSafe<Src>(sources: Observable<Src>[] | Signal<Src>[] | (Observable<Src> | Signal<Src>)[]): Observable<Src[]> {
