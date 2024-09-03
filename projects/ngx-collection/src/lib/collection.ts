@@ -1,8 +1,9 @@
-import { computed, isDevMode, isSignal, type Signal, signal, untracked, type ValueEqualityFn } from "@angular/core";
+import { assertInInjectionContext, computed, DestroyRef, inject, type Injector, isDevMode, isSignal, type Signal, signal, untracked, type ValueEqualityFn } from "@angular/core";
+import { takeUntilDestroyed, toObservable } from '@angular/core/rxjs-interop';
 import { catchError, defaultIfEmpty, defer, EMPTY, filter, finalize, forkJoin, isObservable, map, merge, type Observable, of, Subject, switchMap, take, tap } from "rxjs";
 import { Comparator, DuplicateError, type ObjectsComparator, type ObjectsComparatorFn } from "./comparator";
 import { defaultComparatorFields } from "./internal-types";
-import type { CollectionInterface, CollectionOptions, CreateManyParams, CreateParams, DeleteManyParams, DeleteParams, DuplicatesMap, FetchedItems, ReadManyParams, ReadOneParams, ReadParams, RefreshManyParams, RefreshParams, UpdateManyParams, UpdateParams } from "./types";
+import type { CollectionInterface, CollectionOptions, CollectionOptionsTyped, CreateManyParams, CreateParams, DeleteManyParams, DeleteParams, DuplicatesMap, FetchedItems, ReadFromParams, ReadManyParams, ReadOneParams, ReadParams, RefreshManyParams, RefreshParams, UpdateManyParams, UpdateParams } from "./types";
 
 export class Collection<T, UniqueStatus = unknown, Status = unknown>
   implements CollectionInterface<T, UniqueStatus, Status> {
@@ -126,7 +127,7 @@ export class Collection<T, UniqueStatus = unknown, Status = unknown>
 
   /*** Public API Methods ***/
 
-  constructor(options?: CollectionOptions) {
+  constructor(options?: CollectionOptions & CollectionOptionsTyped<T>) {
     this.setOptions(options);
     this.init();
 
@@ -160,6 +161,10 @@ export class Collection<T, UniqueStatus = unknown, Status = unknown>
 
   }
 
+  /**
+   * Add a new item to the collection.
+   * Equals to an "INSERT" request.
+   */
   public create(params: CreateParams<T>): Observable<T> {
     this.state.$isCreating.set(true);
     return this.toObservableFirstValue(params.request).pipe(
@@ -351,6 +356,40 @@ export class Collection<T, UniqueStatus = unknown, Status = unknown>
       }),
       catchError((error) => {
         this.callCb(params.onError, error);
+        return EMPTY;
+      })
+    );
+  }
+
+  public readFrom(params: ReadFromParams<T>): Observable<FetchedItems<T> | T[]> {
+    const s = params.source;
+    const p = isObservable(s) ? s : toObservable(s);
+    return p.pipe(
+      switchMap((fetched) => this.read({
+        ...params,
+        request: of(fetched),
+      })),
+      catchError((error) => {
+        if (params.onError) {
+          this.callCb(params.onError, error);
+        }
+        return EMPTY;
+      })
+    );
+  }
+
+  public readManyFrom(params: ReadFromParams<T>): Observable<FetchedItems<T> | T[]> {
+    const s = params.source;
+    const p = isObservable(s) ? s : toObservable(s);
+    return p.pipe(
+      switchMap((fetched) => this.readMany({
+        ...params,
+        request: of(fetched),
+      })),
+      catchError((error) => {
+        if (params.onError) {
+          this.callCb(params.onError, error);
+        }
         return EMPTY;
       })
     );
@@ -770,7 +809,7 @@ export class Collection<T, UniqueStatus = unknown, Status = unknown>
     }
   }
 
-  public setOptions(options?: CollectionOptions | null) {
+  public setOptions(options?: CollectionOptions & CollectionOptionsTyped<T> | null) {
     if (options != null) {
       if (options.comparator) {
         this.setComparator(options.comparator);
@@ -793,6 +832,12 @@ export class Collection<T, UniqueStatus = unknown, Status = unknown>
       }
       if (options.onFirstItemsRequest) {
         this.onFirstItemsRequest = options.onFirstItemsRequest;
+      }
+      if (options.readFrom) {
+        this.subscribeTo(this.readFrom(options.readFrom), options.injector);
+      }
+      if (options.readManyFrom) {
+        this.subscribeTo(this.readManyFrom(options.readManyFrom), options.injector);
       }
     }
   }
@@ -1055,5 +1100,15 @@ export class Collection<T, UniqueStatus = unknown, Status = unknown>
         return values.filter(v => !v.error).map(v => v.value!);
       })
     );
+  }
+
+  protected subscribeTo(source: Observable<unknown>, injector?: Injector) {
+    if (!injector && isDevMode()) {
+      assertInInjectionContext(this.setOptions);
+    }
+    const destroyRef = injector ? injector.get(DestroyRef) : inject(DestroyRef);
+    source.pipe(
+      takeUntilDestroyed(destroyRef)
+    ).subscribe();
   }
 }

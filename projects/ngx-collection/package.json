@@ -1,6 +1,6 @@
 {
   "name": "ngx-collection",
-  "version": "4.1.3",
+  "version": "4.2.0",
   "license": "MIT",
   "author": {
     "name": "Evgeniy OZ",
@@ -12,11 +12,12 @@
   },
   "keywords": [
     "angular",
-    "collections"
+    "collections",
+    "state management"
   ],
   "private": false,
   "peerDependencies": {
-    "@angular/core": "^17 || ^18 || ^19.0.0-next.0",
+    "@angular/core": "^17 || ^18 || ~19.0.0-next.2",
     "rxjs": "^7 || ^8"
   },
   "devDependencies": {

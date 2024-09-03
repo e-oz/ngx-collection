@@ -6,7 +6,8 @@
     "declaration": true,
     "declarationMap": true,
     "inlineSources": true,
-    "types": []
+    "types": [],
+    "removeComments": false,
   },
   "exclude": [
     "**/*.spec.ts"

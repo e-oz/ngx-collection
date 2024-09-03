@@ -1,3 +1,7 @@
+### 4.2.0
+* New (experimental!) methods: `readFrom` and `readManyFrom`. Can be called as part of constructor options.
+* `EffectFnMethods` renamed to `EffectObservables`, and lost methods `next`, `error` and `complete` - the same functionality with a less ambiguous API can be achieved with `EffectListeners`. This API is considered stable now.
+
 ### 4.1.3
 * Use `untracked()` every time when reactive context should not be affected;
 * Use `take(1)` instead of `first()` to prevent `no elements in sequence` exception.

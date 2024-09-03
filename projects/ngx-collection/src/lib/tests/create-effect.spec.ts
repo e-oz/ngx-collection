@@ -16,7 +16,7 @@ describe('createEffect', () => {
       effect = createEffect<string>(_ => _.pipe(
         tap((r) => lastResult = r),
         switchMap((v) => {
-          if (v === 'error') {
+          if (v.startsWith('error')) {
             lastError = v;
             return throwError(() => 'err');
           }
@@ -39,9 +39,9 @@ describe('createEffect', () => {
 
   it('should keep working when generator throws an error', () => {
     expect(lastError).toEqual(undefined);
-    effect('error');
-    expect(lastResult).toEqual('error');
-    expect(lastError).toEqual('error');
+    effect('error1');
+    expect(lastResult).toEqual('error1');
+    expect(lastError).toEqual('error1');
 
     effect('next');
     expect(lastResult).toEqual('next');

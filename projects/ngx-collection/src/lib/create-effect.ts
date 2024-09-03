@@ -14,10 +14,7 @@ export type CreateEffectOptions = {
   retryOnError?: boolean | RetryConfig,
 };
 
-export type EffectFnMethods = {
-  next: (fn: ((v: unknown) => void)) => void,
-  error: (fn: ((v: unknown) => void)) => void,
-  complete: (fn: (() => void)) => void,
+export type EffectObservables = {
   next$: Observable<unknown>,
   error$: Observable<unknown>,
 };
@@ -49,7 +46,7 @@ export function createEffect<
       observableOrValue: ObservableType | Observable<ObservableType> | Signal<ObservableType>,
       next?: ((v: unknown) => void) | EffectListeners
     ) => Subscription
->(generator: (origin$: OriginType) => Observable<unknown>, options?: CreateEffectOptions): ReturnType & EffectFnMethods {
+>(generator: (origin$: OriginType) => Observable<unknown>, options?: CreateEffectOptions): ReturnType & EffectObservables {
 
   if (!options?.injector && isDevMode()) {
     assertInInjectionContext(createEffect);
@@ -131,19 +128,7 @@ export function createEffect<
     ).subscribe((value) => {
       origin$.next(value as ObservableType);
     });
-  }) as ReturnType & EffectFnMethods;
-
-  effectFn.next = (fn: ((v: unknown) => void)) => {
-    nextValue.pipe(take(1), takeUntilDestroyed(destroyRef)).subscribe(fn);
-  };
-
-  effectFn.error = (fn: ((v: unknown) => void)) => {
-    nextError.pipe(take(1), takeUntilDestroyed(destroyRef)).subscribe(fn);
-  };
-
-  effectFn.complete = (fn: (() => void)) => {
-    complete.pipe(take(1), takeUntilDestroyed(destroyRef)).subscribe(fn);
-  };
+  }) as ReturnType;
 
   Object.defineProperty(effectFn, 'next$', {
     get: () => nextValue.asObservable(),
@@ -155,5 +140,5 @@ export function createEffect<
     configurable: false
   });
 
-  return effectFn;
+  return effectFn as ReturnType & EffectObservables;
 }

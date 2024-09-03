@@ -1,5 +1,5 @@
+import { type Injector, Signal, ValueEqualityFn } from '@angular/core';
 import { Observable } from 'rxjs';
-import { Signal, ValueEqualityFn } from '@angular/core';
 import { ObjectsComparator, ObjectsComparatorFn } from './comparator';
 
 export type FetchedItems<T> = {
@@ -40,6 +40,14 @@ export type ReadManyParams<T> = {
   readonly onError?: (error: unknown) => void;
   readonly items?: Partial<T>[];
 }
+
+export type ReadFromParams<T> = {
+  readonly source: Observable<FetchedItems<T> | T[]> | Signal<FetchedItems<T> | T[]>;
+  readonly onSuccess?: (items: T[]) => void;
+  readonly onError?: (error: unknown) => void;
+  readonly keepExistingOnError?: boolean;
+}
+
 
 /**
  * You can optionally set `refreshRequest` to provide an observable that will be used to get the new item:
@@ -159,6 +167,24 @@ export type CollectionOptions = {
    * @see CollectionInterface.setOnFirstItemsRequest
    */
   onFirstItemsRequest?: Function;
+  injector?: Injector;
+}
+
+export type CollectionOptionsTyped<T> = {
+  /**
+   * Will subscribe to the Observable returned by `readFrom` method.
+   * If called not in an injection context, will require `injector` option
+   * to be set, otherwise will throw an error.
+   * @see CollectionInterface.readFrom
+   */
+  readFrom?: ReadFromParams<T>;
+  /**
+   * Will subscribe to the Observable returned by `readManyFrom` method.
+   * If called not in an injection context, will require `injector` option
+   * to be set, otherwise will throw an error.
+   * @see CollectionInterface.readManyFrom
+   */
+  readManyFrom?: ReadFromParams<T>;
 }
 
 export type CollectionInterface<T, UniqueStatus = unknown, Status = unknown> = {
@@ -219,6 +245,23 @@ export type CollectionInterface<T, UniqueStatus = unknown, Status = unknown> = {
    * Designed to be used for pagination or infinite scroll.
    */
   readMany(params: ReadManyParams<T>): Observable<T[] | FetchedItems<T>>;
+
+  /**
+   * Experimental! Not production ready. API might be changed in the future.
+   *
+   * Will pass to `read()` every emission of `params.source`.
+   * Use this, when you want to create a collection, reactively re-created
+   * every time `params.source` emits (all the existing items will be
+   * removed on every emission, because that's what `read()` does).
+   */
+  readFrom(params: ReadFromParams<T>): Observable<FetchedItems<T> | T[]>;
+
+  /**
+   * Experimental! Not production ready. API might be changed in the future.
+   *
+   * Same as `readFrom()`, but the existing items will not be removed (and will be updated).
+   */
+  readManyFrom(params: ReadFromParams<T>): Observable<FetchedItems<T> | T[]>;
 
   /**
    * Item will be updated without adding it to `updating` or `mutating` lists, and __without__ toggling `isReading` state field of the collection.
