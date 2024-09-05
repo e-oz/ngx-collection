@@ -17,7 +17,7 @@ export type CreateEffectOptions = {
 export type EffectMethods<ObservableType> = {
   next$: Observable<unknown>,
   error$: Observable<unknown>,
-  forValue: (observableOrValue?: ObservableType | Observable<ObservableType> | Signal<ObservableType>) => Observable<unknown>,
+  getEffectFor: (observableOrValue?: ObservableType | Observable<ObservableType> | Signal<ObservableType>) => Observable<unknown>,
 };
 
 export type EffectListeners = {
@@ -141,8 +141,8 @@ export function createEffect<
     configurable: false
   });
 
-  Object.defineProperty(effectFn, 'forValue', {
-    get: () => (observableOrValue?: ObservableType | Observable<ObservableType> | Signal<ObservableType>) => () => {
+  Object.defineProperty(effectFn, 'getEffectFor', {
+    get: () => (observableOrValue?: ObservableType | Observable<ObservableType> | Signal<ObservableType>) => {
       const observable$ = isObservable(observableOrValue)
         ? observableOrValue
         : (isSignal(observableOrValue)

@@ -1,3 +1,6 @@
+### 4.2.2
+`createEffect.forValue()` renamed to `getEffectFor()`.
+
 ### 4.2.1
 Experimental method for `createEffect()`: `forValue()`, which takes a value and returns an observable that will execute the effect when subscribed.
 

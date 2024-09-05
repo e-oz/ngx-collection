@@ -1,6 +1,6 @@
 import { signal } from "@angular/core";
 import { TestBed } from "@angular/core/testing";
-import { EMPTY, of, Subject, switchMap, tap, throwError } from "rxjs";
+import { EMPTY, isObservable, of, Subject, switchMap, tap, throwError } from "rxjs";
 import { createEffect } from '../create-effect';
 
 describe('createEffect', () => {
@@ -135,5 +135,12 @@ describe('createEffect', () => {
     TestBed.flushEffects();
     expect(lastResult).toEqual('c');
     expect(lastError).toEqual(undefined);
-  })
+  });
+
+  it('should return an observable when getEffectFor() is called', () => {
+    const e = effect.getEffectFor('test');
+    expect(isObservable(e)).toEqual(true);
+    e.subscribe();
+    expect(lastResult).toEqual('test');
+  });
 });
