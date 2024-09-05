@@ -14,9 +14,10 @@ export type CreateEffectOptions = {
   retryOnError?: boolean | RetryConfig,
 };
 
-export type EffectObservables = {
+export type EffectMethods<ObservableType> = {
   next$: Observable<unknown>,
   error$: Observable<unknown>,
+  forValue: (observableOrValue?: ObservableType | Observable<ObservableType> | Signal<ObservableType>) => Observable<unknown>,
 };
 
 export type EffectListeners = {
@@ -46,7 +47,7 @@ export function createEffect<
       observableOrValue: ObservableType | Observable<ObservableType> | Signal<ObservableType>,
       next?: ((v: unknown) => void) | EffectListeners
     ) => Subscription
->(generator: (origin$: OriginType) => Observable<unknown>, options?: CreateEffectOptions): ReturnType & EffectObservables {
+>(generator: (origin$: OriginType) => Observable<unknown>, options?: CreateEffectOptions): ReturnType & EffectMethods<ObservableType> {
 
   if (!options?.injector && isDevMode()) {
     assertInInjectionContext(createEffect);
@@ -140,5 +141,18 @@ export function createEffect<
     configurable: false
   });
 
-  return effectFn as ReturnType & EffectObservables;
+  Object.defineProperty(effectFn, 'forValue', {
+    get: () => (observableOrValue?: ObservableType | Observable<ObservableType> | Signal<ObservableType>) => () => {
+      const observable$ = isObservable(observableOrValue)
+        ? observableOrValue
+        : (isSignal(observableOrValue)
+            ? toObservable(observableOrValue, { injector })
+            : of(observableOrValue)
+        );
+      return generator(observable$ as OriginType);
+    },
+    configurable: false
+  });
+
+  return effectFn as ReturnType & EffectMethods<ObservableType>;
 }

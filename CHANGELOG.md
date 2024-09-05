@@ -1,3 +1,6 @@
+### 4.2.1
+Experimental method for `createEffect()`: `forValue()`, which takes a value and returns an observable that will execute the effect when subscribed.
+
 ### 4.2.0
 * New (experimental!) methods: `readFrom` and `readManyFrom`. Can be called as part of constructor options.
 * `EffectFnMethods` renamed to `EffectObservables`, and lost methods `next`, `error` and `complete` - the same functionality with a less ambiguous API can be achieved with `EffectListeners`. This API is considered stable now.
