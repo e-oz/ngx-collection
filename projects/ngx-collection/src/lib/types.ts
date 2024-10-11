@@ -185,6 +185,13 @@ export type CollectionOptionsTyped<T> = {
    * @see CollectionInterface.readManyFrom
    */
   readManyFrom?: ReadFromParams<T>;
+  /**
+   * Function that should return an Observable, that will be used to fetch a
+   * single item using `fetchItem()` method. When this option is
+   * set, `fetchItem()` can be called without `request` argument.
+   * @see CollectionInterface.fetchItem
+   */
+  fetchItemRequestFactory?: (item: T) => Observable<T>;
 }
 
 export type CollectionInterface<T, UniqueStatus = unknown, Status = unknown> = {
@@ -295,6 +302,14 @@ export type CollectionInterface<T, UniqueStatus = unknown, Status = unknown> = {
    * Like `delete()`, but will run multiple queries in parallel.
    */
   deleteMany<R = unknown>(params: DeleteManyParams<T, R>): Observable<R[]>;
+
+  /**
+   * This method will check if the item exists in the collection and return it if it does.
+   * If the item does not exist, the `request` argument will be used to fetch the item and add it to the collection.
+   * If the option `fetchItemRequestFactory` is set, the `request` argument is optional.
+   * If both are missing, the resulting Observable will throw an error.
+   */
+  fetchItem(itemPartial: Partial<T>, request?: Observable<T>): Observable<T>;
 
   /**
    * Checks if some item belongs to some array of items - a comparator of this collection will be used.

@@ -1218,4 +1218,47 @@ describe('Collection Service (async)', () => {
       done();
     }, 1);
   });
+
+  it('should fetchItem', () => {
+    const { coll } = setup();
+    const item1 = { id: 1, name: 'A' };
+    const item2 = { id: 2, name: 'B' };
+    const item3 = { id: 3, name: 'C' };
+
+    let unexpectedFetch = false;
+
+    const service = {
+      getItem: (id: number) => {
+        if (id === 1) {
+          return of(item1);
+        } else if (id === 2) {
+          unexpectedFetch = true;
+          return of(item2);
+        }
+        return of(item3);
+      }
+    };
+
+    coll.setOptions({ fetchItemRequestFactory: (item) => service.getItem(item.id) });
+
+    let result;
+    coll.fetchItem({ id: 1 }).subscribe((r) => result = r);
+    jest.runAllTimers();
+    expect(result).toStrictEqual(item1);
+
+    coll.readOne({
+      request: of(item2)
+    }).subscribe();
+
+    jest.runAllTimers();
+    expect(coll.getItem({ id: 2 })()).toStrictEqual(item2);
+
+    coll.fetchItem({ id: 2 }).subscribe((r) => result = r);
+    expect(unexpectedFetch).toBeFalsy();
+    expect(result).toStrictEqual(item2);
+
+    coll.fetchItem({ id: 3 }, of(item3)).subscribe((r) => result = r);
+    jest.runAllTimers();
+    expect(result).toStrictEqual(item3);
+  });
 });

@@ -1,3 +1,11 @@
+### 4.2.3
+New method: `fetchItem()`!  
+
+This method will check if the item exists in the collection and return it if it does.  
+If the item does not exist, the `request` argument will be used to fetch the item and add it to the collection.  
+If the option `fetchItemRequestFactory` is set, the `request` argument is optional.  
+If both are missing, the resulting Observable will throw an error.
+
 ### 4.2.2
 `createEffect.forValue()` renamed to `getEffectFor()`.
 
