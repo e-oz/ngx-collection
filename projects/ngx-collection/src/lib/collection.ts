@@ -1,6 +1,6 @@
 import { assertInInjectionContext, computed, DestroyRef, inject, type Injector, isDevMode, isSignal, type Signal, signal, untracked, type ValueEqualityFn } from "@angular/core";
 import { takeUntilDestroyed, toObservable } from '@angular/core/rxjs-interop';
-import { catchError, defaultIfEmpty, defer, EMPTY, filter, finalize, forkJoin, isObservable, map, merge, type Observable, of, Subject, switchMap, take, tap } from "rxjs";
+import { catchError, defaultIfEmpty, defer, EMPTY, filter, finalize, forkJoin, isObservable, map, merge, type Observable, of, Subject, switchMap, take, tap, throwError } from "rxjs";
 import { Comparator, DuplicateError, type ObjectsComparator, type ObjectsComparatorFn } from "./comparator";
 import { defaultComparatorFields } from "./internal-types";
 import type { CollectionInterface, CollectionOptions, CollectionOptionsTyped, CreateManyParams, CreateParams, DeleteManyParams, DeleteParams, DuplicatesMap, FetchedItems, ReadFromParams, ReadManyParams, ReadOneParams, ReadParams, RefreshManyParams, RefreshParams, UpdateManyParams, UpdateParams } from "./types";
@@ -21,6 +21,7 @@ export class Collection<T, UniqueStatus = unknown, Status = unknown>
 
   protected isFirstItemsRequest = true;
   protected onFirstItemsRequest?: Function;
+  protected fetchItemRequestFactory?: (item: T) => Observable<T>;
 
   protected readonly equalItems: ValueEqualityFn<T[]> = (a: T[], b: T[]) => {
     if (!a || !b || a == null || b == null || !Array.isArray(a) || !Array.isArray(b) || a.length !== b.length) {
@@ -612,6 +613,21 @@ export class Collection<T, UniqueStatus = unknown, Status = unknown>
     );
   }
 
+  public fetchItem(itemPartial: Partial<T>, request?: Observable<T>): Observable<T> {
+    const item = this.getItemByPartial(itemPartial);
+    if (item) {
+      return of(item);
+    }
+    const req = request || (this.fetchItemRequestFactory ? this.fetchItemRequestFactory(itemPartial as T) : undefined);
+    if (!req) {
+      this.reportRuntimeError('Fetching request is not provided to fetchItem');
+      return throwError(() => 404);
+    }
+    return this.create({
+      request: req,
+    });
+  }
+
   public setUniqueStatus(status: UniqueStatus, item: T, active: boolean = true) {
     const map = untracked(this.state.$status);
     const currentItem = map.get(status);
@@ -839,6 +855,9 @@ export class Collection<T, UniqueStatus = unknown, Status = unknown>
       if (options.readManyFrom) {
         this.subscribeTo(this.readManyFrom(options.readManyFrom), options.injector);
       }
+      if (options.fetchItemRequestFactory) {
+        this.fetchItemRequestFactory = options.fetchItemRequestFactory;
+      }
     }
   }
 
@@ -1021,7 +1040,9 @@ export class Collection<T, UniqueStatus = unknown, Status = unknown>
       try {
         this.errReporter(...args);
       } catch (e) {
-        console?.error('errReporter threw an exception', e);
+        if (typeof console !== 'undefined' && typeof console.error === 'function') {
+          console.error('errReporter threw an exception', e);
+        }
       }
     }
   }
@@ -1030,7 +1051,9 @@ export class Collection<T, UniqueStatus = unknown, Status = unknown>
     if (this.errReporter) {
       this.callErrReporter(...args);
     } else {
-      console?.error(...args);
+      if (typeof console !== 'undefined' && typeof console.error === 'function') {
+        console.error(...args);
+      }
     }
   }
 
