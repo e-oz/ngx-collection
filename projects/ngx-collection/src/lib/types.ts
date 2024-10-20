@@ -11,12 +11,14 @@ export type CreateParams<T> = {
   readonly request: Observable<T> | Signal<T>;
   readonly onSuccess?: (item: T) => void;
   readonly onError?: (error: unknown) => void;
+  readonly context?: unknown;
 }
 
 export type CreateManyParams<T> = {
   readonly request: Observable<FetchedItems<T> | T[]> | Observable<T>[] | Signal<FetchedItems<T> | T[]> | Signal<T>[];
   readonly onSuccess?: (items: T[]) => void;
   readonly onError?: (error: unknown) => void;
+  readonly context?: unknown;
 }
 
 export type ReadParams<T> = {
@@ -25,6 +27,7 @@ export type ReadParams<T> = {
   readonly onError?: (error: unknown) => void;
   readonly keepExistingOnError?: boolean;
   readonly items?: Partial<T>[];
+  readonly context?: unknown;
 }
 
 export type ReadOneParams<T> = {
@@ -32,6 +35,7 @@ export type ReadOneParams<T> = {
   readonly onSuccess?: (item: T) => void;
   readonly onError?: (error: unknown) => void;
   readonly item?: Partial<T>;
+  readonly context?: unknown;
 }
 
 export type ReadManyParams<T> = {
@@ -39,87 +43,91 @@ export type ReadManyParams<T> = {
   readonly onSuccess?: (items: T[]) => void;
   readonly onError?: (error: unknown) => void;
   readonly items?: Partial<T>[];
+  readonly context?: unknown;
 }
 
-export type ReadFromParams<T> = {
+export type ReadFromParams<T> = Omit<ReadParams<T>, 'request'> & {
   readonly source: Observable<FetchedItems<T> | T[]> | Signal<FetchedItems<T> | T[]>;
-  readonly onSuccess?: (items: T[]) => void;
-  readonly onError?: (error: unknown) => void;
-  readonly keepExistingOnError?: boolean;
-}
+};
 
 
-/**
- * You can optionally set `refreshRequest` to provide an observable that will be used to get the new item:
- * If `refreshRequest` is set, `request` returned item will be ignored (but the request itself will be sent), and the result of the `refreshRequest` will become a new value of an item.
- * Item will be removed from `updatingItems`, `mutatingItems` only after executing both requests - to prevent spinners from flickering.
- */
 export type UpdateParams<T> = {
   readonly request: Observable<T> | Signal<T>;
+  /**
+   * You can optionally set `refresh` to provide an observable that will be used to get the new item:
+   * If `refresh` is set, `request` returned item will be ignored (but the request itself will be executed), and the result of the `refresh` will become a new value of an item.
+   * Item will be removed from `updatingItems`, `mutatingItems` only after executing both requests - to prevent spinners from flickering.
+   */
+  readonly refresh?: RefreshParams<T>;
+  /**
+   * @deprecated Use `refresh` instead. will be removed in v5.
+   */
   readonly refreshRequest?: Observable<T> | Signal<T>;
   readonly item: Partial<T>;
   readonly onSuccess?: (item: T) => void;
   readonly onError?: (error: unknown) => void;
+  readonly context?: unknown;
 }
 
 export type UpdateManyParams<T> = {
   readonly request: Observable<T[]> | Observable<T>[] | Signal<T[]> | Signal<T>[];
+  readonly refresh?: RefreshManyParams<T>;
+  /**
+   * @deprecated Use `refresh` instead. will be removed in v5.
+   */
   readonly refreshRequest?: Observable<FetchedItems<T> | T[]> | Signal<FetchedItems<T> | T[]>;
   readonly items: Partial<T>[];
   readonly onSuccess?: (item: T[]) => void;
   readonly onError?: (error: unknown) => void;
+  readonly context?: unknown;
 }
 
-/**
- * If `decrementTotalCount` is provided (and `readRequest` is not provided):
- * * `boolean`: decrement `totalCountFetched` by 1 (if current totalCountFetched > 0);
- * * `number`: decrement `totalCountFetched` by number (should be integer, less or equal to the current value of `totalCountFetched`);
- * * `string`: points what field of the response object should be used (if exist) as a source of `totalCountFetched` (should be integer, >= 0).
- *
- * If `readRequest` is provided, it will be the source of the new set of items (decrementTotalCount will be ignored).
- */
 export type DeleteParams<T, R = unknown> = {
   readonly request?: Observable<R> | Signal<R> | null;
   readonly item: Partial<T>;
   /**
-   * If `decrementTotalCount` is provided (and `readRequest` is not provided):
-   * boolean: decrement `totalCountFetched` by 1 (if current totalCountFetched > 0);
-   * number: decrement `totalCountFetched` by number (should be integer, less or equal to the current value of `totalCountFetched`);
-   * string: points what field of the response object should be used (if exist) as a source of `totalCountFetched` (should be integer, >= 0).
+   * If `decrementTotalCount` is provided AND if `read` is empty:
+   *   boolean: decrement `totalCountFetched` by 1 (if current totalCountFetched > 0);
+   *   number: decrement `totalCountFetched` by number (should be integer, less or equal to the current value of `totalCountFetched`);
+   *   string: points what field of the response object should be used (if exist) as a source of `totalCountFetched` (should be integer, >= 0).
    */
   readonly decrementTotalCount?: boolean | number | string;
   /**
    * Consecutive read() request.
    * If provided, it will be the source of the new set of items (decrementTotalCount will be ignored).
+   */
+   readonly read?: ReadParams<T>;
+  /**
+   * @deprecated Use `read()` instead. will be removed in v5.
    */
   readonly readRequest?: Observable<FetchedItems<T> | T[]> | Signal<FetchedItems<T> | T[]>;
   readonly onSuccess?: (response: R) => void;
   readonly onError?: (error: unknown) => void;
+  readonly context?: unknown;
 }
 
-/**
- * If `decrementTotalCount` is provided (and `readRequest` is not provided):
- * `boolean`: decrement `totalCountFetched` by number of removed items (if resulting `totalCountFetched` >= 0);
- * `number`: decrement `totalCountFetched` by number (should be integer, less or equal to the current value of `totalCountFetched`);
- * `string`: points what field of the response object (first one, if it's an array) should be used (if exist) as a source of `totalCountFetched` (should be integer, >= 0).
- */
 export type DeleteManyParams<T, R = unknown> = {
   readonly request?: Observable<R> | Observable<R>[] | Signal<R> | Signal<R>[] | null;
   readonly items: Partial<T>[];
   /**
-   * If `decrementTotalCount` is provided (and `readRequest` is not provided):
-   * boolean: decrement `totalCountFetched` by number of removed items (if resulting `totalCountFetched` >= 0);
-   * number: decrement `totalCountFetched` by number (should be integer, less or equal to the current value of `totalCountFetched`);
-   * string: points what field of the response object (first one, if it's an array) should be used (if exist) as a source of `totalCountFetched` (should be integer, >= 0).
+   * If `decrementTotalCount` is provided AND if `read` is empty:
+   *   boolean: decrement `totalCountFetched` by number of removed items (if resulting `totalCountFetched` >= 0);
+   *   number: decrement `totalCountFetched` by number (should be integer, less or equal to the current value of `totalCountFetched`);
+   *   string: points what field of the response object (first one, if it's an array) should be used (if exist) as a source of `totalCountFetched` (should be integer, >= 0).
    */
   readonly decrementTotalCount?: boolean | number | string;
   /**
    * Consecutive read() request.
    * If provided, it will be the source of the new set of items (decrementTotalCount will be ignored).
    */
+   readonly read?: ReadParams<T>;
+  /**
+   * @deprecated Use `read()` instead. will be removed in v5.
+   */
   readonly readRequest?: Observable<FetchedItems<T> | T[]> | Signal<FetchedItems<T> | T[]>;
   readonly onSuccess?: (response: R[]) => void;
   readonly onError?: (error: unknown) => void;
+  readonly context?: unknown;
 }
 
 export type RefreshParams<T> = {
@@ -127,6 +135,7 @@ export type RefreshParams<T> = {
   readonly item: Partial<T>;
   readonly onSuccess?: (item: T) => void;
   readonly onError?: (error: unknown) => void;
+  readonly context?: unknown;
 }
 
 export type RefreshManyParams<T> = {
@@ -134,6 +143,7 @@ export type RefreshManyParams<T> = {
   readonly items: Partial<T>[];
   readonly onSuccess?: (item: T[]) => void;
   readonly onError?: (error: unknown) => void;
+  readonly context?: unknown;
 }
 
 export type DuplicatesMap<T> = Record<number, Record<number, T>>;
@@ -204,6 +214,11 @@ export type CollectionInterface<T, UniqueStatus = unknown, Status = unknown> = {
   $mutatingItems: Signal<T[]>;
   $processingItems: Signal<T[]>;
 
+  $lastReadError: Signal<LastError<T> | undefined>;
+  $lastReadOneError: Signal<LastError<T> | undefined>;
+  $lastReadManyError: Signal<LastError<T> | undefined>;
+  $lastRefreshError: Signal<LastError<T> | undefined>;
+
   $isCreating: Signal<boolean>;
   $isReading: Signal<boolean>;
   $isUpdating: Signal<boolean>;
@@ -254,6 +269,7 @@ export type CollectionInterface<T, UniqueStatus = unknown, Status = unknown> = {
   readMany(params: ReadManyParams<T>): Observable<T[] | FetchedItems<T>>;
 
   /**
+   * @experimental
    * Experimental! Not production ready. API might be changed in the future.
    *
    * Will pass to `read()` every emission of `params.source`.
@@ -264,6 +280,7 @@ export type CollectionInterface<T, UniqueStatus = unknown, Status = unknown> = {
   readFrom(params: ReadFromParams<T>): Observable<FetchedItems<T> | T[]>;
 
   /**
+   * @experimental
    * Experimental! Not production ready. API might be changed in the future.
    *
    * Same as `readFrom()`, but the existing items will not be removed (and will be updated).
@@ -488,4 +505,11 @@ export type CollectionInterface<T, UniqueStatus = unknown, Status = unknown> = {
   ): Signal<T | undefined>;
 
   idsToPartialItems(ids: unknown[], field: string): Partial<T>[];
+}
+
+export type LastError<T> = {
+  errors: unknown[],
+  time: Date,
+  context?: unknown,
+  items?: Partial<T>[],
 }

@@ -1,3 +1,14 @@
+### 4.2.4
+New fields:
+* `$lastReadError`
+* `$lastReadOneError`
+* `$lastReadManyError`
+* `$lastRefreshError`  
+
+In params structures, fields `readRequest` and `refreshRequest` are deprecated (will be removed in v5).  
+Use `read` and `refresh` instead.
+
+
 ### 4.2.3
 New method: `fetchItem()`!  
 

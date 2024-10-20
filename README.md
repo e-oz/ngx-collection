@@ -37,11 +37,13 @@ Here you can see how little code you need to gently manipulate your collection o
 * 100% immutability;  
 * Duplicates prevention;  
 * Errors and exceptions will be handled correctly;   
-* Strictly typed — advanced type-checking and code completion.
+* Strictly typed — advanced type-checking and code completion;
+* Race conditions handling.
 
 # Installation
 
-Requires Angular 16.   
+Requires Angular 17+.  
+Should work fine with Angular 16 (Angular 17 is required for tests in this repository).
 
 [Yarn](https://yarnpkg.com/package/ngx-collection): 
 ```

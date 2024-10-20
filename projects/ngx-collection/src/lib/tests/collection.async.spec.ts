@@ -1,5 +1,5 @@
 import { signal } from '@angular/core';
-import { map, of, timer } from 'rxjs';
+import { map, of, throwError, timer } from 'rxjs';
 import { Collection } from '../collection';
 
 beforeEach(() => {
@@ -37,7 +37,7 @@ describe('Collection Service (async)', () => {
     expect(coll.$isMutating()).toBe(false);
 
     coll.create({
-      request: emit(newItem)
+      request: emit(newItem),
     }).subscribe();
 
     expect(coll.$isCreating()).toBe(true);
@@ -1260,5 +1260,51 @@ describe('Collection Service (async)', () => {
     coll.fetchItem({ id: 3 }, of(item3)).subscribe((r) => result = r);
     jest.runAllTimers();
     expect(result).toStrictEqual(item3);
+  });
+
+  it('should fill read error signal', () => {
+    const { coll } = setup();
+
+    coll.read({
+      request: throwError(() => 4001),
+    }).subscribe();
+
+    jest.runAllTimers();
+
+    expect(coll.$lastReadError()?.errors).toEqual([4001]);
+
+    coll.readMany({
+      request: throwError(() => 4002)
+    }).subscribe();
+
+    jest.runAllTimers();
+
+    expect(coll.$lastReadManyError()?.errors).toEqual([4002]);
+
+    coll.readOne({
+      request: throwError(() => 4003)
+    }).subscribe();
+
+    jest.runAllTimers();
+
+    expect(coll.$lastReadOneError()?.errors).toEqual([4003]);
+
+    coll.refresh({
+      item: { id: 1 },
+      request: throwError(() => 4004)
+    }).subscribe();
+
+    jest.runAllTimers();
+
+    expect(coll.$lastRefreshError()?.errors).toEqual([4004]);
+
+    coll.refreshMany({
+      items: [{ id: 1 }],
+      request: throwError(() => 4005)
+    }).subscribe();
+
+    jest.runAllTimers();
+
+    expect(coll.$lastRefreshError()?.errors).toEqual([4005]);
   });
 });
