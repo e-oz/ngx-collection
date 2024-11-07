@@ -1,4 +1,7 @@
-### 4.2.4
+### 4.3.1  
+Callbacks `onSuccess()` and `onError()` were called before `$items` was updated. `$items()` inside the callbacks had a non-updated value.
+
+### 4.3.0
 New fields:
 * `$lastReadError`
 * `$lastReadOneError`

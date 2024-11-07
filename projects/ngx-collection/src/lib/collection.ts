@@ -180,19 +180,29 @@ export class Collection<T, UniqueStatus = unknown, Status = unknown>
       finalize(() => this.state.$isCreating.set(false)),
       tap((item) => {
         if (item != null) {
+          let onSuccess: undefined | Function = undefined;
+          let onError: undefined | Function = undefined;
+
           this.state.$items.update((items) => {
             if (!this.hasItemIn(item, items)) {
-              this.callCb(params.onSuccess, item);
-              if (this.onCreate.observed) {
-                this.onCreate.next([item]);
-              }
+              onSuccess = () => {
+                this.callCb(params.onSuccess, item);
+                if (this.onCreate.observed) {
+                  this.onCreate.next([item]);
+                }
+              };
               return [...items, item];
             } else {
               this.duplicateNotAdded(item, items);
-              this.callCb(params.onError, this.onDuplicateErrCallbackParam);
+              onError = () => this.callCb(params.onError, this.onDuplicateErrCallbackParam);
               return items;
             }
           });
+
+          // @ts-ignore old and dumb TS version TODO: Remove this line with TS 5.6+
+          onSuccess?.();
+          // @ts-ignore old and dumb TS version TODO: Remove this line with TS 5.6+
+          onError?.();
         }
       }),
       catchError((error) => {
@@ -218,21 +228,33 @@ export class Collection<T, UniqueStatus = unknown, Status = unknown>
           this.state.$totalCountFetched.set(!Array.isArray(fetched) ? fetched.totalCount : undefined);
           const fetchedItems = Array.isArray(fetched) ? fetched : fetched.items;
           if (fetchedItems.length > 0) {
+            let onSuccess: undefined | Function = undefined;
+            let onError: undefined | Function = undefined;
+
             this.state.$items.update((items) => {
               const nextItems = items.slice();
               const result = this.upsertMany(fetchedItems, nextItems);
               if (!Array.isArray(result) && result.duplicate) {
-                this.duplicateNotAdded(result.duplicate, result.preExisting ? fetchedItems : items);
-                this.callCb(params.onError, this.onDuplicateErrCallbackParam);
+                onError = () => {
+                  this.duplicateNotAdded(result.duplicate, result.preExisting ? fetchedItems : items);
+                  this.callCb(params.onError, this.onDuplicateErrCallbackParam);
+                };
                 return items;
               } else {
-                this.callCb(params.onSuccess, fetchedItems);
-                if (this.onCreate.observed) {
-                  this.onCreate.next(fetchedItems);
-                }
+                onSuccess = () => {
+                  this.callCb(params.onSuccess, fetchedItems);
+                  if (this.onCreate.observed) {
+                    this.onCreate.next(fetchedItems);
+                  }
+                };
                 return nextItems;
               }
             });
+
+            // @ts-ignore old and dumb TS version TODO: Remove this line with TS 5.6+
+            onSuccess?.();
+            // @ts-ignore old and dumb TS version TODO: Remove this line with TS 5.6+
+            onError?.();
           }
         }
       }),
@@ -320,20 +342,32 @@ export class Collection<T, UniqueStatus = unknown, Status = unknown>
       }),
       tap((newItem) => {
         if (newItem != null) {
+          let onSuccess: undefined | Function = undefined;
+          let onError: undefined | Function = undefined;
+
           this.state.$items.update((items) => {
             const nextItems = items.slice();
             if (this.upsertOne(newItem, nextItems) === 'duplicate') {
-              this.duplicateNotAdded(newItem, items);
-              this.callCb(params.onError, this.onDuplicateErrCallbackParam);
+              onError = () => {
+                this.duplicateNotAdded(newItem, items);
+                this.callCb(params.onError, this.onDuplicateErrCallbackParam);
+              };
               return items;
             } else {
-              this.callCb(params.onSuccess, newItem);
-              if (this.onRead.observed) {
-                this.onRead.next([newItem]);
-              }
+              onSuccess = () => {
+                this.callCb(params.onSuccess, newItem);
+                if (this.onRead.observed) {
+                  this.onRead.next([newItem]);
+                }
+              };
               return nextItems;
             }
           });
+
+          // @ts-ignore old and dumb TS version TODO: Remove this line with TS 5.6+
+          onSuccess?.();
+          // @ts-ignore old and dumb TS version TODO: Remove this line with TS 5.6+
+          onError?.();
         }
       }),
       catchError((error) => {
@@ -381,21 +415,33 @@ export class Collection<T, UniqueStatus = unknown, Status = unknown>
         this.state.$totalCountFetched.set(!Array.isArray(fetched) ? fetched.totalCount : undefined);
         const readItems = fetched == null ? ([] as T[]) : (Array.isArray(fetched) ? fetched : fetched.items);
         if (readItems.length > 0) {
+          let onSuccess: undefined | Function = undefined;
+          let onError: undefined | Function = undefined;
+
           this.state.$items.update((items) => {
             const nextItems = items.slice();
             const result = this.upsertMany(readItems, nextItems);
             if (!Array.isArray(result) && result.duplicate) {
-              this.duplicateNotAdded(result.duplicate, result.preExisting ? readItems : items);
-              this.callCb(params.onError, this.onDuplicateErrCallbackParam);
+              onError = () => {
+                this.duplicateNotAdded(result.duplicate, result.preExisting ? readItems : items);
+                this.callCb(params.onError, this.onDuplicateErrCallbackParam);
+              };
               return items;
             } else {
-              this.callCb(params.onSuccess, nextItems);
-              if (this.onRead.observed) {
-                this.onRead.next(readItems);
-              }
+              onSuccess = () => {
+                this.callCb(params.onSuccess, nextItems);
+                if (this.onRead.observed) {
+                  this.onRead.next(readItems);
+                }
+              };
               return nextItems;
             }
           });
+
+          // @ts-ignore old and dumb TS version TODO: Remove this line with TS 5.6+
+          onSuccess?.();
+          // @ts-ignore old and dumb TS version TODO: Remove this line with TS 5.6+
+          onError?.();
         }
       }),
       catchError((error) => {
@@ -453,20 +499,32 @@ export class Collection<T, UniqueStatus = unknown, Status = unknown>
       finalize(() => this.state.$refreshingItems.update((refreshingItems) => this.getWithout(refreshingItems, params.item))),
       tap((newItem) => {
         if (newItem != null) {
+          let onSuccess: undefined | Function = undefined;
+          let onError: undefined | Function = undefined;
+
           this.state.$items.update((items) => {
             const nextItems = items.slice();
             if (this.upsertOne(newItem, nextItems) === 'duplicate') {
-              this.duplicateNotAdded(newItem, items);
-              this.callCb(params.onError, this.onDuplicateErrCallbackParam);
+              onError = () => {
+                this.duplicateNotAdded(newItem, items);
+                this.callCb(params.onError, this.onDuplicateErrCallbackParam);
+              }
               return items;
             } else {
-              this.callCb(params.onSuccess, newItem);
-              if (this.onRead.observed) {
-                this.onRead.next([newItem]);
-              }
+              onSuccess = () => {
+                this.callCb(params.onSuccess, newItem);
+                if (this.onRead.observed) {
+                  this.onRead.next([newItem]);
+                }
+              };
               return nextItems;
             }
           });
+
+          // @ts-ignore old and dumb TS version TODO: Remove this line with TS 5.6+
+          onSuccess?.();
+          // @ts-ignore old and dumb TS version TODO: Remove this line with TS 5.6+
+          onError?.();
         }
       }),
       catchError((error) => {
@@ -498,21 +556,33 @@ export class Collection<T, UniqueStatus = unknown, Status = unknown>
           this.state.$totalCountFetched.set(!Array.isArray(fetched) ? fetched.totalCount : undefined);
           const fetchedItems = Array.isArray(fetched) ? fetched : fetched.items;
           if (fetchedItems.length > 0) {
+            let onSuccess: undefined | Function = undefined;
+            let onError: undefined | Function = undefined;
+
             this.state.$items.update((items) => {
               const nextItems = items.slice();
               const result = this.upsertMany(fetchedItems, nextItems);
               if (!Array.isArray(result) && result.duplicate) {
-                this.duplicateNotAdded(result.duplicate, result.preExisting ? fetchedItems : items);
-                this.callCb(params.onError, this.onDuplicateErrCallbackParam);
+                onError = () => {
+                  this.duplicateNotAdded(result.duplicate, result.preExisting ? fetchedItems : items);
+                  this.callCb(params.onError, this.onDuplicateErrCallbackParam);
+                };
                 return items;
               } else {
-                this.callCb(params.onSuccess, nextItems);
-                if (this.onRead.observed) {
-                  this.onRead.next(fetchedItems);
-                }
+                onSuccess = () => {
+                  this.callCb(params.onSuccess, nextItems);
+                  if (this.onRead.observed) {
+                    this.onRead.next(fetchedItems);
+                  }
+                };
                 return nextItems;
               }
             });
+
+            // @ts-ignore old and dumb TS version TODO: Remove this line with TS 5.6+
+            onSuccess?.();
+            // @ts-ignore old and dumb TS version TODO: Remove this line with TS 5.6+
+            onError?.();
           }
         }
       }),
@@ -550,20 +620,32 @@ export class Collection<T, UniqueStatus = unknown, Status = unknown>
             return this.refresh(params.refresh);
           } else {
             if (newItem != null) {
+              let onSuccess: undefined | Function = undefined;
+              let onError: undefined | Function = undefined;
+
               this.state.$items.update((items) => {
                 const nextItems = items.slice();
                 if (this.upsertOne(newItem, nextItems) === 'duplicate') {
-                  this.duplicateNotAdded(newItem, items);
-                  this.callCb(params.onError, this.onDuplicateErrCallbackParam);
+                  onError = () => {
+                    this.duplicateNotAdded(newItem, items);
+                    this.callCb(params.onError, this.onDuplicateErrCallbackParam);
+                  };
                   return items;
                 } else {
-                  this.callCb(params.onSuccess, newItem);
-                  if (this.onUpdate.observed) {
-                    this.onUpdate.next([newItem]);
-                  }
+                  onSuccess = () => {
+                    this.callCb(params.onSuccess, newItem);
+                    if (this.onUpdate.observed) {
+                      this.onUpdate.next([newItem]);
+                    }
+                  };
                   return nextItems;
                 }
               });
+
+              // @ts-ignore old and dumb TS version TODO: Remove this line with TS 5.6+
+              onSuccess?.();
+              // @ts-ignore old and dumb TS version TODO: Remove this line with TS 5.6+
+              onError?.();
             }
             return of(newItem);
           }
@@ -599,21 +681,33 @@ export class Collection<T, UniqueStatus = unknown, Status = unknown>
             return this.refreshMany(params.refresh);
           } else {
             if (updatedItems != null) {
+              let onSuccess: undefined | Function = undefined;
+              let onError: undefined | Function = undefined;
+
               this.state.$items.update((items) => {
                 const nextItems = items.slice();
                 const result = this.upsertMany(updatedItems, nextItems);
                 if (!Array.isArray(result) && result.duplicate) {
-                  this.duplicateNotAdded(result.duplicate, result.preExisting ? updatedItems : items);
-                  this.callCb(params.onError, this.onDuplicateErrCallbackParam);
+                  onError = () => {
+                    this.duplicateNotAdded(result.duplicate, result.preExisting ? updatedItems : items);
+                    this.callCb(params.onError, this.onDuplicateErrCallbackParam);
+                  };
                   return items;
                 } else {
-                  this.callCb(params.onSuccess, updatedItems);
-                  if (this.onUpdate.observed) {
-                    this.onUpdate.next(updatedItems);
-                  }
+                  onSuccess = () => {
+                    this.callCb(params.onSuccess, updatedItems);
+                    if (this.onUpdate.observed) {
+                      this.onUpdate.next(updatedItems);
+                    }
+                  };
                   return nextItems;
                 }
               });
+
+              // @ts-ignore old and dumb TS version TODO: Remove this line with TS 5.6+
+              onSuccess?.();
+              // @ts-ignore old and dumb TS version TODO: Remove this line with TS 5.6+
+              onError?.();
             }
             return of(updatedItems);
           }
