@@ -1,3 +1,6 @@
+### 4.3.2
+Add Angular v19 to the list of supported versions in dependencies.
+
 ### 4.3.1  
 Callbacks `onSuccess()` and `onError()` were called before `$items` was updated. `$items()` inside the callbacks had a non-updated value.
 
