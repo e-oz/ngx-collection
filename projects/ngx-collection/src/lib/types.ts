@@ -1,5 +1,5 @@
 import { type Injector, Signal, ValueEqualityFn } from '@angular/core';
-import { Observable } from 'rxjs';
+import { Observable, type RetryConfig } from 'rxjs';
 import { ObjectsComparator, ObjectsComparatorFn } from './comparator';
 
 export type FetchedItems<T> = {
@@ -513,3 +513,33 @@ export type LastError<T> = {
   context?: unknown,
   items?: Partial<T>[],
 }
+
+export type CreateEffectOptions = {
+  injector?: Injector,
+  /**
+   * @param retryOnError
+   * This param allows your effect keep running on error.
+   * When set to `false`, any non-caught error will terminate the effect and consequent calls will be ignored.
+   * Otherwise, generated effect will use `retry()`.
+   * You can pass `RetryConfig` object here to configure `retry()` operator.
+   */
+  retryOnError?: boolean | RetryConfig,
+};
+
+export type EffectMethods<ObservableType> = {
+  asObservable: (observableOrValue?: ObservableType | Observable<ObservableType> | Signal<ObservableType>) => Observable<unknown>,
+};
+
+export type EffectListeners = {
+  next?: (v: unknown) => void,
+  onSuccess?: (v: unknown) => void,
+  error?: (v: unknown) => void,
+  onError?: (v: unknown) => void,
+  complete?: () => void,
+  onFinalize?: () => void,
+};
+
+export type EffectCallbacks = {
+  success: (v: unknown) => void,
+  error: (e: unknown) => void,
+};

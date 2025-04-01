@@ -13,14 +13,16 @@ describe('createEffect', () => {
     lastResult = undefined;
 
     TestBed.runInInjectionContext(() => {
-      effect = createEffect<string>(_ => _.pipe(
+      effect = createEffect<string>((_, callbacks) => _.pipe(
         tap((r) => lastResult = r),
         switchMap((v) => {
           if (v.startsWith('error')) {
             lastError = v;
+            callbacks.error('error:' + v);
             return throwError(() => 'err');
           }
           lastError = undefined;
+          callbacks.success('success:' + v);
           return of(v);
         }),
       ));
@@ -138,9 +140,28 @@ describe('createEffect', () => {
   });
 
   it('should return an observable when getEffectFor() is called', () => {
-    const e = effect.getEffectFor('test');
+    const e = effect.asObservable('test');
     expect(isObservable(e)).toEqual(true);
     e.subscribe();
     expect(lastResult).toEqual('test');
+  });
+
+  it('should run callbacks', () => {
+    let r = '';
+    let f = '';
+    effect('s', {
+      onSuccess: (v) => r = v as string,
+      onFinalize: () => f = 'finalized:success',
+    });
+    expect(r).toEqual('success:s');
+    expect(f).toEqual('finalized:success');
+
+    f = '';
+    effect('error1', {
+      onError: (v) => r = v as string,
+      onFinalize: () => f = 'finalized:error',
+    });
+    expect(r).toEqual('error:error1');
+    expect(f).toEqual('finalized:error');
   });
 });

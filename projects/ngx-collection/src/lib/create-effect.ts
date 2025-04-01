@@ -1,30 +1,7 @@
 import { assertInInjectionContext, DestroyRef, inject, Injector, isDevMode, isSignal, type Signal } from '@angular/core';
 import { takeUntilDestroyed, toObservable } from '@angular/core/rxjs-interop';
-import { dematerialize, isObservable, materialize, type Observable, of, retry, type RetryConfig, Subject, type Subscription, take, tap } from 'rxjs';
-
-export type CreateEffectOptions = {
-  injector?: Injector,
-  /**
-   * @param retryOnError
-   * This param allows your effect keep running on error.
-   * When set to `false`, any non-caught error will terminate the effect and consequent calls will be ignored.
-   * Otherwise, generated effect will use `retry()`.
-   * You can pass `RetryConfig` object here to configure `retry()` operator.
-   */
-  retryOnError?: boolean | RetryConfig,
-};
-
-export type EffectMethods<ObservableType> = {
-  next$: Observable<unknown>,
-  error$: Observable<unknown>,
-  getEffectFor: (observableOrValue?: ObservableType | Observable<ObservableType> | Signal<ObservableType>) => Observable<unknown>,
-};
-
-export type EffectListeners = {
-  next?: (v: unknown) => void,
-  error?: (v: unknown) => void,
-  complete?: () => void,
-};
+import { isObservable, type Observable, of, retry, type RetryConfig, Subject, type Subscription, take } from 'rxjs';
+import type { CreateEffectOptions, EffectCallbacks, EffectListeners, EffectMethods } from './types';
 
 /**
  * This code is copied from NgRx ComponentStore and edited.
@@ -47,7 +24,7 @@ export function createEffect<
       observableOrValue: ObservableType | Observable<ObservableType> | Signal<ObservableType>,
       next?: ((v: unknown) => void) | EffectListeners
     ) => Subscription
->(generator: (origin$: OriginType) => Observable<unknown>, options?: CreateEffectOptions): ReturnType & EffectMethods<ObservableType> {
+>(generator: (origin$: OriginType, callbacks: EffectCallbacks) => Observable<unknown>, options?: CreateEffectOptions): ReturnType & EffectMethods<ObservableType> {
 
   if (!options?.injector && isDevMode()) {
     assertInInjectionContext(createEffect);
@@ -60,42 +37,35 @@ export function createEffect<
   const retryConfig = (typeof options?.retryOnError === 'object' && options?.retryOnError) ? options?.retryOnError : {} as RetryConfig;
 
   const nextValue = new Subject<unknown>();
+  const onSuccess = new Subject<unknown>();
   const nextError = new Subject<unknown>();
+  const onError = new Subject<unknown>();
   const complete = new Subject<void>();
+  const onFinalize = new Subject<void>();
 
-  const generated = generator(origin$ as OriginType).pipe(
-    materialize(),
-    tap((n) => {
-      switch (n.kind) {
-        case 'E':
-          if (nextError.observed) {
-            nextError.next(n.error);
-          }
-          break;
-        case 'C':
-          if (complete.observed) {
-            complete.next();
-          }
-          break;
-        default:
-          if (nextValue.observed) {
-            nextValue.next(n.value);
-          }
-      }
-    }),
-    dematerialize()
-  );
+  const callbacks: EffectCallbacks = {
+    success: (v: unknown) => {
+      onSuccess.next(v);
+      onFinalize.next();
+    },
+    error: (e: unknown) => {
+      onError.next(e);
+      onFinalize.next();
+    }
+  };
 
-  if (retryOnError) {
-    generated.pipe(
-      retry(retryConfig),
-      takeUntilDestroyed(destroyRef)
-    ).subscribe();
-  } else {
-    generated.pipe(
-      takeUntilDestroyed(destroyRef)
-    ).subscribe();
-  }
+  const generated = generator(origin$ as OriginType, callbacks);
+
+  (retryOnError ? generated.pipe(
+    retry(retryConfig),
+    takeUntilDestroyed(destroyRef)
+  ) : generated.pipe(
+    takeUntilDestroyed(destroyRef)
+  )).subscribe({
+    next: (v) => nextValue.next(v),
+    error: (e) => nextError.next(e),
+    complete: () => complete.next(),
+  });
 
   const effectFn = ((
     observableOrValue?: ObservableType | Observable<ObservableType> | Signal<ObservableType>,
@@ -103,16 +73,25 @@ export function createEffect<
   ): Subscription => {
     if (next) {
       if (typeof next === 'function') {
-        nextValue.pipe(take(1), takeUntilDestroyed(destroyRef)).subscribe(next);
+        nextValue.pipe(take(1), takeUntilDestroyed(destroyRef)).subscribe((v) => next(v));
       } else {
-        if (next.next) {
-          nextValue.pipe(take(1), takeUntilDestroyed(destroyRef)).subscribe(next.next);
+        if (next.next && typeof next.next === 'function') {
+          nextValue.pipe(take(1), takeUntilDestroyed(destroyRef)).subscribe((v) => next.next?.(v));
         }
-        if (next.error) {
-          nextError.pipe(take(1), takeUntilDestroyed(destroyRef)).subscribe(next.error);
+        if (next.onSuccess && typeof next.onSuccess === 'function') {
+          onSuccess.pipe(take(1), takeUntilDestroyed(destroyRef)).subscribe((v) => next.onSuccess?.(v));
         }
-        if (next.complete) {
-          complete.pipe(take(1), takeUntilDestroyed(destroyRef)).subscribe(next.complete);
+        if (next.error && typeof next.error === 'function') {
+          nextError.pipe(take(1), takeUntilDestroyed(destroyRef)).subscribe((e) => next.error?.(e));
+        }
+        if (next.onError && typeof next.onError === 'function') {
+          onError.pipe(take(1), takeUntilDestroyed(destroyRef)).subscribe((e) => next.onError?.(e));
+        }
+        if (next.complete && typeof next.complete === 'function') {
+          complete.pipe(take(1), takeUntilDestroyed(destroyRef)).subscribe(() => next.complete?.());
+        }
+        if (next.onFinalize && typeof next.onFinalize === 'function') {
+          onFinalize.pipe(take(1), takeUntilDestroyed(destroyRef)).subscribe(() => next.onFinalize?.());
         }
       }
     }
@@ -131,17 +110,7 @@ export function createEffect<
     });
   }) as ReturnType;
 
-  Object.defineProperty(effectFn, 'next$', {
-    get: () => nextValue.asObservable(),
-    configurable: false
-  });
-
-  Object.defineProperty(effectFn, 'error$', {
-    get: () => nextError.asObservable(),
-    configurable: false
-  });
-
-  Object.defineProperty(effectFn, 'getEffectFor', {
+  Object.defineProperty(effectFn, 'asObservable', {
     get: () => (observableOrValue?: ObservableType | Observable<ObservableType> | Signal<ObservableType>) => {
       const observable$ = isObservable(observableOrValue)
         ? observableOrValue
@@ -149,7 +118,7 @@ export function createEffect<
             ? toObservable(observableOrValue, { injector })
             : of(observableOrValue)
         );
-      return generator(observable$ as OriginType);
+      return generator(observable$ as OriginType, callbacks);
     },
     configurable: false
   });
