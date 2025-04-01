@@ -2,8 +2,8 @@
 * Angular v20 is now supported;
 * The generator callback now has the second argument, `callbacks`. It contains an object with callbacks `success` and `error` - the observable you provide to `createEffect()` can use them to notify the effect caller;
 * The second argument of `createEffect()` got new fields:
-* * `onSuccess?: (v: unknown) => void` - will be called when `callbacks.success` is called;
-* * `onError?: (v: unknown) => void` - will be called when `callbacks.error` is called;
+* * `onSuccess?: (v?: unknown) => void` - will be called when `callbacks.success` is called;
+* * `onError?: (v?: unknown) => void` - will be called when `callbacks.error` is called;
 * * `onFinalize?: () => void` - will be called when either `callbacks.success` or `callbacks.error` is called;
 
 #### BREAKING CHANGES

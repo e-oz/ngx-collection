@@ -44,11 +44,11 @@ export function createEffect<
   const onFinalize = new Subject<void>();
 
   const callbacks: EffectCallbacks = {
-    success: (v: unknown) => {
+    success: (v) => {
       onSuccess.next(v);
       onFinalize.next();
     },
-    error: (e: unknown) => {
+    error: (e) => {
       onError.next(e);
       onFinalize.next();
     }

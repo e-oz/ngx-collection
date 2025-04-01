@@ -532,14 +532,14 @@ export type EffectMethods<ObservableType> = {
 
 export type EffectListeners = {
   next?: (v: unknown) => void,
-  onSuccess?: (v: unknown) => void,
+  onSuccess?: (v?: unknown) => void,
   error?: (v: unknown) => void,
-  onError?: (v: unknown) => void,
+  onError?: (v?: unknown) => void,
   complete?: () => void,
   onFinalize?: () => void,
 };
 
 export type EffectCallbacks = {
-  success: (v: unknown) => void,
-  error: (e: unknown) => void,
+  success: (v?: unknown) => void,
+  error: (e?: unknown) => void,
 };
