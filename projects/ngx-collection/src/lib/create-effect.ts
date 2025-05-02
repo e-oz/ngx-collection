@@ -103,6 +103,10 @@ export function createEffect<
           : of(observableOrValue)
       );
 
+    if (isSignal(observableOrValue)) {
+      origin$.next(observableOrValue());
+    }
+
     return observable$.pipe(
       takeUntilDestroyed(destroyRef)
     ).subscribe((value) => {

@@ -164,4 +164,9 @@ describe('createEffect', () => {
     expect(r).toEqual('error:error1');
     expect(f).toEqual('finalized:error');
   });
+
+  it('should emit the initial value when the signal is passed', () => {
+    effect(signal('test'));
+    expect(lastResult).toEqual('test');
+  });
 });
