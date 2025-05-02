@@ -1,3 +1,7 @@
+### 5.0.0-rc.4
+When a signal is passed to the function created by `createEffect()`, the effect handler is called synchronously and will not be called again with the same value when the underlying `effect()` is executed.  
+Previously, a change made in 5.0.0-rc.3 was causing one extra call with the same value.
+
 ### 5.0.0-rc.3
 Because signals always have a value, when a signal is passed to the effect created by `createEffect()`, its initial value will now be emitted to the effect handler function.  
 Previously, the initial value was only emitted during `effect()` execution.

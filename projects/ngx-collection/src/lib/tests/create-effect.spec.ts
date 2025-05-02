@@ -7,14 +7,19 @@ describe('createEffect', () => {
   let effect: ReturnType<typeof createEffect<string>>;
   let lastResult: string | undefined;
   let lastError: string | undefined;
+  let handlerCalls: number = 0;
 
 
   beforeEach(() => {
     lastResult = undefined;
+    handlerCalls = 0;
 
     TestBed.runInInjectionContext(() => {
       effect = createEffect<string>((_, callbacks) => _.pipe(
-        tap((r) => lastResult = r),
+        tap((r) => {
+          lastResult = r;
+          handlerCalls++;
+        }),
         switchMap((v) => {
           if (v.startsWith('error')) {
             lastError = v;
@@ -166,7 +171,11 @@ describe('createEffect', () => {
   });
 
   it('should emit the initial value when the signal is passed', () => {
+    expect(handlerCalls).toEqual(0);
     effect(signal('test'));
     expect(lastResult).toEqual('test');
+    expect(handlerCalls).toEqual(1);
+    TestBed.tick();
+    expect(handlerCalls).toEqual(1);
   });
 });

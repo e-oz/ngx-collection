@@ -1,6 +1,6 @@
 import { assertInInjectionContext, DestroyRef, inject, Injector, isDevMode, isSignal, type Signal } from '@angular/core';
 import { takeUntilDestroyed, toObservable } from '@angular/core/rxjs-interop';
-import { isObservable, type Observable, of, retry, type RetryConfig, Subject, type Subscription, take } from 'rxjs';
+import { isObservable, type Observable, of, retry, type RetryConfig, skip, Subject, type Subscription, take } from 'rxjs';
 import type { CreateEffectOptions, EffectCallbacks, EffectListeners, EffectMethods } from './types';
 
 /**
@@ -99,7 +99,7 @@ export function createEffect<
     const observable$ = isObservable(observableOrValue)
       ? observableOrValue
       : (isSignal(observableOrValue)
-          ? toObservable(observableOrValue, { injector })
+          ? toObservable(observableOrValue, { injector }).pipe(skip(1))
           : of(observableOrValue)
       );
 
