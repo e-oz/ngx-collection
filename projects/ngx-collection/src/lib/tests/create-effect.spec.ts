@@ -113,28 +113,28 @@ describe('createEffect', () => {
   it('should accept signal as an argument', () => {
     const s = signal<string>('a');
     effect(s);
-    TestBed.flushEffects();
+    TestBed.tick();
     expect(lastResult).toEqual('a');
     expect(lastError).toEqual(undefined);
 
     s.set('b');
-    TestBed.flushEffects();
+    TestBed.tick();
     expect(lastResult).toEqual('b');
     expect(lastError).toEqual(undefined);
 
     s.set('error');
     s.set('not an error');
-    TestBed.flushEffects();
+    TestBed.tick();
     expect(lastResult).toEqual('not an error');
     expect(lastError).toEqual(undefined);
 
     s.set('not an error');
     s.set('error');
-    TestBed.flushEffects();
+    TestBed.tick();
     expect(lastError).toEqual('error');
 
     s.set('c');
-    TestBed.flushEffects();
+    TestBed.tick();
     expect(lastResult).toEqual('c');
     expect(lastError).toEqual(undefined);
   });
