@@ -2,6 +2,7 @@ import { assertInInjectionContext, DestroyRef, inject, Injector, isDevMode, isSi
 import { takeUntilDestroyed, toObservable } from '@angular/core/rxjs-interop';
 import { isObservable, type Observable, of, retry, type RetryConfig, skip, Subject, type Subscription, take } from 'rxjs';
 import type { CreateEffectOptions, EffectCallbacks, EffectListeners, EffectMethods } from './types';
+import { SIGNAL, type SignalNode } from '@angular/core/primitives/signals';
 
 /**
  * This code is copied from NgRx ComponentStore and edited.
@@ -96,16 +97,25 @@ export function createEffect<
       }
     }
 
+    let firstSignalValueWasEmitted = false;
+    if (isSignal(observableOrValue) && (typeof (observableOrValue[SIGNAL] as SignalNode<unknown>).value !=='symbol')) {
+      try {
+        const firstSignalValue = observableOrValue();
+        origin$.next(firstSignalValue);
+        firstSignalValueWasEmitted = true;
+      } catch (_) {
+        // Angular's `input.required()` can throw when input is requested too early.
+      }
+    }
+
     const observable$ = isObservable(observableOrValue)
       ? observableOrValue
       : (isSignal(observableOrValue)
-          ? toObservable(observableOrValue, { injector }).pipe(skip(1))
+          ? toObservable(observableOrValue, { injector }).pipe(
+            firstSignalValueWasEmitted ? skip(1) : (v) => v,
+          )
           : of(observableOrValue)
       );
-
-    if (isSignal(observableOrValue)) {
-      origin$.next(observableOrValue());
-    }
 
     return observable$.pipe(
       takeUntilDestroyed(destroyRef)

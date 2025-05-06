@@ -1,4 +1,4 @@
-import { signal } from "@angular/core";
+import { input, signal } from "@angular/core";
 import { TestBed } from "@angular/core/testing";
 import { EMPTY, isObservable, of, Subject, switchMap, tap, throwError } from "rxjs";
 import { createEffect } from '../create-effect';
@@ -170,12 +170,23 @@ describe('createEffect', () => {
     expect(f).toEqual('finalized:error');
   });
 
-  it('should emit the initial value when the signal is passed', () => {
+  it('should emit the initial value when a signal is passed', () => {
     expect(handlerCalls).toEqual(0);
     effect(signal('test'));
     expect(lastResult).toEqual('test');
     expect(handlerCalls).toEqual(1);
     TestBed.tick();
     expect(handlerCalls).toEqual(1);
+  });
+
+  it('should NOT emit the initial value when a required input without initial value is passed', () => {
+    expect(handlerCalls).toEqual(0);
+    TestBed.runInInjectionContext(() => {
+      effect(input.required());
+      expect(lastResult).not.toEqual('test');
+      expect(handlerCalls).toEqual(0);
+      TestBed.tick();
+      expect(handlerCalls).toEqual(0);
+    });
   });
 });
