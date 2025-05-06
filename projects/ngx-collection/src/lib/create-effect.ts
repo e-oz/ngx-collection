@@ -1,8 +1,8 @@
 import { assertInInjectionContext, DestroyRef, inject, Injector, isDevMode, isSignal, type Signal } from '@angular/core';
-import { takeUntilDestroyed, toObservable } from '@angular/core/rxjs-interop';
-import { isObservable, type Observable, of, retry, type RetryConfig, skip, Subject, type Subscription, take } from 'rxjs';
-import type { CreateEffectOptions, EffectCallbacks, EffectListeners, EffectMethods } from './types';
 import { SIGNAL, type SignalNode } from '@angular/core/primitives/signals';
+import { takeUntilDestroyed, toObservable } from '@angular/core/rxjs-interop';
+import { from, isObservable, type Observable, of, retry, type RetryConfig, skip, Subject, type Subscription, take } from 'rxjs';
+import type { CreateEffectOptions, EffectCallbacks, EffectListeners, EffectMethods } from './types';
 
 /**
  * This code is copied from NgRx ComponentStore and edited.
@@ -69,7 +69,7 @@ export function createEffect<
   });
 
   const effectFn = ((
-    observableOrValue?: ObservableType | Observable<ObservableType> | Signal<ObservableType>,
+    value?: ObservableType | Observable<ObservableType> | Signal<ObservableType> | Promise<ObservableType>,
     next?: ((v: unknown) => void) | EffectListeners
   ): Subscription => {
     if (next) {
@@ -98,23 +98,23 @@ export function createEffect<
     }
 
     let firstSignalValueWasEmitted = false;
-    if (isSignal(observableOrValue) && (typeof (observableOrValue[SIGNAL] as SignalNode<unknown>).value !=='symbol')) {
-      try {
-        const firstSignalValue = observableOrValue();
+    try {
+      if (isSignal(value) && (typeof (value[SIGNAL] as SignalNode<unknown>).value !== 'symbol')) {
+        const firstSignalValue = value();
         origin$.next(firstSignalValue);
         firstSignalValueWasEmitted = true;
-      } catch (_) {
-        // Angular's `input.required()` can throw when input is requested too early.
       }
+    } catch (_) {
+      // Angular's `input.required()` can throw when input is requested before its value is set.
     }
 
-    const observable$ = isObservable(observableOrValue)
-      ? observableOrValue
-      : (isSignal(observableOrValue)
-          ? toObservable(observableOrValue, { injector }).pipe(
-            firstSignalValueWasEmitted ? skip(1) : (v) => v,
-          )
-          : of(observableOrValue)
+    const observable$ = isObservable(value)
+      ? value
+      : (isSignal(value)
+          ? firstSignalValueWasEmitted ?
+            toObservable(value, { injector }).pipe(skip(1)) :
+            toObservable(value, { injector })
+          : isPromise(value) ? from(value) : of(value)
       );
 
     return observable$.pipe(
@@ -125,12 +125,12 @@ export function createEffect<
   }) as ReturnType;
 
   Object.defineProperty(effectFn, 'asObservable', {
-    get: () => (observableOrValue?: ObservableType | Observable<ObservableType> | Signal<ObservableType>) => {
-      const observable$ = isObservable(observableOrValue)
-        ? observableOrValue
-        : (isSignal(observableOrValue)
-            ? toObservable(observableOrValue, { injector })
-            : of(observableOrValue)
+    get: () => (value?: ObservableType | Observable<ObservableType> | Signal<ObservableType> | Promise<ObservableType>) => {
+      const observable$ = isObservable(value)
+        ? value
+        : (isSignal(value)
+            ? toObservable(value, { injector })
+            : isPromise(value) ? from(value) : of(value)
         );
       return generator(observable$ as OriginType, callbacks);
     },
@@ -138,4 +138,8 @@ export function createEffect<
   });
 
   return effectFn as ReturnType & EffectMethods<ObservableType>;
+}
+
+function isPromise<T = unknown>(obj: unknown): obj is Promise<T> {
+  return !!obj && typeof obj === 'object' && ('then' in obj) && typeof obj.then === 'function';
 }
