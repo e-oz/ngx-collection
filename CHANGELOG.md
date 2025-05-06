@@ -1,3 +1,6 @@
+### 5.0.0-rc.5
+`createEffect()`: Do not emit the first value of a signal with unset value (`input.required()`).
+
 ### 5.0.0-rc.4
 When a signal is passed to the function created by `createEffect()`, the effect handler is called synchronously and will not be called again with the same value when the underlying `effect()` is executed.  
 Previously, a change made in 5.0.0-rc.3 was causing one extra call with the same value.
