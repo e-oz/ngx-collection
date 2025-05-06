@@ -19,8 +19,9 @@
     "build": "ng build",
     "test": "npx jest",
     "pub": "npm run pre && npm publish --tag latest ./dist/ngx-collection",
-    "pub-next": "npm run pre && npm publish --tag next ./dist/ngx-collection",
+    "pub-next": "npm run pre-next && npm publish --tag next ./dist/ngx-collection",
     "pre": "npm i && ng build && cp ./README.md ./dist/ngx-collection/README.md && npx jest --clearCache && npm run test && npm publish ./dist/ngx-collection --dry-run",
+    "pre-next": "npm i && ng build && cp ./README.md ./dist/ngx-collection/README.md && npx jest --clearCache && npm run test && npm publish --tag next ./dist/ngx-collection --dry-run",
     "reinst": "rm -rf node_modules && rm -f package-lock.json && rm -rf dist && npm i && npm run pre"
   },
   "private": false,
