@@ -189,4 +189,14 @@ describe('createEffect', () => {
       expect(handlerCalls).toEqual(0);
     });
   });
+
+  it('should accept Promise as value', async () => {
+    expect(handlerCalls).toEqual(0);
+    effect(Promise.resolve('test'));
+    expect(lastResult).toEqual(undefined);
+    expect(handlerCalls).toEqual(0);
+    await Promise.resolve();
+    expect(lastResult).toEqual('test');
+    expect(handlerCalls).toEqual(1);
+  });
 });

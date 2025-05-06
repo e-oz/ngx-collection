@@ -18,11 +18,11 @@ export function createEffect<
   ObservableType = OriginType extends Observable<infer A> ? A : never,
   ReturnType = ProvidedType | ObservableType extends void
     ? (
-      observableOrValue?: ObservableType | Observable<ObservableType> | Signal<ObservableType>,
+      observableOrValue?: ObservableType | Observable<ObservableType> | Signal<ObservableType> | Promise<ObservableType>,
       next?: ((v: unknown) => void) | EffectListeners
     ) => Subscription
     : (
-      observableOrValue: ObservableType | Observable<ObservableType> | Signal<ObservableType>,
+      observableOrValue: ObservableType | Observable<ObservableType> | Signal<ObservableType> | Promise<ObservableType>,
       next?: ((v: unknown) => void) | EffectListeners
     ) => Subscription
 >(generator: (origin$: OriginType, callbacks: EffectCallbacks) => Observable<unknown>, options?: CreateEffectOptions): ReturnType & EffectMethods<ObservableType> {

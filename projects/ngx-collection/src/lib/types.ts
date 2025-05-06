@@ -527,7 +527,7 @@ export type CreateEffectOptions = {
 };
 
 export type EffectMethods<ObservableType> = {
-  asObservable: (observableOrValue?: ObservableType | Observable<ObservableType> | Signal<ObservableType>) => Observable<unknown>,
+  asObservable: (observableOrValue?: ObservableType | Observable<ObservableType> | Signal<ObservableType> | Promise<ObservableType>) => Observable<unknown>,
 };
 
 export type EffectListeners = {
