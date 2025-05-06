@@ -1,3 +1,6 @@
+### 5.0.0-rc.6
+`createEffect()`: Support Promise as input value.
+
 ### 5.0.0-rc.5
 `createEffect()`: Do not emit the first value of a signal with unset value (`input.required()`).
 
