@@ -1,3 +1,6 @@
+### 5.0.0-rc.7
+`createEffect()`: Avoid usage of exposed, but non-public APIs of Angular Signals.
+
 ### 5.0.0-rc.6
 `createEffect()`: Support Promise as input value.
 
