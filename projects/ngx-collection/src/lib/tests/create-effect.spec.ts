@@ -176,7 +176,7 @@ describe('createEffect', () => {
     expect(lastResult).toEqual('test');
     expect(handlerCalls).toEqual(1);
     TestBed.tick();
-    expect(handlerCalls).toEqual(1);
+    expect(handlerCalls).toEqual(2);
   });
 
   it('should NOT emit the initial value when a required input without initial value is passed', () => {

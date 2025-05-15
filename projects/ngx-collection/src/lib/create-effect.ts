@@ -1,6 +1,6 @@
 import { assertInInjectionContext, DestroyRef, inject, Injector, isDevMode, isSignal, type Signal } from '@angular/core';
 import { takeUntilDestroyed, toObservable } from '@angular/core/rxjs-interop';
-import { from, isObservable, type Observable, of, retry, type RetryConfig, skip, Subject, type Subscription, take } from 'rxjs';
+import { from, isObservable, type Observable, of, retry, type RetryConfig, Subject, type Subscription, take } from 'rxjs';
 import type { CreateEffectOptions, EffectCallbacks, EffectListeners, EffectMethods } from './types';
 
 /**
@@ -96,12 +96,10 @@ export function createEffect<
       }
     }
 
-    let firstSignalValueWasEmitted = false;
     try {
       if (isSignal(value)) {
         const firstSignalValue = value();
         origin$.next(firstSignalValue);
-        firstSignalValueWasEmitted = true;
       }
     } catch (_) {
       // Angular's `input.required()` will throw an error when a signal's
@@ -111,9 +109,7 @@ export function createEffect<
     const observable$ = isObservable(value)
       ? value
       : (isSignal(value)
-          ? firstSignalValueWasEmitted ?
-            toObservable(value, { injector }).pipe(skip(1)) :
-            toObservable(value, { injector })
+          ? toObservable(value, { injector })
           : isPromise(value) ? from(value) : of(value)
       );
 
@@ -126,6 +122,16 @@ export function createEffect<
 
   Object.defineProperty(effectFn, 'asObservable', {
     get: () => (value?: ObservableType | Observable<ObservableType> | Signal<ObservableType> | Promise<ObservableType>) => {
+      try {
+        if (isSignal(value)) {
+          const firstSignalValue = value();
+          origin$.next(firstSignalValue);
+        }
+      } catch (_) {
+        // Angular's `input.required()` will throw an error when a signal's
+        // value is requested before the input's value is set.
+      }
+
       const observable$ = isObservable(value)
         ? value
         : (isSignal(value)
