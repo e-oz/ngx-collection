@@ -1,3 +1,6 @@
+### 5.0.0-rc.9
+`createEffect()`: When a signal is passed, the first value received by the observable will be skipped only if it's equal (`===`) to the initial value of the signal.
+
 ### 5.0.0-rc.7
 `createEffect()`: Avoid usage of exposed, but non-public APIs of Angular Signals.
 
