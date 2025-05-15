@@ -1,6 +1,6 @@
 import { assertInInjectionContext, DestroyRef, inject, Injector, isDevMode, isSignal, type Signal } from '@angular/core';
 import { takeUntilDestroyed, toObservable } from '@angular/core/rxjs-interop';
-import { from, isObservable, type Observable, of, retry, type RetryConfig, Subject, type Subscription, take } from 'rxjs';
+import { from, isObservable, type Observable, of, retry, type RetryConfig, skipWhile, Subject, type Subscription, take } from 'rxjs';
 import type { CreateEffectOptions, EffectCallbacks, EffectListeners, EffectMethods } from './types';
 
 /**
@@ -96,9 +96,10 @@ export function createEffect<
       }
     }
 
+    let firstSignalValue = undefined;
     try {
       if (isSignal(value)) {
-        const firstSignalValue = value();
+        firstSignalValue = value();
         origin$.next(firstSignalValue);
       }
     } catch (_) {
@@ -109,7 +110,7 @@ export function createEffect<
     const observable$ = isObservable(value)
       ? value
       : (isSignal(value)
-          ? toObservable(value, { injector })
+          ? toObservable(value, { injector }).pipe(skipWhile((v) => v === firstSignalValue))
           : isPromise(value) ? from(value) : of(value)
       );
 
@@ -122,9 +123,11 @@ export function createEffect<
 
   Object.defineProperty(effectFn, 'asObservable', {
     get: () => (value?: ObservableType | Observable<ObservableType> | Signal<ObservableType> | Promise<ObservableType>) => {
+
+      let firstSignalValue = undefined;
       try {
         if (isSignal(value)) {
-          const firstSignalValue = value();
+          firstSignalValue = value();
           origin$.next(firstSignalValue);
         }
       } catch (_) {
@@ -135,7 +138,7 @@ export function createEffect<
       const observable$ = isObservable(value)
         ? value
         : (isSignal(value)
-            ? toObservable(value, { injector })
+            ? toObservable(value, { injector }).pipe(skipWhile((v) => v === firstSignalValue))
             : isPromise(value) ? from(value) : of(value)
         );
       return generator(observable$ as OriginType, callbacks);

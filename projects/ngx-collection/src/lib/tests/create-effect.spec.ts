@@ -176,7 +176,31 @@ describe('createEffect', () => {
     expect(lastResult).toEqual('test');
     expect(handlerCalls).toEqual(1);
     TestBed.tick();
+    expect(handlerCalls).toEqual(1);
+  });
+
+  it('should emit the new value of a signal if it is different from the initial value', () => {
+    expect(handlerCalls).toEqual(0);
+    const s = signal('test');
+    effect(s);
+    expect(lastResult).toEqual('test');
+    expect(handlerCalls).toEqual(1);
+    s.set('test2');
+    TestBed.tick();
+    expect(lastResult).toEqual('test2');
     expect(handlerCalls).toEqual(2);
+  });
+
+  it('should skip the new value of a signal if it is equal to the initial value', () => {
+    expect(handlerCalls).toEqual(0);
+    const s = signal('test');
+    effect(s);
+    expect(lastResult).toEqual('test');
+    expect(handlerCalls).toEqual(1);
+    s.set('test');
+    TestBed.tick();
+    expect(lastResult).toEqual('test');
+    expect(handlerCalls).toEqual(1);
   });
 
   it('should NOT emit the initial value when a required input without initial value is passed', () => {
