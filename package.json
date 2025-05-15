@@ -1,6 +1,6 @@
 {
   "name": "ngx-collection",
-  "version": "5.0.0-rc.7",
+  "version": "5.0.0-rc.8",
   "license": "MIT",
   "author": {
     "name": "Evgeniy OZ",
@@ -26,23 +26,23 @@
   },
   "private": false,
   "peerDependencies": {
-    "@angular/core": "^17 || ^18 || ^19 || >=20.0.0-next.0 || >=20.0.0-rc.0",
+    "@angular/core": "^17 || ^18 || ^19 || >=20.0.0-rc.0",
     "rxjs": "^7.8.2"
   },
   "dependencies": {
-    "@angular/core": "^20.0.0-next.9",
+    "@angular/core": "^20.0.0-rc.0",
     "rxjs": "^7.8.2"
   },
   "devDependencies": {
-    "@angular-devkit/build-angular": "^20.0.0-next.9",
-    "@angular-devkit/core": "^20.0.0-next.9",
-    "@angular-devkit/schematics": "^20.0.0-next.9",
-    "@angular/cli": "^20.0.0-next.9",
-    "@angular/common": "^20.0.0-next.9",
-    "@angular/compiler": "^20.0.0-next.9",
-    "@angular/compiler-cli": "^20.0.0-next.9",
-    "@angular/platform-browser": "^20.0.0-next.9",
-    "@angular/platform-browser-dynamic": "^20.0.0-next.9",
+    "@angular-devkit/build-angular": "^20.0.0-rc.2",
+    "@angular-devkit/core": "^20.0.0-rc.2",
+    "@angular-devkit/schematics": "^20.0.0-rc.2",
+    "@angular/cli": "^20.0.0-rc.2",
+    "@angular/common": "^20.0.0-rc.0",
+    "@angular/compiler": "^20.0.0-rc.0",
+    "@angular/compiler-cli": "^20.0.0-rc.0",
+    "@angular/platform-browser": "^20.0.0-rc.0",
+    "@angular/platform-browser-dynamic": "^20.0.0-rc.0",
     "@types/jest": "^29.5.14",
     "jest": "^29.7.0",
     "jest-preset-angular": "^14.5.5",
