@@ -48,6 +48,7 @@ export type ReadManyParams<T> = {
 
 export type ReadFromParams<T> = Omit<ReadParams<T>, 'request'> & {
   readonly source: Observable<FetchedItems<T> | T[]> | Signal<FetchedItems<T> | T[]>;
+  readonly isReading?: Signal<boolean>;
 };
 
 
@@ -269,9 +270,6 @@ export type CollectionInterface<T, UniqueStatus = unknown, Status = unknown> = {
   readMany(params: ReadManyParams<T>): Observable<T[] | FetchedItems<T>>;
 
   /**
-   * @experimental
-   * Experimental! Not production ready. API might be changed in the future.
-   *
    * Will pass to `read()` every emission of `params.source`.
    * Use this, when you want to create a collection, reactively re-created
    * every time `params.source` emits (all the existing items will be
@@ -280,9 +278,6 @@ export type CollectionInterface<T, UniqueStatus = unknown, Status = unknown> = {
   readFrom(params: ReadFromParams<T>): Observable<FetchedItems<T> | T[]>;
 
   /**
-   * @experimental
-   * Experimental! Not production ready. API might be changed in the future.
-   *
    * Same as `readFrom()`, but the existing items will not be removed (and will be updated).
    */
   readManyFrom(params: ReadFromParams<T>): Observable<FetchedItems<T> | T[]>;

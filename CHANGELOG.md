@@ -1,3 +1,8 @@
+### 5.0.0-rc.10
+The `readFrom` and `readManyFrom` methods are stable now and accept an `isReading` option in their parameters.  
+You can pass a signal here, and when its value is truthy, the collection’s `$isReading()` will also return `true`.  
+This can be useful to synchronize not only the values but also their reading (loading) state.
+
 ### 5.0.0-rc.9
 `createEffect()`: When a signal is passed, the first value received by the observable will be skipped only if it's equal (`===`) to the initial value of the signal.
 
