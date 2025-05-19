@@ -1,9 +1,46 @@
 import { assertInInjectionContext, computed, DestroyRef, inject, type Injector, isDevMode, isSignal, type Signal, signal, untracked, type ValueEqualityFn } from "@angular/core";
 import { takeUntilDestroyed, toObservable } from '@angular/core/rxjs-interop';
-import { catchError, defaultIfEmpty, defer, EMPTY, filter, finalize, forkJoin, isObservable, map, merge, type Observable, of, Subject, switchMap, take, tap, throwError } from "rxjs";
+import {
+  catchError,
+  defaultIfEmpty,
+  defer,
+  EMPTY,
+  filter,
+  finalize,
+  forkJoin,
+  isObservable,
+  map,
+  merge,
+  type Observable,
+  of,
+  Subject,
+  switchMap,
+  take,
+  tap,
+  throwError
+} from "rxjs";
 import { Comparator, DuplicateError, type ObjectsComparator, type ObjectsComparatorFn } from "./comparator";
 import { defaultComparatorFields } from "./internal-types";
-import type { CollectionInterface, CollectionOptions, CollectionOptionsTyped, CreateManyParams, CreateParams, DeleteManyParams, DeleteParams, DuplicatesMap, FetchedItems, LastError, ReadFromParams, ReadManyParams, ReadOneParams, ReadParams, RefreshManyParams, RefreshParams, UpdateManyParams, UpdateParams } from "./types";
+import type {
+  CollectionInterface,
+  CollectionOptions,
+  CollectionOptionsTyped,
+  CreateManyParams,
+  CreateParams,
+  DeleteManyParams,
+  DeleteParams,
+  DuplicatesMap,
+  FetchedItems,
+  LastError,
+  ReadFromParams,
+  ReadManyParams,
+  ReadOneParams,
+  ReadParams,
+  RefreshManyParams,
+  RefreshParams,
+  UpdateManyParams,
+  UpdateParams
+} from "./types";
 
 export class Collection<T, UniqueStatus = unknown, Status = unknown>
   implements CollectionInterface<T, UniqueStatus, Status> {
@@ -43,6 +80,7 @@ export class Collection<T, UniqueStatus = unknown, Status = unknown>
     $totalCountFetched: signal<number | undefined>(undefined),
     $isCreating: signal<boolean>(false),
     $isReading: signal<boolean>(false),
+    $isReadingFrom: signal<Array<Signal<boolean>>>([]),
     $isBeforeFirstRead: signal<boolean>(true),
     $readingItems: signal<Partial<T>[]>([]),
     $updatingItems: signal<T[]>([], { equal: this.equalItems }),
@@ -78,12 +116,21 @@ export class Collection<T, UniqueStatus = unknown, Status = unknown>
   });
   public readonly $totalCountFetched = this.state.$totalCountFetched.asReadonly();
   public readonly $isCreating = this.state.$isCreating.asReadonly();
-  public readonly $isReading = this.state.$isReading.asReadonly();
   public readonly $isBeforeFirstRead = this.state.$isBeforeFirstRead.asReadonly();
 
   /**
    * Derived State Signals
    */
+  public readonly $isReading = computed(() => {
+    if (this.state.$isReading()) {
+      return true;
+    }
+    const externals = this.state.$isReadingFrom();
+    if (externals.length) {
+      return externals.some((isReading) => isReading());
+    }
+    return false;
+  });
   public readonly $updatingItems = computed<T[]>(() => {
     const updating = this.state.$updatingItems();
     const existing = this.$items();
@@ -460,6 +507,11 @@ export class Collection<T, UniqueStatus = unknown, Status = unknown>
   public readFrom(params: ReadFromParams<T>): Observable<FetchedItems<T> | T[]> {
     const s = params.source;
     const p = isObservable(s) ? s : toObservable(s);
+    if (params.isReading) {
+      const external = params.isReading;
+      this.state.$isReadingFrom.update((externals) => [...externals, external]);
+    }
+
     return p.pipe(
       switchMap((fetched) => this.read({
         ...params,
@@ -477,6 +529,11 @@ export class Collection<T, UniqueStatus = unknown, Status = unknown>
   public readManyFrom(params: ReadFromParams<T>): Observable<FetchedItems<T> | T[]> {
     const s = params.source;
     const p = isObservable(s) ? s : toObservable(s);
+    if (params.isReading) {
+      const external = params.isReading;
+      this.state.$isReadingFrom.update((externals) => [...externals, external]);
+    }
+
     return p.pipe(
       switchMap((fetched) => this.readMany({
         ...params,

@@ -1,5 +1,6 @@
 import { signal } from '@angular/core';
-import { map, of, throwError, timer } from 'rxjs';
+import { TestBed } from '@angular/core/testing';
+import { map, of, Subject, throwError, timer } from 'rxjs';
 import { Collection } from '../collection';
 
 beforeEach(() => {
@@ -1306,5 +1307,55 @@ describe('Collection Service (async)', () => {
     jest.runAllTimers();
 
     expect(coll.$lastRefreshError()?.errors).toEqual([4005]);
+  });
+
+  it('should observe readFrom', () => {
+    const source = new Subject<Item[]>();
+    const isReading = signal(true);
+
+    TestBed.runInInjectionContext(() => {
+      const coll = new Collection<Item>({
+        throwOnDuplicates: 'duplicate',
+        comparatorFields: ['id'],
+        readFrom: {
+          source,
+          isReading,
+        }
+      });
+
+      expect(coll.$items()).toStrictEqual([]);
+      expect(coll.$isReading()).toEqual(true);
+
+      source.next([{ id: 1, name: 'A' }]);
+      expect(coll.$items()).toStrictEqual([{ id: 1, name: 'A' }]);
+      isReading.set(false);
+      expect(coll.$isReading()).toEqual(false);
+    });
+  });
+
+  it('should observe readManyFrom', () => {
+    const source = new Subject<Item[]>();
+    const isReading = signal(false);
+
+    TestBed.runInInjectionContext(() => {
+      const coll = new Collection<Item>({
+        throwOnDuplicates: 'duplicate',
+        comparatorFields: ['id'],
+        readManyFrom: {
+          source,
+          isReading,
+        }
+      });
+
+      expect(coll.$items()).toStrictEqual([]);
+      expect(coll.$isReading()).toEqual(false);
+
+      source.next([{ id: 1, name: 'A' }, { id: 2, name: 'B' }]);
+      isReading.set(true);
+      expect(coll.$items()).toStrictEqual([{ id: 1, name: 'A' }, { id: 2, name: 'B' }]);
+      expect(coll.$isReading()).toEqual(true);
+      isReading.set(false);
+      expect(coll.$isReading()).toEqual(false);
+    });
   });
 });
