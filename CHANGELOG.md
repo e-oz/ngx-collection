@@ -1,3 +1,6 @@
+## 5.0.1
+`createEffect()` with default options (with retry on errors allowed) was "swallowing" errors. Now the error will be printed to the console in dev mode, and the `onError()` callback will be called.
+
 ## 5.0.0
 ### Changes v4 -> v5:
 * Angular v20 is now supported;

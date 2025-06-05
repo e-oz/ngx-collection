@@ -1,6 +1,6 @@
 import { assertInInjectionContext, DestroyRef, inject, Injector, isDevMode, isSignal, type Signal } from '@angular/core';
 import { takeUntilDestroyed, toObservable } from '@angular/core/rxjs-interop';
-import { from, isObservable, type Observable, of, retry, type RetryConfig, skipWhile, Subject, type Subscription, take } from 'rxjs';
+import { catchError, from, isObservable, type Observable, of, retry, type RetryConfig, skipWhile, Subject, type Subscription, take, throwError } from 'rxjs';
 import type { CreateEffectOptions, EffectCallbacks, EffectListeners, EffectMethods } from './types';
 
 /**
@@ -57,6 +57,14 @@ export function createEffect<
   const generated = generator(origin$ as OriginType, callbacks);
 
   (retryOnError ? generated.pipe(
+    catchError((e) => {
+      if (isDevMode()) {
+        console.error(e);
+      }
+      onError.next(e);
+      onFinalize.next();
+      return throwError(() => e);
+    }),
     retry(retryConfig),
     takeUntilDestroyed(destroyRef)
   ) : generated.pipe(

@@ -1,6 +1,6 @@
 {
   "name": "ngx-collection",
-  "version": "5.0.0",
+  "version": "5.0.1",
   "license": "MIT",
   "author": {
     "name": "Evgeniy OZ",
@@ -17,11 +17,11 @@
   ],
   "private": false,
   "peerDependencies": {
-    "@angular/core": "^17 || ^18 || ^19 || >=20.0.0-next.0 <20.1.0-next.0",
-    "rxjs": "^7"
+    "@angular/core": "^17 || ^18 || ^19 || ^20",
+    "rxjs": "^7.8.2"
   },
   "devDependencies": {
-    "tslib": "^2"
+    "tslib": "^2.8.1"
   },
   "sideEffects": false
 }
