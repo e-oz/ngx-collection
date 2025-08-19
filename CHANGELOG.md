@@ -1,3 +1,6 @@
+## 5.0.2
+The removal of the `sideEffect()` alias was not properly documented in the changelog - it was never declared as deprecated - so the alias has now been restored.
+
 ## 5.0.1
 `createEffect()` with default options (with retry on errors allowed) was "swallowing" errors. Now the error will be printed to the console in dev mode, and the `onError()` callback will be called.
 
