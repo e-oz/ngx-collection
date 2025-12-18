@@ -1,7 +1,13 @@
 import { input, signal } from "@angular/core";
 import { TestBed } from "@angular/core/testing";
+import { BrowserTestingModule, platformBrowserTesting } from "@angular/platform-browser/testing";
 import { EMPTY, isObservable, of, Subject, switchMap, tap, throwError } from "rxjs";
 import { createEffect } from '../create-effect';
+
+// Initialize TestBed environment
+if (!TestBed.platform) {
+  TestBed.initTestEnvironment(BrowserTestingModule, platformBrowserTesting());
+}
 
 describe('createEffect', () => {
   let effect: ReturnType<typeof createEffect<string>>;
@@ -9,8 +15,12 @@ describe('createEffect', () => {
   let lastError: string | undefined;
   let handlerCalls: number = 0;
 
-
+  // Suppress expected console.error messages from error handling tests
+  const originalConsoleError = console.error;
   beforeEach(() => {
+    console.error = jest.fn();
+    TestBed.resetTestingModule();
+    TestBed.configureTestingModule({});
     lastResult = undefined;
     handlerCalls = 0;
 
@@ -32,7 +42,11 @@ describe('createEffect', () => {
         }),
       ));
     });
-  })
+  });
+
+  afterEach(() => {
+    console.error = originalConsoleError;
+  });
 
   it('should work', () => {
     effect('a');

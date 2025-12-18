@@ -1,7 +1,13 @@
 import { signal } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
+import { BrowserTestingModule, platformBrowserTesting } from '@angular/platform-browser/testing';
 import { map, of, Subject, throwError, timer } from 'rxjs';
 import { Collection } from '../collection';
+
+// Initialize TestBed environment
+if (!TestBed.platform) {
+  TestBed.initTestEnvironment(BrowserTestingModule, platformBrowserTesting());
+}
 
 beforeEach(() => {
   jest.useFakeTimers();
@@ -1310,6 +1316,8 @@ describe('Collection Service (async)', () => {
   });
 
   it('should observe readFrom', () => {
+    TestBed.resetTestingModule();
+    TestBed.configureTestingModule({});
     const source = new Subject<Item[]>();
     const isReading = signal(true);
 
@@ -1334,6 +1342,8 @@ describe('Collection Service (async)', () => {
   });
 
   it('should observe readManyFrom', () => {
+    TestBed.resetTestingModule();
+    TestBed.configureTestingModule({});
     const source = new Subject<Item[]>();
     const isReading = signal(false);
 

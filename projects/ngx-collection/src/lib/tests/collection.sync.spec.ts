@@ -762,13 +762,13 @@ describe('Collection Service (sync)', () => {
     const item1 = { id: 1, name: 'A' };
     const item2 = { id: 2, name: 'B' };
     const item3 = { id: 3, name: 'C' };
-    const item2d = { id: 1, name: '!A' };
+    const item1d = { id: 1, name: '!A' };
 
     expect(m.getDuplicates([item1, item2, item3])).toStrictEqual(null);
 
-    const expected = new Map();
-    expected.set(1, { 1: item2, 3: item2d });
-    expect(m.getDuplicates([item1, item2, item3, item2d])).toMatchObject(expected);
+    expect(m.getDuplicates([item1, item2, item3, item1d])).toMatchObject(
+      { "0": { "0": { "id": 1, "name": "A" }, "3": { "id": 1, "name": "!A" } } }
+    );
 
     m.setComparator((a: unknown, b: unknown) => a === b);
 
