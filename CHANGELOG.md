@@ -1,3 +1,6 @@
+## 5.0.4
+Added LLM-generated documentation ;)
+
 ## 5.0.2
 The removal of the `sideEffect()` alias was not properly documented in the changelog - it was never declared as deprecated - so the alias has now been restored.
 
