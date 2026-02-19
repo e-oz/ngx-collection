@@ -13,6 +13,8 @@ Collection method calls can be completely synchronous, or asynchronous (preventi
 
 Out of the box, without any additional code, you'll be able to control your "loading" spinners, temporarily disable buttons, display success/error messages, and much more.
 
+# [Documentation](docs/index.md)
+
 # Example Application
 
 You can read an [introductory article](https://medium.com/@eugeniyoz/collection-service-for-angular-d0b64bae9c20) that includes an example of building this application.     
