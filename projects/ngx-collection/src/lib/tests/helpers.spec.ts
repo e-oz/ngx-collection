@@ -30,6 +30,15 @@ describe('getObjectPathValue', () => {
 
     spy.mockRestore();
   });
+
+  it('should return undefined for null object input', () => {
+    expect(getObjectPathValue(null as any, 'foo')).toBe(undefined);
+    expect(getObjectPathValue(undefined as any, 'foo')).toBe(undefined);
+  });
+
+  it('should return undefined for null object input with dotted path', () => {
+    expect(getObjectPathValue(null as any, 'foo.bar')).toBe(undefined);
+  });
 });
 
 describe('isEmptyValue()', () => {
@@ -67,6 +76,24 @@ describe('isEmptyValue()', () => {
 
   it('should return true for arrays with one empty object', () => {
     expect(isEmptyValue([{}])).toBe(true);
+  });
+
+  it('should return true for empty string', () => {
+    expect(isEmptyValue('')).toBe(true);
+  });
+
+  it('should return false for non-empty string', () => {
+    expect(isEmptyValue('hello')).toBe(false);
+  });
+
+  it('should return false for non-array objects', () => {
+    expect(isEmptyValue({})).toBe(false);
+    expect(isEmptyValue({ a: 1 })).toBe(false);
+  });
+
+  it('should return false for non-empty arrays', () => {
+    expect(isEmptyValue([1])).toBe(false);
+    expect(isEmptyValue([1, 2])).toBe(false);
   });
 });
 

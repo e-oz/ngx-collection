@@ -364,7 +364,7 @@ export class Collection<T, UniqueStatus = unknown, Status = unknown>
           }
         }
         this.state.$items.set(items);
-        this.state.$totalCountFetched.set(Array.isArray(fetched) ? undefined : fetched.totalCount);
+        this.state.$totalCountFetched.set(fetched != null && !Array.isArray(fetched) ? fetched.totalCount : undefined);
 
         this.callCb(params.onSuccess, items);
         if (this.onRead.observed) {
@@ -464,7 +464,7 @@ export class Collection<T, UniqueStatus = unknown, Status = unknown>
         this.state.$isBeforeFirstRead.set(false);
       }),
       tap((fetched) => {
-        if (params.onError && errors.length) {
+        if (errors.length) {
           this.callCb(params.onError, errors);
           this.state.$lastReadManyError.set({
             errors,
@@ -473,7 +473,7 @@ export class Collection<T, UniqueStatus = unknown, Status = unknown>
             context: params.context,
           });
         }
-        this.state.$totalCountFetched.set(!Array.isArray(fetched) ? fetched.totalCount : undefined);
+        this.state.$totalCountFetched.set(fetched != null && !Array.isArray(fetched) ? fetched.totalCount : undefined);
         const readItems = fetched == null ? ([] as T[]) : (Array.isArray(fetched) ? fetched : fetched.items);
         if (readItems.length > 0) {
           let onSuccess: undefined | Function = undefined;
@@ -635,8 +635,14 @@ export class Collection<T, UniqueStatus = unknown, Status = unknown>
     return request.pipe(
       finalize(() => this.state.$refreshProcesses.update((processes) => processes.filter(process => process.token !== refreshToken))),
       tap((fetched) => {
-        if (params.onError && errors.length) {
+        if (errors.length) {
           this.callCb(params.onError, errors);
+          this.state.$lastRefreshError.set({
+            errors,
+            time: new Date(),
+            items: params.items,
+            context: params.context,
+          });
         }
         if (fetched != null) {
           this.state.$totalCountFetched.set(!Array.isArray(fetched) ? fetched.totalCount : undefined);
@@ -695,9 +701,6 @@ export class Collection<T, UniqueStatus = unknown, Status = unknown>
       finalize(() => this.state.$updateProcesses.update((processes) => processes.filter(process => process.token !== updateToken))),
       take(1),
       switchMap((newItem) => {
-        if (params.refresh) {
-          return this.refresh(params.refresh);
-        }
         if (params.refreshRequest) {
           return this.refresh({
             request: params.refreshRequest,
@@ -1312,7 +1315,7 @@ export class Collection<T, UniqueStatus = unknown, Status = unknown>
   } {
     const hasDuplicates = this.hasDuplicates(items);
     if (hasDuplicates) {
-      return { duplicate: hasDuplicates };
+      return { duplicate: hasDuplicates, preExisting: true };
     }
     for (let i = 0; i < items.length; i++) {
       if (this.upsertOne(items[i], toItems) === 'duplicate') {

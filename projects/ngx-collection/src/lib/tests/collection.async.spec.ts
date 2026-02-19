@@ -1846,4 +1846,1259 @@ describe('Collection Service (async)', () => {
     jest.advanceTimersByTime(9);
     expect(coll.$items()).toStrictEqual([second, first]);
   });
+
+  it('create should call onSuccess with the created item', () => {
+    const { coll } = setup();
+    const item = { id: 1, name: 'A' };
+    const onSuccess = jest.fn();
+
+    coll.create({
+      request: emit(item),
+      onSuccess,
+    }).subscribe();
+
+    expect(onSuccess).not.toHaveBeenCalled();
+    jest.runAllTimers();
+
+    expect(onSuccess).toHaveBeenCalledWith(item);
+    expect(coll.$items()).toStrictEqual([item]);
+  });
+
+  it('create should call onError with onDuplicateErrCallbackParam when duplicate detected (no throw)', () => {
+    const coll = new Collection<Item>({
+      comparatorFields: ['id'],
+      throwOnDuplicates: false,
+    });
+    const item = { id: 1, name: 'A' };
+    const onError = jest.fn();
+
+    coll.create({ request: of(item) }).subscribe();
+    expect(coll.$items()).toStrictEqual([item]);
+
+    coll.create({
+      request: emit(item),
+      onError,
+    }).subscribe();
+
+    jest.runAllTimers();
+
+    expect(onError).toHaveBeenCalledTimes(1);
+    expect(onError.mock.calls[0][0]).toBeInstanceOf(Error);
+    expect(onError.mock.calls[0][0].name).toBe('DuplicateError');
+    expect(coll.$items()).toStrictEqual([item]);
+    expect(coll.$isCreating()).toBe(false);
+  });
+
+  it('create should call onError with thrown Error when throwOnDuplicates is set and duplicate detected', () => {
+    const { coll } = setup();
+    const item = { id: 1, name: 'A' };
+    const onError = jest.fn();
+
+    coll.create({ request: of(item) }).subscribe();
+
+    coll.create({
+      request: emit(item),
+      onError,
+    }).subscribe();
+
+    jest.runAllTimers();
+
+    expect(onError).toHaveBeenCalledTimes(1);
+    const errorArg = onError.mock.calls[0][0];
+    expect(errorArg).toBeInstanceOf(Error);
+    expect(errorArg.message).toBe('duplicate');
+    expect(coll.$items()).toStrictEqual([item]);
+    expect(coll.$isCreating()).toBe(false);
+  });
+
+  it('create should not call any callback when request emits null', () => {
+    const { coll } = setup();
+    const onSuccess = jest.fn();
+    const onError = jest.fn();
+
+    coll.create({
+      request: emit(null as any),
+      onSuccess,
+      onError,
+    }).subscribe();
+
+    jest.runAllTimers();
+
+    expect(onSuccess).not.toHaveBeenCalled();
+    expect(onError).not.toHaveBeenCalled();
+    expect(coll.$items()).toStrictEqual([]);
+    expect(coll.$isCreating()).toBe(false);
+  });
+
+  it('create should handle race condition: two concurrent creates for the same item', () => {
+    const { coll } = setup();
+    const item = { id: 1, name: 'A' };
+    const onSuccessSlow = jest.fn();
+    const onErrorSlow = jest.fn();
+    const onSuccessFast = jest.fn();
+    const onErrorFast = jest.fn();
+
+    coll.create({
+      request: timer(30).pipe(map(() => item)),
+      onSuccess: onSuccessSlow,
+      onError: onErrorSlow,
+    }).subscribe();
+
+    coll.create({
+      request: timer(10).pipe(map(() => item)),
+      onSuccess: onSuccessFast,
+      onError: onErrorFast,
+    }).subscribe();
+
+    expect(coll.$isCreating()).toBe(true);
+
+    jest.advanceTimersByTime(10);
+
+    expect(onSuccessFast).toHaveBeenCalledWith(item);
+    expect(onErrorFast).not.toHaveBeenCalled();
+    expect(coll.$items()).toStrictEqual([item]);
+    expect(coll.$isCreating()).toBe(true);
+
+    jest.advanceTimersByTime(20);
+
+    expect(onSuccessSlow).not.toHaveBeenCalled();
+    expect(onErrorSlow).toHaveBeenCalledTimes(1);
+    expect(coll.$items()).toStrictEqual([item]);
+    expect(coll.$isCreating()).toBe(false);
+  });
+
+  it('createMany should call onSuccess with fetched items', () => {
+    const { coll } = setup();
+    const items = [{ id: 1, name: 'A' }, { id: 2, name: 'B' }];
+    const onSuccess = jest.fn();
+
+    coll.createMany({
+      request: emit(items),
+      onSuccess,
+    }).subscribe();
+
+    expect(onSuccess).not.toHaveBeenCalled();
+    jest.runAllTimers();
+
+    expect(onSuccess).toHaveBeenCalledWith(items);
+    expect(coll.$items()).toStrictEqual(items);
+  });
+
+  it('createMany should call onError when entire request fails', () => {
+    const { coll } = setup();
+    const onError = jest.fn();
+
+    coll.createMany({
+      request: throwError(() => 'total failure'),
+      onError,
+    }).subscribe();
+
+    expect(onError).toHaveBeenCalledWith('total failure');
+    expect(coll.$items()).toStrictEqual([]);
+    expect(coll.$isCreating()).toBe(false);
+  });
+
+  it('createMany should upsert items that already exist in the collection', () => {
+    const { coll } = setup();
+    const existing = { id: 1, name: 'old' };
+    const updated = { id: 1, name: 'new' };
+    const brandNew = { id: 2, name: 'B' };
+    const onSuccess = jest.fn();
+
+    coll.read({ request: of([existing]) }).subscribe();
+    expect(coll.$items()).toStrictEqual([existing]);
+
+    coll.createMany({
+      request: emit([updated, brandNew]),
+      onSuccess,
+    }).subscribe();
+
+    jest.runAllTimers();
+
+    expect(onSuccess).toHaveBeenCalledWith([updated, brandNew]);
+    expect(coll.$items()).toStrictEqual([updated, brandNew]);
+  });
+
+  it('createMany should call onError with onDuplicateErrCallbackParam for duplicates within fetched items (no throw)', () => {
+    const errReporter = jest.fn();
+    const coll = new Collection<Item>({
+      comparatorFields: ['id'],
+      errReporter,
+      throwOnDuplicates: false,
+    });
+    const existing = { id: 1, name: 'A' };
+    const onError = jest.fn();
+
+    coll.read({ request: of([existing]) }).subscribe();
+
+    coll.createMany({
+      request: emit([{ id: 2, name: 'B' }, { id: 2, name: 'C' }]),
+      onError,
+    }).subscribe();
+
+    jest.runAllTimers();
+
+    expect(onError).toHaveBeenCalledTimes(1);
+    expect(onError.mock.calls[0][0]).toBeInstanceOf(Error);
+    expect(onError.mock.calls[0][0].name).toBe('DuplicateError');
+    expect(coll.$items()).toStrictEqual([existing]);
+    expect(coll.$isCreating()).toBe(false);
+  });
+
+  it('createMany errReporter should receive the fetched items when duplicates are within the fetched set (preExisting bug)', () => {
+    const errReporter = jest.fn();
+    const coll = new Collection<Item>({
+      comparatorFields: ['id'],
+      errReporter,
+      throwOnDuplicates: false,
+    });
+    const existing = { id: 1, name: 'A' };
+    const fetchedWithDupes = [{ id: 2, name: 'B' }, { id: 2, name: 'C' }];
+
+    coll.read({ request: of([existing]) }).subscribe();
+    errReporter.mockClear();
+
+    coll.createMany({
+      request: emit(fetchedWithDupes),
+    }).subscribe();
+
+    jest.runAllTimers();
+
+    expect(errReporter).toHaveBeenCalled();
+    const firstCallArgs = errReporter.mock.calls[0];
+    // errReporter should be called with the fetched items (that contain duplicates),
+    // not the existing collection items.
+    // BUG: upsertMany never sets preExisting=true, so duplicateNotAdded
+    // receives the existing collection items instead of the fetched items.
+    expect(firstCallArgs[2]).toStrictEqual(fetchedWithDupes);
+  });
+
+  it('createMany should keep isCreating true for concurrent createMany calls', () => {
+    const { coll } = setup();
+
+    coll.createMany({
+      request: timer(30).pipe(map(() => [{ id: 1, name: 'A' }])),
+    }).subscribe();
+
+    coll.createMany({
+      request: timer(10).pipe(map(() => [{ id: 2, name: 'B' }])),
+    }).subscribe();
+
+    expect(coll.$isCreating()).toBe(true);
+
+    jest.advanceTimersByTime(10);
+
+    expect(coll.$items()).toStrictEqual([{ id: 2, name: 'B' }]);
+    expect(coll.$isCreating()).toBe(true);
+
+    jest.advanceTimersByTime(20);
+
+    expect(coll.$items()).toStrictEqual([{ id: 2, name: 'B' }, { id: 1, name: 'A' }]);
+    expect(coll.$isCreating()).toBe(false);
+  });
+
+  it('read should call onSuccess with the items array', () => {
+    const { coll } = setup();
+    const onSuccess = jest.fn();
+
+    coll.read({
+      request: emit([{ id: 1, name: 'A' }, { id: 2, name: 'B' }]),
+      onSuccess,
+    }).subscribe();
+
+    expect(onSuccess).not.toHaveBeenCalled();
+    jest.runAllTimers();
+
+    expect(onSuccess).toHaveBeenCalledWith([{ id: 1, name: 'A' }, { id: 2, name: 'B' }]);
+  });
+
+  it('read should call onSuccess with items array (not FetchedItems) for FetchedItems response', () => {
+    const { coll } = setup();
+    const onSuccess = jest.fn();
+
+    coll.read({
+      request: emit({ items: [{ id: 1, name: 'A' }], totalCount: 42 }),
+      onSuccess,
+    }).subscribe();
+
+    jest.runAllTimers();
+
+    expect(onSuccess).toHaveBeenCalledWith([{ id: 1, name: 'A' }]);
+    expect(coll.$totalCountFetched()).toBe(42);
+  });
+
+  it('read should call onError callback on request error', () => {
+    const { coll } = setup();
+    const onError = jest.fn();
+
+    coll.read({
+      request: throwError(() => 'read-failed'),
+      onError,
+    }).subscribe();
+
+    expect(onError).toHaveBeenCalledWith('read-failed');
+  });
+
+  it('read lastReadError should include context and items', () => {
+    const { coll } = setup();
+
+    coll.read({
+      request: throwError(() => 'err'),
+      context: { page: 3 },
+      items: [{ id: 1 } as Item, { id: 2 } as Item],
+    }).subscribe();
+
+    const lastErr = coll.$lastReadError();
+    expect(lastErr).toBeDefined();
+    expect(lastErr!.errors).toEqual(['err']);
+    expect(lastErr!.context).toEqual({ page: 3 });
+    expect(lastErr!.items).toStrictEqual([{ id: 1 }, { id: 2 }]);
+    expect(lastErr!.time).toBeInstanceOf(Date);
+  });
+
+  it('read should set isBeforeFirstRead to false even on error', () => {
+    const { coll } = setup();
+
+    expect(coll.$isBeforeFirstRead()).toBe(true);
+
+    coll.read({
+      request: timer(10).pipe(switchMap(() => throwError(() => 'err'))),
+    }).subscribe();
+
+    expect(coll.$isBeforeFirstRead()).toBe(true);
+    expect(coll.$isReading()).toBe(true);
+
+    jest.runAllTimers();
+
+    expect(coll.$isBeforeFirstRead()).toBe(false);
+    expect(coll.$isReading()).toBe(false);
+  });
+
+  it('read should clear lastReadError on new read attempt', () => {
+    const { coll } = setup();
+
+    coll.read({
+      request: throwError(() => 'first-err'),
+    }).subscribe();
+
+    expect(coll.$lastReadError()).toBeDefined();
+
+    coll.read({
+      request: emit([{ id: 1, name: 'A' }]),
+    }).subscribe();
+
+    expect(coll.$lastReadError()).toBeUndefined();
+    jest.runAllTimers();
+    expect(coll.$lastReadError()).toBeUndefined();
+    expect(coll.$items()).toStrictEqual([{ id: 1, name: 'A' }]);
+  });
+
+  it('read should overwrite items from an in-flight update', () => {
+    const { coll } = setup();
+    const item = { id: 1, name: 'A' };
+
+    coll.read({ request: of([item]) }).subscribe();
+
+    coll.update({
+      item,
+      request: timer(5).pipe(map(() => ({ id: 1, name: 'updated' }))),
+    }).subscribe();
+
+    expect(coll.$isUpdating()).toBe(true);
+
+    coll.read({
+      request: timer(10).pipe(map(() => [{ id: 1, name: 'from-read' }])),
+    }).subscribe();
+
+    jest.advanceTimersByTime(5);
+    expect(coll.$items()).toStrictEqual([{ id: 1, name: 'updated' }]);
+
+    jest.advanceTimersByTime(5);
+    expect(coll.$items()).toStrictEqual([{ id: 1, name: 'from-read' }]);
+  });
+
+  it('read with empty array should clear existing items and unset totalCount', () => {
+    const { coll } = setup();
+    const onSuccess = jest.fn();
+
+    coll.read({
+      request: of({ items: [{ id: 1, name: 'A' }], totalCount: 10 }),
+    }).subscribe();
+
+    expect(coll.$items()).toStrictEqual([{ id: 1, name: 'A' }]);
+    expect(coll.$totalCountFetched()).toBe(10);
+
+    coll.read({
+      request: emit([]),
+      onSuccess,
+    }).subscribe();
+
+    jest.runAllTimers();
+
+    expect(coll.$items()).toStrictEqual([]);
+    expect(coll.$totalCountFetched()).toBeUndefined();
+    expect(onSuccess).toHaveBeenCalledWith([]);
+  });
+
+  it('read should handle null response gracefully without triggering error path (totalCount null-safety bug test)', () => {
+    const { coll } = setup();
+    const onError = jest.fn();
+
+    coll.read({
+      request: of({ items: [{ id: 1, name: 'A' }], totalCount: 5 }),
+    }).subscribe();
+    expect(coll.$totalCountFetched()).toBe(5);
+
+    coll.read({
+      request: emit(null as any),
+      onError,
+    }).subscribe();
+
+    jest.runAllTimers();
+
+    expect(coll.$items()).toStrictEqual([]);
+    expect(coll.$totalCountFetched()).toBeUndefined();
+    expect(onError).not.toHaveBeenCalled();
+    expect(coll.$lastReadError()).toBeUndefined();
+  });
+
+  it('readOne should call onSuccess with the item', () => {
+    const { coll } = setup();
+    const onSuccess = jest.fn();
+
+    coll.readOne({
+      request: emit({ id: 1, name: 'A' }),
+      onSuccess,
+    }).subscribe();
+
+    expect(onSuccess).not.toHaveBeenCalled();
+    jest.runAllTimers();
+
+    expect(onSuccess).toHaveBeenCalledWith({ id: 1, name: 'A' });
+    expect(coll.$items()).toStrictEqual([{ id: 1, name: 'A' }]);
+  });
+
+  it('readOne should call onError callback on request error', () => {
+    const { coll } = setup();
+    const onError = jest.fn();
+
+    coll.readOne({
+      request: throwError(() => 'readone-failed'),
+      onError,
+      item: { id: 1 } as Item,
+      context: 'detail-page',
+    }).subscribe();
+
+    expect(onError).toHaveBeenCalledWith('readone-failed');
+    const lastErr = coll.$lastReadOneError();
+    expect(lastErr).toBeDefined();
+    expect(lastErr!.errors).toEqual(['readone-failed']);
+    expect(lastErr!.items).toStrictEqual([{ id: 1 }]);
+    expect(lastErr!.context).toBe('detail-page');
+  });
+
+  it('readOne should set isBeforeFirstRead to false even on error', () => {
+    const { coll } = setup();
+
+    expect(coll.$isBeforeFirstRead()).toBe(true);
+
+    coll.readOne({
+      request: timer(10).pipe(switchMap(() => throwError(() => 'err'))),
+    }).subscribe();
+
+    expect(coll.$isBeforeFirstRead()).toBe(true);
+    jest.runAllTimers();
+    expect(coll.$isBeforeFirstRead()).toBe(false);
+  });
+
+  it('readOne should not call any callback when request emits null', () => {
+    const { coll } = setup();
+    const onSuccess = jest.fn();
+    const onError = jest.fn();
+
+    coll.read({ request: of([{ id: 1, name: 'A' }]) }).subscribe();
+
+    coll.readOne({
+      request: emit(null as any),
+      onSuccess,
+      onError,
+    }).subscribe();
+
+    jest.runAllTimers();
+
+    expect(onSuccess).not.toHaveBeenCalled();
+    expect(onError).not.toHaveBeenCalled();
+    expect(coll.$items()).toStrictEqual([{ id: 1, name: 'A' }]);
+  });
+
+  it('readOne should clear lastReadOneError on new attempt', () => {
+    const { coll } = setup();
+
+    coll.readOne({
+      request: throwError(() => 'err'),
+    }).subscribe();
+    expect(coll.$lastReadOneError()).toBeDefined();
+
+    coll.readOne({
+      request: emit({ id: 1, name: 'A' }),
+    }).subscribe();
+    expect(coll.$lastReadOneError()).toBeUndefined();
+
+    jest.runAllTimers();
+    expect(coll.$lastReadOneError()).toBeUndefined();
+  });
+
+  it('readOne should handle concurrent readOne for same and different items', () => {
+    const { coll } = setup();
+
+    coll.read({ request: of([{ id: 1, name: 'A' }]) }).subscribe();
+
+    coll.readOne({
+      request: timer(30).pipe(map(() => ({ id: 1, name: 'slow' }))),
+      item: { id: 1 } as Item,
+    }).subscribe();
+
+    coll.readOne({
+      request: timer(10).pipe(map(() => ({ id: 2, name: 'fast' }))),
+      item: { id: 2 } as Item,
+    }).subscribe();
+
+    expect(coll.$isReading()).toBe(true);
+    expect(coll.$readingItems()).toStrictEqual([{ id: 1 }, { id: 2 }]);
+
+    jest.advanceTimersByTime(10);
+
+    expect(coll.$items()).toStrictEqual([{ id: 1, name: 'A' }, { id: 2, name: 'fast' }]);
+    expect(coll.$isReading()).toBe(true);
+    expect(coll.$readingItems()).toStrictEqual([{ id: 1 }]);
+
+    jest.advanceTimersByTime(20);
+
+    expect(coll.$items()).toStrictEqual([{ id: 1, name: 'slow' }, { id: 2, name: 'fast' }]);
+    expect(coll.$isReading()).toBe(false);
+    expect(coll.$readingItems()).toStrictEqual([]);
+  });
+
+  it('readOne should call onError when collection has pre-existing duplicates and upsertOne returns duplicate', () => {
+    const errReporter = jest.fn();
+    const coll = new Collection<Item>({
+      comparatorFields: ['id'],
+      allowFetchedDuplicates: true,
+      errReporter,
+    });
+
+    coll.read({
+      request: of([{ id: 1, name: 'A' }, { id: 1, name: 'B' }]),
+    }).subscribe();
+    expect(coll.$items()).toStrictEqual([{ id: 1, name: 'A' }, { id: 1, name: 'B' }]);
+    errReporter.mockClear();
+
+    const onError = jest.fn();
+    coll.readOne({
+      request: emit({ id: 1, name: 'C' }),
+      onError,
+    }).subscribe();
+
+    jest.runAllTimers();
+
+    expect(onError).toHaveBeenCalledTimes(1);
+    expect(coll.$items()).toStrictEqual([{ id: 1, name: 'A' }, { id: 1, name: 'B' }]);
+  });
+
+  it('readMany should call onSuccess with the full items array (existing + new)', () => {
+    const { coll } = setup();
+    const onSuccess = jest.fn();
+
+    coll.read({ request: of([{ id: 1, name: 'A' }]) }).subscribe();
+
+    coll.readMany({
+      request: emit([{ id: 2, name: 'B' }]),
+      onSuccess,
+    }).subscribe();
+
+    jest.runAllTimers();
+
+    expect(onSuccess).toHaveBeenCalledWith([{ id: 1, name: 'A' }, { id: 2, name: 'B' }]);
+  });
+
+  it('readMany should call onError on total request failure', () => {
+    const { coll } = setup();
+    const onError = jest.fn();
+
+    coll.readMany({
+      request: throwError(() => 'total-failure'),
+      onError,
+      items: [{ id: 1 } as Item],
+      context: 'page-2',
+    }).subscribe();
+
+    expect(onError).toHaveBeenCalledWith('total-failure');
+    const lastErr = coll.$lastReadManyError();
+    expect(lastErr).toBeDefined();
+    expect(lastErr!.errors).toEqual(['total-failure']);
+    expect(lastErr!.items).toStrictEqual([{ id: 1 }]);
+    expect(lastErr!.context).toBe('page-2');
+  });
+
+  it('readMany should set isBeforeFirstRead to false even on error', () => {
+    const { coll } = setup();
+
+    expect(coll.$isBeforeFirstRead()).toBe(true);
+
+    coll.readMany({
+      request: timer(10).pipe(switchMap(() => throwError(() => 'err'))),
+    }).subscribe();
+
+    expect(coll.$isBeforeFirstRead()).toBe(true);
+    jest.runAllTimers();
+    expect(coll.$isBeforeFirstRead()).toBe(false);
+  });
+
+  it('readMany should clear lastReadManyError on new attempt', () => {
+    const { coll } = setup();
+
+    coll.readMany({
+      request: throwError(() => 'err'),
+    }).subscribe();
+    expect(coll.$lastReadManyError()).toBeDefined();
+
+    coll.readMany({
+      request: emit([{ id: 1, name: 'A' }]),
+    }).subscribe();
+    expect(coll.$lastReadManyError()).toBeUndefined();
+
+    jest.runAllTimers();
+    expect(coll.$lastReadManyError()).toBeUndefined();
+  });
+
+  it('readMany should upsert items that already exist in the collection', () => {
+    const { coll } = setup();
+
+    coll.read({ request: of([{ id: 1, name: 'old' }, { id: 2, name: 'B' }]) }).subscribe();
+
+    coll.readMany({
+      request: emit([{ id: 1, name: 'new' }, { id: 3, name: 'C' }]),
+    }).subscribe();
+
+    jest.runAllTimers();
+
+    expect(coll.$items()).toStrictEqual([
+      { id: 1, name: 'new' },
+      { id: 2, name: 'B' },
+      { id: 3, name: 'C' },
+    ]);
+  });
+
+  it('readMany should not crash when single request emits null (totalCount null-safety bug test)', () => {
+    const { coll } = setup();
+
+    coll.read({ request: of({ items: [{ id: 1, name: 'A' }], totalCount: 10 }) }).subscribe();
+    expect(coll.$totalCountFetched()).toBe(10);
+
+    coll.readMany({
+      request: emit(null as any),
+    }).subscribe();
+
+    jest.runAllTimers();
+
+    expect(coll.$totalCountFetched()).toBeUndefined();
+  });
+
+  it('readMany should set lastReadManyError for partial forkJoin errors even without onError callback (bug test)', () => {
+    const { coll } = setup();
+
+    coll.readMany({
+      request: [emit({ id: 1, name: 'A' }), throwError(() => 'partial-err')],
+    }).subscribe();
+
+    jest.runAllTimers();
+
+    expect(coll.$lastReadManyError()).toBeDefined();
+    expect(coll.$lastReadManyError()!.errors).toEqual(['partial-err']);
+  });
+
+  it('readFrom should replace items on each new source emission (switchMap behavior)', () => {
+    const { coll } = setup();
+    const source = new Subject<Item[]>();
+
+    coll.readFrom({ source }).subscribe();
+
+    source.next([{ id: 1, name: 'A' }]);
+    expect(coll.$items()).toStrictEqual([{ id: 1, name: 'A' }]);
+
+    source.next([{ id: 2, name: 'B' }]);
+    expect(coll.$items()).toStrictEqual([{ id: 2, name: 'B' }]);
+
+    source.next([{ id: 3, name: 'C' }, { id: 4, name: 'D' }]);
+    expect(coll.$items()).toStrictEqual([{ id: 3, name: 'C' }, { id: 4, name: 'D' }]);
+  });
+
+  it('readFrom should pass onSuccess through to inner read', () => {
+    const { coll } = setup();
+    const source = new Subject<Item[]>();
+    const onSuccess = jest.fn();
+
+    coll.readFrom({ source, onSuccess }).subscribe();
+
+    source.next([{ id: 1, name: 'A' }]);
+    expect(onSuccess).toHaveBeenCalledWith([{ id: 1, name: 'A' }]);
+  });
+
+  it('readManyFrom should call onError when source errors', () => {
+    const { coll } = setup();
+    const source = new Subject<Item[]>();
+    const onError = jest.fn();
+
+    coll.readManyFrom({ source, onError }).subscribe();
+
+    source.error('source-boom');
+    expect(onError).toHaveBeenCalledWith('source-boom');
+  });
+
+  it('readManyFrom should accumulate items across emissions', () => {
+    const { coll } = setup();
+    const source = new Subject<Item[]>();
+
+    coll.readManyFrom({ source }).subscribe();
+
+    source.next([{ id: 1, name: 'A' }]);
+    expect(coll.$items()).toStrictEqual([{ id: 1, name: 'A' }]);
+
+    source.next([{ id: 2, name: 'B' }]);
+    expect(coll.$items()).toStrictEqual([{ id: 1, name: 'A' }, { id: 2, name: 'B' }]);
+
+    source.next([{ id: 1, name: 'A-updated' }, { id: 3, name: 'C' }]);
+    expect(coll.$items()).toStrictEqual([{ id: 1, name: 'A-updated' }, { id: 2, name: 'B' }, { id: 3, name: 'C' }]);
+  });
+
+  it('readManyFrom should pass onSuccess through to inner readMany', () => {
+    const { coll } = setup();
+    const source = new Subject<Item[]>();
+    const onSuccess = jest.fn();
+
+    coll.readManyFrom({ source, onSuccess }).subscribe();
+
+    source.next([{ id: 1, name: 'A' }]);
+    expect(onSuccess).toHaveBeenCalledWith([{ id: 1, name: 'A' }]);
+  });
+
+  it('refresh should call onSuccess with the refreshed item', () => {
+    const { coll } = setup();
+    const item = { id: 1, name: 'A' };
+    const onSuccess = jest.fn();
+
+    coll.read({ request: of([item]) }).subscribe();
+
+    coll.refresh({
+      request: emit({ id: 1, name: 'refreshed' }),
+      item,
+      onSuccess,
+    }).subscribe();
+
+    expect(onSuccess).not.toHaveBeenCalled();
+    jest.runAllTimers();
+
+    expect(onSuccess).toHaveBeenCalledWith({ id: 1, name: 'refreshed' });
+    expect(coll.$items()).toStrictEqual([{ id: 1, name: 'refreshed' }]);
+  });
+
+  it('refresh should call onError and set lastRefreshError with context on request error', () => {
+    const { coll } = setup();
+    const item = { id: 1, name: 'A' };
+    const onError = jest.fn();
+
+    coll.read({ request: of([item]) }).subscribe();
+
+    coll.refresh({
+      request: timer(5).pipe(switchMap(() => throwError(() => 'refresh-fail'))),
+      item,
+      onError,
+      context: 'detail-view',
+    }).subscribe();
+
+    expect(coll.$refreshingItems()).toStrictEqual([item]);
+    jest.runAllTimers();
+
+    expect(onError).toHaveBeenCalledWith('refresh-fail');
+    expect(coll.$refreshingItems()).toStrictEqual([]);
+    const lastErr = coll.$lastRefreshError();
+    expect(lastErr!.errors).toEqual(['refresh-fail']);
+    expect(lastErr!.items).toStrictEqual([item]);
+    expect(lastErr!.context).toBe('detail-view');
+  });
+
+  it('refresh should clear lastRefreshError on new attempt', () => {
+    const { coll } = setup();
+    const item = { id: 1, name: 'A' };
+
+    coll.read({ request: of([item]) }).subscribe();
+
+    coll.refresh({
+      request: throwError(() => 'err'),
+      item,
+    }).subscribe();
+    expect(coll.$lastRefreshError()).toBeDefined();
+
+    coll.refresh({
+      request: emit({ id: 1, name: 'ok' }),
+      item,
+    }).subscribe();
+    expect(coll.$lastRefreshError()).toBeUndefined();
+
+    jest.runAllTimers();
+    expect(coll.$lastRefreshError()).toBeUndefined();
+  });
+
+  it('refresh should not call any callback when request emits null', () => {
+    const { coll } = setup();
+    const item = { id: 1, name: 'A' };
+    const onSuccess = jest.fn();
+    const onError = jest.fn();
+
+    coll.read({ request: of([item]) }).subscribe();
+
+    coll.refresh({
+      request: emit(null as any),
+      item,
+      onSuccess,
+      onError,
+    }).subscribe();
+
+    jest.runAllTimers();
+
+    expect(onSuccess).not.toHaveBeenCalled();
+    expect(onError).not.toHaveBeenCalled();
+    expect(coll.$items()).toStrictEqual([item]);
+  });
+
+  it('refresh should add a new item if it does not exist in the collection', () => {
+    const { coll } = setup();
+    const existing = { id: 1, name: 'A' };
+    const newItem = { id: 2, name: 'B' };
+
+    coll.read({ request: of([existing]) }).subscribe();
+
+    coll.refresh({
+      request: emit(newItem),
+      item: newItem,
+    }).subscribe();
+
+    jest.runAllTimers();
+
+    expect(coll.$items()).toStrictEqual([existing, newItem]);
+  });
+
+  it('refreshMany should call onSuccess with the full items array', () => {
+    const { coll } = setup();
+    const onSuccess = jest.fn();
+
+    coll.read({ request: of([{ id: 1, name: 'A' }, { id: 2, name: 'B' }]) }).subscribe();
+
+    coll.refreshMany({
+      request: emit([{ id: 1, name: 'A2' }]),
+      items: [{ id: 1 } as Item],
+      onSuccess,
+    }).subscribe();
+
+    jest.runAllTimers();
+
+    expect(onSuccess).toHaveBeenCalledWith([{ id: 1, name: 'A2' }, { id: 2, name: 'B' }]);
+  });
+
+  it('refreshMany should call onError and set lastRefreshError on total request failure', () => {
+    const { coll } = setup();
+    const onError = jest.fn();
+
+    coll.read({ request: of([{ id: 1, name: 'A' }]) }).subscribe();
+
+    coll.refreshMany({
+      request: throwError(() => 'refresh-many-fail'),
+      items: [{ id: 1 } as Item],
+      onError,
+      context: 'bulk-refresh',
+    }).subscribe();
+
+    expect(onError).toHaveBeenCalledWith('refresh-many-fail');
+    const lastErr = coll.$lastRefreshError();
+    expect(lastErr!.errors).toEqual(['refresh-many-fail']);
+    expect(lastErr!.items).toStrictEqual([{ id: 1 }]);
+    expect(lastErr!.context).toBe('bulk-refresh');
+  });
+
+  it('refreshMany should clear lastRefreshError on new attempt', () => {
+    const { coll } = setup();
+
+    coll.read({ request: of([{ id: 1, name: 'A' }]) }).subscribe();
+
+    coll.refreshMany({
+      request: throwError(() => 'err'),
+      items: [{ id: 1 } as Item],
+    }).subscribe();
+    expect(coll.$lastRefreshError()).toBeDefined();
+
+    coll.refreshMany({
+      request: emit([{ id: 1, name: 'A2' }]),
+      items: [{ id: 1 } as Item],
+    }).subscribe();
+    expect(coll.$lastRefreshError()).toBeUndefined();
+
+    jest.runAllTimers();
+    expect(coll.$lastRefreshError()).toBeUndefined();
+  });
+
+  it('refreshMany should set lastRefreshError for partial forkJoinSafe errors even without onError callback (bug test)', () => {
+    const { coll } = setup();
+
+    coll.read({ request: of([{ id: 1, name: 'A' }]) }).subscribe();
+
+    coll.refreshMany({
+      request: [emit({ id: 1, name: 'A-refreshed' }), throwError(() => 'partial-refresh-err')],
+      items: [{ id: 1 } as Item, { id: 2 } as Item],
+    }).subscribe();
+
+    jest.runAllTimers();
+
+    expect(coll.$items()).toStrictEqual([{ id: 1, name: 'A-refreshed' }]);
+    expect(coll.$lastRefreshError()).toBeDefined();
+    expect(coll.$lastRefreshError()!.errors).toEqual(['partial-refresh-err']);
+  });
+
+  it('update should call onSuccess with the updated item (direct upsert path)', () => {
+    const { coll } = setup();
+    const onSuccess = jest.fn();
+
+    coll.read({ request: of([{ id: 1, name: 'A' }]) }).subscribe();
+
+    coll.update({
+      request: emit({ id: 1, name: 'updated' }),
+      item: { id: 1 } as Item,
+      onSuccess,
+    }).subscribe();
+
+    jest.runAllTimers();
+
+    expect(onSuccess).toHaveBeenCalledWith({ id: 1, name: 'updated' });
+    expect(coll.$items()).toStrictEqual([{ id: 1, name: 'updated' }]);
+  });
+
+  it('update should call onError on request error', () => {
+    const { coll } = setup();
+    const onError = jest.fn();
+
+    coll.read({ request: of([{ id: 1, name: 'A' }]) }).subscribe();
+
+    coll.update({
+      request: throwError(() => 'update-fail'),
+      item: { id: 1 } as Item,
+      onError,
+    }).subscribe();
+
+    expect(onError).toHaveBeenCalledWith('update-fail');
+    expect(coll.$items()).toStrictEqual([{ id: 1, name: 'A' }]);
+  });
+
+  it('update should not call any callback when request emits null', () => {
+    const { coll } = setup();
+    const onSuccess = jest.fn();
+    const onError = jest.fn();
+
+    coll.read({ request: of([{ id: 1, name: 'A' }]) }).subscribe();
+
+    coll.update({
+      request: emit(null as any),
+      item: { id: 1 } as Item,
+      onSuccess,
+      onError,
+    }).subscribe();
+
+    jest.runAllTimers();
+
+    expect(onSuccess).not.toHaveBeenCalled();
+    expect(onError).not.toHaveBeenCalled();
+    expect(coll.$items()).toStrictEqual([{ id: 1, name: 'A' }]);
+  });
+
+  it('update should call onError with onDuplicateErrCallbackParam when upsert detects duplicate', () => {
+    const onError = jest.fn();
+    const coll = new Collection<Item>({
+      comparatorFields: ['id'],
+      allowFetchedDuplicates: true,
+    });
+
+    coll.read({ request: of([{ id: 1, name: 'A' }, { id: 1, name: 'B' }]) }).subscribe();
+    expect(coll.$items()).toStrictEqual([{ id: 1, name: 'A' }, { id: 1, name: 'B' }]);
+
+    coll.update({
+      request: emit({ id: 1, name: 'C' }),
+      item: { id: 1, name: 'A' },
+      onError,
+    }).subscribe();
+
+    jest.runAllTimers();
+
+    expect(onError).toHaveBeenCalledTimes(1);
+    expect(coll.$items()).toStrictEqual([{ id: 1, name: 'A' }, { id: 1, name: 'B' }]);
+  });
+
+  it('updateMany should call onSuccess with updated items (direct upsert path)', () => {
+    const { coll } = setup();
+    const onSuccess = jest.fn();
+
+    coll.read({ request: of([{ id: 1, name: 'A' }, { id: 2, name: 'B' }]) }).subscribe();
+
+    coll.updateMany({
+      request: emit([{ id: 1, name: 'A2' }, { id: 2, name: 'B2' }]),
+      items: [{ id: 1 } as Item, { id: 2 } as Item],
+      onSuccess,
+    }).subscribe();
+
+    jest.runAllTimers();
+
+    expect(onSuccess).toHaveBeenCalledWith([{ id: 1, name: 'A2' }, { id: 2, name: 'B2' }]);
+    expect(coll.$items()).toStrictEqual([{ id: 1, name: 'A2' }, { id: 2, name: 'B2' }]);
+  });
+
+  it('updateMany should call onError on total request failure', () => {
+    const { coll } = setup();
+    const onError = jest.fn();
+
+    coll.read({ request: of([{ id: 1, name: 'A' }]) }).subscribe();
+
+    coll.updateMany({
+      request: throwError(() => 'updateMany-fail'),
+      items: [{ id: 1 } as Item],
+      onError,
+    }).subscribe();
+
+    expect(onError).toHaveBeenCalledWith('updateMany-fail');
+    expect(coll.$items()).toStrictEqual([{ id: 1, name: 'A' }]);
+  });
+
+  it('updateMany should report partial forkJoinSafe errors via onError', () => {
+    const { coll } = setup();
+    const onError = jest.fn();
+
+    coll.read({ request: of([{ id: 1, name: 'A' }, { id: 2, name: 'B' }]) }).subscribe();
+
+    coll.updateMany({
+      request: [emit({ id: 1, name: 'A2' }), throwError(() => 'partial-update-err')],
+      items: [{ id: 1 } as Item, { id: 2 } as Item],
+      onError,
+    }).subscribe();
+
+    jest.runAllTimers();
+
+    expect(onError).toHaveBeenCalledWith(['partial-update-err']);
+    expect(coll.$items()).toStrictEqual([{ id: 1, name: 'A2' }, { id: 2, name: 'B' }]);
+  });
+
+  it('updateMany should not call onError for partial errors when no onError callback provided', () => {
+    const { coll } = setup();
+
+    coll.read({ request: of([{ id: 1, name: 'A' }, { id: 2, name: 'B' }]) }).subscribe();
+
+    let completed = false;
+    coll.updateMany({
+      request: [emit({ id: 1, name: 'A2' }), throwError(() => 'silent-err')],
+      items: [{ id: 1 } as Item, { id: 2 } as Item],
+    }).subscribe({ complete: () => completed = true });
+
+    jest.runAllTimers();
+
+    expect(coll.$items()).toStrictEqual([{ id: 1, name: 'A2' }, { id: 2, name: 'B' }]);
+    expect(completed).toBe(true);
+  });
+
+  it('updateMany with empty items should return EMPTY and call onError', () => {
+    const { coll } = setup();
+    const onError = jest.fn();
+    const spy = jest.spyOn(console, 'error').mockImplementation(() => {});
+
+    let next = false;
+    coll.updateMany({
+      request: emit([{ id: 1, name: 'A' }]),
+      items: [],
+      onError,
+    }).subscribe({ next: () => next = true });
+
+    jest.runAllTimers();
+
+    expect(next).toBe(false);
+    expect(onError).toHaveBeenCalled();
+    expect(onError.mock.calls[0][0]).toBeInstanceOf(Error);
+    spy.mockRestore();
+  });
+
+  it('delete should call onSuccess with the response and remove the item (direct path)', () => {
+    const { coll } = setup();
+    const onSuccess = jest.fn();
+
+    coll.read({ request: of([{ id: 1, name: 'A' }, { id: 2, name: 'B' }]) }).subscribe();
+
+    coll.delete({
+      request: emit('deleted'),
+      item: { id: 1 } as Item,
+      onSuccess,
+    }).subscribe();
+
+    jest.runAllTimers();
+
+    expect(onSuccess).toHaveBeenCalledWith('deleted');
+    expect(coll.$items()).toStrictEqual([{ id: 2, name: 'B' }]);
+  });
+
+  it('delete should call onError on request error and keep items', () => {
+    const { coll } = setup();
+    const onError = jest.fn();
+
+    coll.read({ request: of([{ id: 1, name: 'A' }]) }).subscribe();
+
+    coll.delete({
+      request: throwError(() => 'delete-fail'),
+      item: { id: 1 } as Item,
+      onError,
+    }).subscribe();
+
+    expect(onError).toHaveBeenCalledWith('delete-fail');
+    expect(coll.$items()).toStrictEqual([{ id: 1, name: 'A' }]);
+  });
+
+  it('delete without request should remove item immediately with null response', () => {
+    const { coll } = setup();
+    const onSuccess = jest.fn();
+
+    coll.read({ request: of([{ id: 1, name: 'A' }, { id: 2, name: 'B' }]) }).subscribe();
+
+    coll.delete({
+      item: { id: 1 } as Item,
+      onSuccess,
+    }).subscribe();
+
+    expect(onSuccess).toHaveBeenCalledWith(null);
+    expect(coll.$items()).toStrictEqual([{ id: 2, name: 'B' }]);
+  });
+
+  it('delete with decrementTotalCount true should decrement by 1', () => {
+    const { coll } = setup();
+
+    coll.read({ request: of({ items: [{ id: 1, name: 'A' }, { id: 2, name: 'B' }], totalCount: 10 }) }).subscribe();
+    expect(coll.$totalCountFetched()).toBe(10);
+
+    coll.delete({
+      request: emit('ok'),
+      item: { id: 1 } as Item,
+      decrementTotalCount: true,
+    }).subscribe();
+
+    jest.runAllTimers();
+
+    expect(coll.$items()).toStrictEqual([{ id: 2, name: 'B' }]);
+    expect(coll.$totalCountFetched()).toBe(9);
+  });
+
+  it('delete with decrementTotalCount number should decrement by that number', () => {
+    const { coll } = setup();
+
+    coll.read({ request: of({ items: [{ id: 1, name: 'A' }, { id: 2, name: 'B' }], totalCount: 10 }) }).subscribe();
+
+    coll.delete({
+      request: emit('ok'),
+      item: { id: 1 } as Item,
+      decrementTotalCount: 3,
+    }).subscribe();
+
+    jest.runAllTimers();
+
+    expect(coll.$items()).toStrictEqual([{ id: 2, name: 'B' }]);
+    expect(coll.$totalCountFetched()).toBe(7);
+  });
+
+  it('deleteMany should call onSuccess with the response and remove items (direct path)', () => {
+    const { coll } = setup();
+    const onSuccess = jest.fn();
+
+    coll.read({ request: of([{ id: 1, name: 'A' }, { id: 2, name: 'B' }, { id: 3, name: 'C' }]) }).subscribe();
+
+    coll.deleteMany({
+      request: [emit('r1'), emit('r2')],
+      items: [{ id: 1 } as Item, { id: 2 } as Item],
+      onSuccess,
+    }).subscribe();
+
+    jest.runAllTimers();
+
+    expect(onSuccess).toHaveBeenCalled();
+    expect(coll.$items()).toStrictEqual([{ id: 3, name: 'C' }]);
+  });
+
+  it('deleteMany should call onError on total request failure', () => {
+    const { coll } = setup();
+    const onError = jest.fn();
+
+    coll.read({ request: of([{ id: 1, name: 'A' }]) }).subscribe();
+
+    coll.deleteMany({
+      request: [throwError(() => 'delete-many-fail')],
+      items: [{ id: 1 } as Item],
+      onError,
+    }).subscribe();
+
+    jest.runAllTimers();
+
+    expect(onError).toHaveBeenCalledWith(['delete-many-fail']);
+  });
+
+  it('deleteMany should report partial forkJoinSafe errors via onError', () => {
+    const { coll } = setup();
+    const onError = jest.fn();
+
+    coll.read({ request: of([{ id: 1, name: 'A' }, { id: 2, name: 'B' }]) }).subscribe();
+
+    coll.deleteMany({
+      request: [emit('ok'), throwError(() => 'partial-delete-err')],
+      items: [{ id: 1 } as Item, { id: 2 } as Item],
+      onError,
+    }).subscribe();
+
+    jest.runAllTimers();
+
+    expect(onError).toHaveBeenCalledWith(['partial-delete-err']);
+  });
+
+  it('deleteMany with empty items should return EMPTY and call onError', () => {
+    const { coll } = setup();
+    const onError = jest.fn();
+    const spy = jest.spyOn(console, 'error').mockImplementation(() => {});
+
+    let next = false;
+    coll.deleteMany({
+      request: [emit('ok')],
+      items: [],
+      onError,
+    }).subscribe({ next: () => next = true });
+
+    jest.runAllTimers();
+
+    expect(next).toBe(false);
+    expect(onError).toHaveBeenCalled();
+    expect(onError.mock.calls[0][0]).toBeInstanceOf(Error);
+    spy.mockRestore();
+  });
+
+  it('deleteMany without request should remove items with null response', () => {
+    const { coll } = setup();
+    const onSuccess = jest.fn();
+
+    coll.read({ request: of([{ id: 1, name: 'A' }, { id: 2, name: 'B' }, { id: 3, name: 'C' }]) }).subscribe();
+
+    coll.deleteMany({
+      items: [{ id: 1 } as Item, { id: 2 } as Item],
+      onSuccess,
+    }).subscribe();
+
+    jest.runAllTimers();
+
+    expect(onSuccess).toHaveBeenCalled();
+    expect(coll.$items()).toStrictEqual([{ id: 3, name: 'C' }]);
+  });
 });
