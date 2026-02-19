@@ -1,4 +1,5 @@
 import { signal } from '@angular/core';
+import { defer, of } from 'rxjs';
 import { Collection } from '../collection';
 
 type Item = {
@@ -843,5 +844,116 @@ describe('Collection Service (sync)', () => {
     const { coll } = setup();
 
     expect(coll.idsToPartialItems([1, 2, 3], 'id')).toStrictEqual([{ id: 1 }, { id: 2 }, { id: 3 }]);
+  });
+
+  it('should keep item statuses idempotent', () => {
+    const { coll } = setup();
+    const item = { id: 1, name: 'A' };
+
+    coll.read({ request: signal([item]) }).subscribe();
+    coll.setItemStatus(item, 'selected');
+    coll.setItemStatus(item, 'selected');
+
+    expect(coll.$statuses().get(item)?.size).toBe(1);
+
+    coll.deleteItemStatus(item, 'missing');
+    expect(coll.$statuses().get(item)?.has('selected')).toBe(true);
+  });
+
+  it('should return undefined when field signal value is undefined', () => {
+    const { coll } = setup();
+    const item = { id: 1, name: 'A' };
+
+    coll.read({ request: signal([item]) }).subscribe();
+    const idSignal = signal<number | undefined>(1);
+    const itemSignal = coll.getItemByField('id', idSignal);
+
+    expect(itemSignal()).toStrictEqual(item);
+
+    idSignal.set(undefined);
+    expect(itemSignal()).toStrictEqual(undefined);
+  });
+
+  it('should handle empty inputs in helpers', () => {
+    const { coll } = setup();
+
+    expect(coll.uniqueItems(null as any)).toStrictEqual([]);
+    expect(coll.hasItemIn({ id: 1 }, [])).toBe(false);
+    expect(coll.hasItemIn({ id: 1 }, null as any)).toBe(false);
+  });
+
+  it('deleteMany should noop when items array is empty', () => {
+    const { coll } = setup();
+    const item = { id: 1, name: 'A' };
+    let requestCalled = false;
+    const onError = jest.fn();
+    const consoleSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
+
+    coll.read({ request: signal([item]) }).subscribe();
+
+    coll.deleteMany({
+      items: [],
+      request: defer(() => {
+        requestCalled = true;
+        return of('ok');
+      }),
+      onError,
+    }).subscribe();
+
+    expect(requestCalled).toBe(false);
+    expect(coll.$isDeleting()).toBe(false);
+    expect(coll.$items()).toStrictEqual([item]);
+    expect(onError).toHaveBeenCalled();
+    consoleSpy.mockRestore();
+  });
+
+  it('updateMany should noop when items array is empty', () => {
+    const { coll } = setup();
+    const item = { id: 1, name: 'A' };
+    let requestCalled = false;
+    const onError = jest.fn();
+    const consoleSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
+
+    coll.read({ request: signal([item]) }).subscribe();
+
+    coll.updateMany({
+      items: [],
+      request: defer(() => {
+        requestCalled = true;
+        return of([{ id: 1, name: 'B' }]);
+      }),
+      onError,
+    }).subscribe();
+
+    expect(requestCalled).toBe(false);
+    expect(coll.$isUpdating()).toBe(false);
+    expect(coll.$items()).toStrictEqual([item]);
+    expect(onError).toHaveBeenCalled();
+    consoleSpy.mockRestore();
+  });
+
+  it('refreshMany should noop when items array is empty', () => {
+    const { coll } = setup();
+    const item = { id: 1, name: 'A' };
+    let requestCalled = false;
+    const onError = jest.fn();
+    const consoleSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
+
+    coll.read({ request: signal([item]) }).subscribe();
+
+    coll.refreshMany({
+      items: [],
+      request: defer(() => {
+        requestCalled = true;
+        return of([{ id: 1, name: 'B' }]);
+      }),
+      onError,
+    }).subscribe();
+
+    expect(requestCalled).toBe(false);
+    expect(coll.$refreshingItems()).toStrictEqual([]);
+    expect(coll.$items()).toStrictEqual([item]);
+    expect(onError).toHaveBeenCalled();
+    consoleSpy.mockRestore();
   });
 });

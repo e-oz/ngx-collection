@@ -78,14 +78,13 @@ export class Collection<T, UniqueStatus = unknown, Status = unknown>
   protected readonly state = {
     $items: signal<T[]>([]),
     $totalCountFetched: signal<number | undefined>(undefined),
-    $isCreating: signal<boolean>(false),
-    $isReading: signal<boolean>(false),
+    $createProcesses: signal<Array<symbol>>([]),
     $isReadingFrom: signal<Array<Signal<boolean>>>([]),
     $isBeforeFirstRead: signal<boolean>(true),
-    $readingItems: signal<Partial<T>[]>([]),
-    $updatingItems: signal<T[]>([], { equal: this.equalItems }),
-    $deletingItems: signal<T[]>([], { equal: this.equalItems }),
-    $refreshingItems: signal<T[]>([], { equal: this.equalItems }),
+    $readProcesses: signal<Array<{ token: symbol; items: Partial<T>[] }>>([]),
+    $updateProcesses: signal<Array<{ token: symbol; items: Partial<T>[] }>>([]),
+    $deleteProcesses: signal<Array<{ token: symbol; items: Partial<T>[] }>>([]),
+    $refreshProcesses: signal<Array<{ token: symbol; items: Partial<T>[] }>>([]),
     $status: signal<Map<UniqueStatus, T>>(new Map<UniqueStatus, T>()),
     $statuses: signal<Map<T, Set<Status>>>(new Map<T, Set<Status>>()),
     $lastReadError: signal<LastError<T> | undefined>(undefined),
@@ -115,14 +114,15 @@ export class Collection<T, UniqueStatus = unknown, Status = unknown>
     return this.state.$items();
   });
   public readonly $totalCountFetched = this.state.$totalCountFetched.asReadonly();
-  public readonly $isCreating = this.state.$isCreating.asReadonly();
+  public readonly $isCreating = computed(() => this.state.$createProcesses().length > 0);
   public readonly $isBeforeFirstRead = this.state.$isBeforeFirstRead.asReadonly();
 
   /**
    * Derived State Signals
    */
   public readonly $isReading = computed(() => {
-    if (this.state.$isReading()) {
+    const hasReading = this.state.$readProcesses().length > 0;
+    if (hasReading) {
       return true;
     }
     const externals = this.state.$isReadingFrom();
@@ -132,40 +132,56 @@ export class Collection<T, UniqueStatus = unknown, Status = unknown>
     return false;
   });
   public readonly $updatingItems = computed<T[]>(() => {
-    const updating = this.state.$updatingItems();
-    const existing = this.$items();
-    return updating.filter(item => this.hasItemIn(item, existing));
+    const processes = this.state.$updateProcesses();
+    if (!processes.length) {
+      return [];
+    }
+    const updating = processes.flatMap((process) => process.items);
+    return this.uniqueItems<Partial<T>>(updating) as T[];
   });
   public readonly $deletingItems = computed<T[]>(() => {
-    const deleting = this.state.$deletingItems();
-    const existing = this.$items();
-    return deleting.filter(item => this.hasItemIn(item, existing));
+    const processes = this.state.$deleteProcesses();
+    if (!processes.length) {
+      return [];
+    }
+    const deleting = processes.flatMap((process) => process.items);
+    return this.uniqueItems<Partial<T>>(deleting) as T[];
   });
   public readonly $refreshingItems = computed<T[]>(() => {
-    const refreshing = this.state.$refreshingItems();
-    const existing = this.$items();
-    return refreshing.filter(item => this.hasItemIn(item, existing));
+    const processes = this.state.$refreshProcesses();
+    if (!processes.length) {
+      return [];
+    }
+    const refreshing = processes.flatMap((process) => process.items);
+    return this.uniqueItems<Partial<T>>(refreshing) as T[];
   });
-  public readonly $readingItems = this.state.$readingItems.asReadonly();
+  public readonly $readingItems = computed<Partial<T>[]>(() => {
+    const processes = this.state.$readProcesses();
+    if (!processes.length) {
+      return [];
+    }
+    const reading = processes.flatMap((process) => process.items);
+    return this.uniqueItems<Partial<T>>(reading);
+  });
   public readonly $status = this.state.$status.asReadonly();
   public readonly $statuses = this.state.$statuses.asReadonly();
-  public readonly $isUpdating = computed<boolean>(() => this.state.$updatingItems().length > 0);
-  public readonly $isDeleting = computed<boolean>(() => this.state.$deletingItems().length > 0);
+  public readonly $isUpdating = computed<boolean>(() => this.$updatingItems().length > 0);
+  public readonly $isDeleting = computed<boolean>(() => this.$deletingItems().length > 0);
   public readonly $isMutating = computed<boolean>(() => {
-    const isCreating = this.state.$isCreating();
+    const isCreating = this.$isCreating();
     const isUpdating = this.$isUpdating();
     const isDeleting = this.$isDeleting();
     return isCreating || isUpdating || isDeleting;
   });
   public readonly $isSaving = computed<boolean>(() => {
-    const isCreating = this.state.$isCreating();
+    const isCreating = this.$isCreating();
     const isUpdating = this.$isUpdating();
     return isCreating || isUpdating;
   });
   public readonly $isProcessing = computed<boolean>(() => {
     const isMutating = this.$isMutating();
-    const isReading = this.state.$isReading();
-    const isRefreshing = this.state.$refreshingItems().length > 0;
+    const isReading = this.$isReading();
+    const isRefreshing = this.$refreshingItems().length > 0;
     return isMutating || isReading || isRefreshing;
   });
   public readonly $mutatingItems = computed<T[]>(() => this.uniqueItems([
@@ -222,9 +238,11 @@ export class Collection<T, UniqueStatus = unknown, Status = unknown>
    * Equals to an "INSERT" request.
    */
   public create(params: CreateParams<T>): Observable<T> {
-    this.state.$isCreating.set(true);
+    const createProcessSymbol = Symbol('createProcess');
+    this.state.$createProcesses.update((processes) => [...processes, createProcessSymbol]);
+
     return this.toObservableFirstValue(params.request).pipe(
-      finalize(() => this.state.$isCreating.set(false)),
+      finalize(() => this.state.$createProcesses.update((processes) => processes.filter(process => process !== createProcessSymbol))),
       tap((item) => {
         if (item != null) {
           let onSuccess: undefined | Function = undefined;
@@ -260,13 +278,15 @@ export class Collection<T, UniqueStatus = unknown, Status = unknown>
   }
 
   public createMany(params: CreateManyParams<T>): Observable<T[] | FetchedItems<T>> {
-    this.state.$isCreating.set(true);
+    const createSymbol = Symbol('createManyProcess');
+    this.state.$createProcesses.update((processes) => [...processes, createSymbol]);
+
     const errors: unknown[] = [];
     const request = Array.isArray(params.request) ?
       this.forkJoinSafe(params.request, errors) :
       this.toObservableFirstValue(params.request);
     return request.pipe(
-      finalize(() => this.state.$isCreating.set(false)),
+      finalize(() => this.state.$createProcesses.update((processes) => processes.filter(process => process !== createSymbol))),
       tap((fetched) => {
         if (params.onError && errors.length) {
           this.callCb(params.onError, errors);
@@ -313,21 +333,19 @@ export class Collection<T, UniqueStatus = unknown, Status = unknown>
   }
 
   public read(params: ReadParams<T>): Observable<T[] | FetchedItems<T>> {
-    this.state.$isReading.set(true);
+    const readToken = Symbol('readProcess');
     this.state.$lastReadError.set(undefined);
 
     const paramItems = params.items;
-    if (paramItems?.length) {
-      this.state.$readingItems.update((readingItems) => this.getWithPartial(readingItems, paramItems));
-    }
+    this.state.$readProcesses.update((processes) => [
+      ...processes,
+      { token: readToken, items: paramItems ? paramItems.slice() : [] }
+    ]);
 
     return this.toObservableFirstValue(params.request).pipe(
       finalize(() => {
-        this.state.$isReading.set(false);
+        this.state.$readProcesses.update((processes) => processes.filter(process => process.token !== readToken));
         this.state.$isBeforeFirstRead.set(false);
-        if (paramItems?.length) {
-          this.state.$readingItems.update((readingItems) => this.getWithoutPartial(readingItems, paramItems));
-        }
       }),
       tap((fetched) => {
         const items = fetched == null ? ([] as T[]) : (Array.isArray(fetched) ? fetched : fetched.items).slice();
@@ -371,21 +389,19 @@ export class Collection<T, UniqueStatus = unknown, Status = unknown>
   }
 
   public readOne(params: ReadOneParams<T>): Observable<T> {
-    this.state.$isReading.set(true);
+    const readToken = Symbol('readOneProcess');
     this.state.$lastReadOneError.set(undefined);
 
     const paramItem = params.item;
-    if (paramItem) {
-      this.state.$readingItems.update((readingItems) => this.getWithPartial(readingItems, paramItem));
-    }
+    this.state.$readProcesses.update((processes) => [
+      ...processes,
+      { token: readToken, items: paramItem ? [paramItem] : [] }
+    ]);
 
     return this.toObservableFirstValue(params.request).pipe(
       finalize(() => {
-        this.state.$isReading.set(false);
+        this.state.$readProcesses.update((processes) => processes.filter(process => process.token !== readToken));
         this.state.$isBeforeFirstRead.set(false);
-        if (paramItem) {
-          this.state.$readingItems.update((readingItems) => this.getWithoutPartial(readingItems, paramItem));
-        }
       }),
       tap((newItem) => {
         if (newItem != null) {
@@ -431,23 +447,21 @@ export class Collection<T, UniqueStatus = unknown, Status = unknown>
   }
 
   public readMany(params: ReadManyParams<T>): Observable<T[] | FetchedItems<T>> {
-    this.state.$isReading.set(true);
+    const readToken = Symbol('readManyProcess');
     this.state.$lastReadManyError.set(undefined);
 
     const paramItems = params.items;
-    if (paramItems?.length) {
-      this.state.$readingItems.update((readingItems) => this.getWithPartial(readingItems, paramItems));
-    }
+    this.state.$readProcesses.update((processes) => [
+      ...processes,
+      { token: readToken, items: paramItems ? paramItems.slice() : [] }
+    ]);
     const errors: unknown[] = [];
     const request = Array.isArray(params.request) ? this.forkJoinSafe(params.request, errors) : this.toObservableFirstValue(params.request);
 
     return request.pipe(
       finalize(() => {
-        this.state.$isReading.set(false);
+        this.state.$readProcesses.update((processes) => processes.filter(process => process.token !== readToken));
         this.state.$isBeforeFirstRead.set(false);
-        if (paramItems?.length) {
-          this.state.$readingItems.update((readingItems) => this.getWithoutPartial(readingItems, paramItems));
-        }
       }),
       tap((fetched) => {
         if (params.onError && errors.length) {
@@ -549,11 +563,15 @@ export class Collection<T, UniqueStatus = unknown, Status = unknown>
   }
 
   public refresh(params: RefreshParams<T>): Observable<T> {
-    this.state.$refreshingItems.update((refreshingItems) => this.getWith(refreshingItems, params.item));
+    const refreshToken = Symbol('refreshProcess');
+    this.state.$refreshProcesses.update((processes) => [
+      ...processes,
+      { token: refreshToken, items: [params.item] }
+    ]);
     this.state.$lastRefreshError.set(undefined);
 
     return this.toObservableFirstValue(params.request).pipe(
-      finalize(() => this.state.$refreshingItems.update((refreshingItems) => this.getWithout(refreshingItems, params.item))),
+      finalize(() => this.state.$refreshProcesses.update((processes) => processes.filter(process => process.token !== refreshToken))),
       tap((newItem) => {
         if (newItem != null) {
           let onSuccess: undefined | Function = undefined;
@@ -598,13 +616,24 @@ export class Collection<T, UniqueStatus = unknown, Status = unknown>
   }
 
   public refreshMany(params: RefreshManyParams<T>): Observable<T[] | FetchedItems<T>> {
-    this.state.$refreshingItems.update((refreshingItems) => this.getWith(refreshingItems, params.items));
+    if (!Array.isArray(params.items) || params.items.length === 0) {
+      const error = new Error('refreshMany: items array is empty');
+      this.reportRuntimeError(error);
+      this.callCb(params.onError, error);
+      return EMPTY;
+    }
+
+    const refreshToken = Symbol('refreshManyProcess');
+    this.state.$refreshProcesses.update((processes) => [
+      ...processes,
+      { token: refreshToken, items: params.items.slice() }
+    ]);
     this.state.$lastRefreshError.set(undefined);
 
     const errors: unknown[] = [];
     const request = Array.isArray(params.request) ? this.forkJoinSafe(params.request, errors) : this.toObservableFirstValue(params.request);
     return request.pipe(
-      finalize(() => this.state.$refreshingItems.update((refreshingItems) => this.getWithout(refreshingItems, params.items))),
+      finalize(() => this.state.$refreshProcesses.update((processes) => processes.filter(process => process.token !== refreshToken))),
       tap((fetched) => {
         if (params.onError && errors.length) {
           this.callCb(params.onError, errors);
@@ -657,9 +686,13 @@ export class Collection<T, UniqueStatus = unknown, Status = unknown>
   }
 
   public update(params: UpdateParams<T>): Observable<T> {
-    this.state.$updatingItems.update((updatingItems) => this.getWith(updatingItems, params.item));
+    const updateToken = Symbol('updateProcess');
+    this.state.$updateProcesses.update((processes) => [
+      ...processes,
+      { token: updateToken, items: [params.item] }
+    ]);
     return this.toObservableFirstValue(params.request).pipe(
-      finalize(() => this.state.$updatingItems.update((updatingItems) => this.getWithout(updatingItems, params.item))),
+      finalize(() => this.state.$updateProcesses.update((processes) => processes.filter(process => process.token !== updateToken))),
       take(1),
       switchMap((newItem) => {
         if (params.refresh) {
@@ -716,11 +749,22 @@ export class Collection<T, UniqueStatus = unknown, Status = unknown>
   }
 
   public updateMany(params: UpdateManyParams<T>): Observable<T[] | FetchedItems<T>> {
-    this.state.$updatingItems.update((updatingItems) => this.getWith(updatingItems, params.items));
+    if (!Array.isArray(params.items) || params.items.length === 0) {
+      const error = new Error('updateMany: items array is empty');
+      this.reportRuntimeError(error);
+      this.callCb(params.onError, error);
+      return EMPTY;
+    }
+
+    const updateToken = Symbol('updateManyProcess');
+    this.state.$updateProcesses.update((processes) => [
+      ...processes,
+      { token: updateToken, items: params.items.slice() }
+    ]);
     const errors: unknown[] = [];
     const request = Array.isArray(params.request) ? this.forkJoinSafe(params.request, errors) : this.toObservableFirstValue(params.request);
     return request.pipe(
-      finalize(() => this.state.$updatingItems.update((updatingItems) => this.getWithout(updatingItems, params.items))),
+      finalize(() => this.state.$updateProcesses.update((processes) => processes.filter(process => process.token !== updateToken))),
       take(1),
       switchMap((updatedItems) => {
         if (params.onError && errors.length) {
@@ -778,10 +822,14 @@ export class Collection<T, UniqueStatus = unknown, Status = unknown>
   }
 
   public delete<R = unknown>(params: DeleteParams<T, R>): Observable<R> {
-    this.state.$deletingItems.update((deletingItems) => this.getWith(deletingItems, params.item));
+    const deleteToken = Symbol('deleteProcess');
+    this.state.$deleteProcesses.update((processes) => [
+      ...processes,
+      { token: deleteToken, items: [params.item] }
+    ]);
     const req = params.request ? this.toObservableFirstValue(params.request) : of(null as R);
     return req.pipe(
-      finalize(() => this.state.$deletingItems.update((deletingItems) => this.getWithout(deletingItems, params.item))),
+      finalize(() => this.state.$deleteProcesses.update((processes) => processes.filter(process => process.token !== deleteToken))),
       switchMap((response) => {
         if (params.readRequest) {
           return this.read({
@@ -818,13 +866,24 @@ export class Collection<T, UniqueStatus = unknown, Status = unknown>
   }
 
   public deleteMany<R = unknown>(params: DeleteManyParams<T, R>): Observable<R[]> {
-    this.state.$deletingItems.update((deletingItems) => this.getWith(deletingItems, params.items));
+    if (!Array.isArray(params.items) || params.items.length === 0) {
+      const error = new Error('deleteMany: items array is empty');
+      this.reportRuntimeError(error);
+      this.callCb(params.onError, error);
+      return EMPTY;
+    }
+
+    const deleteToken = Symbol('deleteManyProcess');
+    this.state.$deleteProcesses.update((processes) => [
+      ...processes,
+      { token: deleteToken, items: params.items.slice() }
+    ]);
     const errors: unknown[] = [];
     const requests = Array.isArray(params.request) ?
       this.forkJoinSafe(params.request, errors)
       : this.forkJoinSafe([params.request ?? of(null as R)], errors);
     return requests.pipe(
-      finalize(() => this.state.$deletingItems.update((deletingItems) => this.getWithout(deletingItems, params.items))),
+      finalize(() => this.state.$deleteProcesses.update((processes) => processes.filter(process => process.token !== deleteToken))),
       take(1),
       switchMap((response) => {
         if (params.onError && errors.length) {
@@ -940,21 +999,21 @@ export class Collection<T, UniqueStatus = unknown, Status = unknown>
   public isItemDeleting(itemSource: Partial<T> | Signal<Partial<T> | undefined>): Signal<boolean> {
     return computed(() => {
       const i = isSignal(itemSource) ? itemSource() : itemSource;
-      return !!i && this.hasItemIn(i, this.state.$deletingItems());
+      return !!i && this.hasItemIn(i, this.$deletingItems());
     });
   }
 
   public isItemRefreshing(itemSource: Partial<T> | Signal<Partial<T> | undefined>): Signal<boolean> {
     return computed(() => {
       const i = isSignal(itemSource) ? itemSource() : itemSource;
-      return !!i && this.hasItemIn(i, this.state.$refreshingItems());
+      return !!i && this.hasItemIn(i, this.$refreshingItems());
     });
   }
 
   public isItemUpdating(itemSource: Partial<T> | Signal<Partial<T> | undefined>): Signal<boolean> {
     return computed(() => {
       const i = isSignal(itemSource) ? itemSource() : itemSource;
-      return !!i && this.hasItemIn(i, this.state.$updatingItems());
+      return !!i && this.hasItemIn(i, this.$updatingItems());
     });
   }
 
@@ -977,7 +1036,7 @@ export class Collection<T, UniqueStatus = unknown, Status = unknown>
       const i = isSignal(itemSource) ? itemSource() : itemSource;
       return !!i && this.$isProcessing() && (this.hasItemIn(i, [
         ...this.$processingItems(),
-        ...this.state.$readingItems(),
+        ...this.$readingItems(),
       ]));
     });
   }

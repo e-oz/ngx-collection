@@ -1,7 +1,7 @@
-import { input, signal } from "@angular/core";
+import { Component, input, signal } from "@angular/core";
 import { TestBed } from "@angular/core/testing";
 import { BrowserTestingModule, platformBrowserTesting } from "@angular/platform-browser/testing";
-import { EMPTY, isObservable, of, Subject, switchMap, tap, throwError } from "rxjs";
+import { EMPTY, isObservable, of, Subject, switchMap, take, tap, throwError } from "rxjs";
 import { createEffect } from '../create-effect';
 
 // Initialize TestBed environment
@@ -218,9 +218,19 @@ describe('createEffect', () => {
   });
 
   it('should NOT emit the initial value when a required input without initial value is passed', () => {
+    @Component({
+      selector: 'required-input-host',
+      template: '',
+    })
+    class RequiredInputHost {
+      readonly value = input.required<string>();
+    }
+
     expect(handlerCalls).toEqual(0);
     TestBed.runInInjectionContext(() => {
-      effect(input.required());
+      const host = new RequiredInputHost();
+      effect(host.value);
+
       expect(lastResult).not.toEqual('test');
       expect(handlerCalls).toEqual(0);
       TestBed.tick();
@@ -236,5 +246,69 @@ describe('createEffect', () => {
     await Promise.resolve();
     expect(lastResult).toEqual('test');
     expect(handlerCalls).toEqual(1);
+  });
+
+  it('should accept function listener', () => {
+    let value: unknown = undefined;
+    effect('listener', (v) => value = v);
+    expect(value).toEqual('listener');
+  });
+
+  it('should call listener callbacks including complete', () => {
+    const calls: string[] = [];
+    TestBed.runInInjectionContext(() => {
+      const localEffect = createEffect<string>((origin$, callbacks) => origin$.pipe(
+        tap((v) => callbacks.success(`success:${v}`)),
+        take(1)
+      ));
+      localEffect('value', {
+        next: (v) => calls.push(`next:${String(v)}`),
+        onSuccess: (v) => calls.push(`onSuccess:${String(v)}`),
+        onFinalize: () => calls.push('onFinalize'),
+        complete: () => calls.push('complete'),
+      });
+    });
+
+    expect(calls).toHaveLength(4);
+    expect(calls).toEqual(expect.arrayContaining([
+      'next:value',
+      'onSuccess:success:value',
+      'onFinalize',
+      'complete',
+    ]));
+  });
+
+  it('should stop after error when retryOnError is false', () => {
+    const results: string[] = [];
+    const errors: unknown[] = [];
+    const onErrors: unknown[] = [];
+    let finalized = 0;
+
+    TestBed.runInInjectionContext(() => {
+      const noRetry = createEffect<string>((origin$, callbacks) => origin$.pipe(
+        switchMap((v) => {
+          if (v === 'fail') {
+            callbacks.error('cb-fail');
+            return throwError(() => 'boom');
+          }
+          callbacks.success(`ok:${v}`);
+          return of(v);
+        }),
+        tap((v) => results.push(v))
+      ), { retryOnError: false });
+
+      noRetry('ok');
+      noRetry('fail', {
+        error: (e) => errors.push(e),
+        onError: (e) => onErrors.push(e),
+        onFinalize: () => finalized++,
+      });
+      noRetry('later');
+    });
+
+    expect(results).toStrictEqual(['ok']);
+    expect(errors).toStrictEqual(['boom']);
+    expect(onErrors).toStrictEqual(['cb-fail']);
+    expect(finalized).toBe(1);
   });
 });

@@ -1,7 +1,7 @@
 import { signal } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import { BrowserTestingModule, platformBrowserTesting } from '@angular/platform-browser/testing';
-import { map, of, Subject, throwError, timer } from 'rxjs';
+import { defer, map, of, Subject, switchMap, throwError, timer } from 'rxjs';
 import { Collection } from '../collection';
 
 // Initialize TestBed environment
@@ -51,7 +51,7 @@ describe('Collection Service (async)', () => {
     expect(coll.$isProcessing()).toBe(true);
     expect(coll.$isMutating()).toBe(true);
 
-    jest.runOnlyPendingTimers();
+    jest.runAllTimers();
 
     expect(coll.$items()).toStrictEqual([newItem]);
     expect(coll.$isCreating()).toBe(false);
@@ -101,7 +101,7 @@ describe('Collection Service (async)', () => {
     expect(coll.$isMutating()).toBe(true);
     expect(coll.$isSaving()).toBe(true);
 
-    jest.runOnlyPendingTimers();
+    jest.runAllTimers();
 
     expect(coll.$items()).toStrictEqual([item1, item2, item3]);
     expect(coll.$isCreating()).toBe(false);
@@ -115,7 +115,7 @@ describe('Collection Service (async)', () => {
       request: [emit(item4), emit(item5)],
     }).subscribe();
 
-    jest.runOnlyPendingTimers();
+    jest.runAllTimers();
 
     expect(coll.$items()).toStrictEqual([item1, item2, item3]);
 
@@ -123,7 +123,7 @@ describe('Collection Service (async)', () => {
       request: [emit(item4), emit(item6)],
     }).subscribe();
 
-    jest.runOnlyPendingTimers();
+    jest.runAllTimers();
 
     expect(coll.$items()).toStrictEqual([item1, item2, item3, item4, item6]);
 
@@ -138,7 +138,7 @@ describe('Collection Service (async)', () => {
       request: emit({ items: [], totalCount: 4815162342 }),
     }).subscribe();
 
-    jest.runOnlyPendingTimers();
+    jest.runAllTimers();
 
     expect(coll.$items()).toStrictEqual([item1, item2, item3, item4, item6, item7]);
     expect(coll.$totalCountFetched()).toStrictEqual(4815162342);
@@ -167,7 +167,7 @@ describe('Collection Service (async)', () => {
     expect(coll.isItemReading({ id: 3 })()).toBeFalsy();
     expect(coll.isItemReading(signal({ id: 3 }))()).toBeFalsy();
 
-    jest.runOnlyPendingTimers();
+    jest.runAllTimers();
 
     expect(coll.$items()).toStrictEqual([{ id: 1, name: 'A' }, { id: 2, name: 'B' }]);
     expect(coll.$isBeforeFirstRead()).toBeFalsy();
@@ -239,7 +239,7 @@ describe('Collection Service (async)', () => {
     expect(coll.isItemReading(item)()).toBeTruthy();
     expect(coll.isItemReading(signal(item))()).toBeTruthy();
 
-    jest.runOnlyPendingTimers();
+    jest.runAllTimers();
 
     expect(coll.$items()).toStrictEqual([item1, item2, item3, item]);
     expect(coll.$readingItems()).toStrictEqual([]);
@@ -250,7 +250,7 @@ describe('Collection Service (async)', () => {
       request: emit(item3v2),
     }).subscribe();
 
-    jest.runOnlyPendingTimers();
+    jest.runAllTimers();
 
     expect(coll.$isReading()).toStrictEqual(false);
     expect(coll.$isProcessing()).toStrictEqual(false);
@@ -285,7 +285,7 @@ describe('Collection Service (async)', () => {
     expect(coll.isItemReading(signal({ id: 4 }))()).toBeTruthy();
     expect(coll.isItemReading({ id: 2 })()).toBeFalsy();
 
-    jest.runOnlyPendingTimers();
+    jest.runAllTimers();
 
     expect(coll.$isReading()).toStrictEqual(false);
     expect(coll.$isProcessing()).toStrictEqual(false);
@@ -299,7 +299,7 @@ describe('Collection Service (async)', () => {
       request: emit(newItemsV2),
     }).subscribe();
 
-    jest.runOnlyPendingTimers();
+    jest.runAllTimers();
 
     expect(coll.$isReading()).toStrictEqual(false);
     expect(coll.$isProcessing()).toStrictEqual(false);
@@ -346,7 +346,7 @@ describe('Collection Service (async)', () => {
     expect(coll.isItemDeleting(item2)()).toBe(false);
     expect(coll.isItemUpdating(item2)()).toBe(false);
 
-    jest.runOnlyPendingTimers();
+    jest.runAllTimers();
 
     expect(coll.$isReading()).toStrictEqual(false);
     expect(coll.$isProcessing()).toStrictEqual(false);
@@ -364,7 +364,7 @@ describe('Collection Service (async)', () => {
       items: [item1]
     }).subscribe();
 
-    jest.runOnlyPendingTimers();
+    jest.runAllTimers();
 
     expect(coll.$isReading()).toStrictEqual(false);
     expect(coll.$isProcessing()).toStrictEqual(false);
@@ -1367,5 +1367,483 @@ describe('Collection Service (async)', () => {
       isReading.set(false);
       expect(coll.$isReading()).toEqual(false);
     });
+  });
+
+  it('create should use the first emitted value only', () => {
+    const { coll } = setup();
+    const item1 = { id: 1, name: 'A' };
+    const item2 = { id: 2, name: 'B' };
+
+    coll.create({
+      request: of(item1, item2)
+    }).subscribe();
+
+    expect(coll.$items()).toStrictEqual([item1]);
+  });
+
+  it('create should call onError and reset flags on error', () => {
+    const { coll } = setup();
+    const onError = jest.fn();
+
+    coll.create({
+      request: throwError(() => 'boom'),
+      onError,
+    }).subscribe();
+
+    expect(onError).toHaveBeenCalledWith('boom');
+    expect(coll.$items()).toStrictEqual([]);
+    expect(coll.$isCreating()).toBe(false);
+  });
+
+  it('create should keep isCreating true until all concurrent creates complete', () => {
+    const { coll } = setup();
+    const item1 = { id: 1, name: 'first' };
+    const item2 = { id: 2, name: 'second' };
+
+    coll.create({
+      request: timer(10).pipe(map(() => item1))
+    }).subscribe();
+
+    coll.create({
+      request: timer(30).pipe(map(() => item2))
+    }).subscribe();
+
+    expect(coll.$isCreating()).toBe(true);
+    expect(coll.$isSaving()).toBe(true);
+    expect(coll.$isMutating()).toBe(true);
+    expect(coll.$isProcessing()).toBe(true);
+
+    jest.advanceTimersByTime(10);
+
+    expect(coll.$items()).toStrictEqual([item1]);
+    expect(coll.$isCreating()).toBe(true);
+    expect(coll.$isSaving()).toBe(true);
+    expect(coll.$isMutating()).toBe(true);
+    expect(coll.$isProcessing()).toBe(true);
+
+    jest.advanceTimersByTime(20);
+
+    expect(coll.$items()).toStrictEqual([item1, item2]);
+    expect(coll.$isCreating()).toBe(false);
+    expect(coll.$isSaving()).toBe(false);
+    expect(coll.$isMutating()).toBe(false);
+    expect(coll.$isProcessing()).toBe(false);
+  });
+
+  it('createMany should keep input order and report errors', () => {
+    const { coll } = setup();
+    const itemSlow = { id: 1, name: 'slow' };
+    const itemFast = { id: 2, name: 'fast' };
+    let onErrorValue: unknown = undefined;
+
+    coll.createMany({
+      request: [
+        timer(10).pipe(map(() => itemSlow)),
+        throwError(() => 'err'),
+        timer(1).pipe(map(() => itemFast)),
+      ],
+      onError: (e) => onErrorValue = e,
+    }).subscribe();
+
+    jest.runOnlyPendingTimers();
+
+    expect(onErrorValue).toEqual(['err']);
+    expect(coll.$items()).toStrictEqual([itemSlow, itemFast]);
+  });
+
+  it('read should keep isReading true until all concurrent reads complete', () => {
+    const { coll } = setup();
+    const item1 = { id: 1, name: 'A' };
+    const item2 = { id: 2, name: 'B' };
+
+    coll.read({
+      request: timer(10).pipe(map(() => [item1])),
+    }).subscribe();
+
+    coll.read({
+      request: timer(30).pipe(map(() => [item2])),
+    }).subscribe();
+
+    expect(coll.$isReading()).toBe(true);
+    expect(coll.$isProcessing()).toBe(true);
+
+    jest.advanceTimersByTime(10);
+
+    expect(coll.$items()).toStrictEqual([item1]);
+    expect(coll.$isReading()).toBe(true);
+    expect(coll.$isProcessing()).toBe(true);
+
+    jest.advanceTimersByTime(20);
+
+    expect(coll.$items()).toStrictEqual([item2]);
+    expect(coll.$isReading()).toBe(false);
+    expect(coll.$isProcessing()).toBe(false);
+  });
+
+  it('update should keep isUpdating true until all concurrent updates for the same item complete', () => {
+    const { coll } = setup();
+    const item = { id: 1, name: 'A' };
+
+    coll.read({
+      request: of([item]),
+    }).subscribe();
+
+    coll.update({
+      item,
+      request: timer(10).pipe(map(() => ({ id: 1, name: 'B' }))),
+    }).subscribe();
+
+    coll.update({
+      item,
+      request: timer(30).pipe(map(() => ({ id: 1, name: 'C' }))),
+    }).subscribe();
+
+    expect(coll.$isUpdating()).toBe(true);
+    expect(coll.$isSaving()).toBe(true);
+    expect(coll.$isMutating()).toBe(true);
+    expect(coll.$isProcessing()).toBe(true);
+
+    jest.advanceTimersByTime(10);
+
+    expect(coll.$items()).toStrictEqual([{ id: 1, name: 'B' }]);
+    expect(coll.$isUpdating()).toBe(true);
+    expect(coll.$isSaving()).toBe(true);
+    expect(coll.$isMutating()).toBe(true);
+    expect(coll.$isProcessing()).toBe(true);
+
+    jest.advanceTimersByTime(20);
+
+    expect(coll.$items()).toStrictEqual([{ id: 1, name: 'C' }]);
+    expect(coll.$isUpdating()).toBe(false);
+    expect(coll.$isSaving()).toBe(false);
+    expect(coll.$isMutating()).toBe(false);
+    expect(coll.$isProcessing()).toBe(false);
+  });
+
+  it('delete should keep isDeleting true until all concurrent deletes for the same item complete', () => {
+    const { coll } = setup();
+    const item = { id: 1, name: 'A' };
+
+    coll.read({
+      request: of([item]),
+    }).subscribe();
+
+    coll.delete({
+      item,
+      request: timer(10).pipe(map(() => null)),
+    }).subscribe();
+
+    coll.delete({
+      item,
+      request: timer(30).pipe(map(() => null)),
+    }).subscribe();
+
+    expect(coll.$isDeleting()).toBe(true);
+    expect(coll.$isMutating()).toBe(true);
+    expect(coll.$isProcessing()).toBe(true);
+    expect(coll.$isSaving()).toBe(false);
+
+    jest.advanceTimersByTime(10);
+
+    expect(coll.$items()).toStrictEqual([]);
+    expect(coll.$isDeleting()).toBe(true);
+    expect(coll.$isMutating()).toBe(true);
+    expect(coll.$isProcessing()).toBe(true);
+    expect(coll.$isSaving()).toBe(false);
+
+    jest.advanceTimersByTime(20);
+
+    expect(coll.$items()).toStrictEqual([]);
+    expect(coll.$isDeleting()).toBe(false);
+    expect(coll.$isMutating()).toBe(false);
+    expect(coll.$isProcessing()).toBe(false);
+  });
+
+  it('refresh should keep refreshingItems until all concurrent refreshes for the same item complete', () => {
+    const { coll } = setup();
+    const item = { id: 1, name: 'A' };
+
+    coll.read({
+      request: of([item]),
+    }).subscribe();
+
+    coll.refresh({
+      item,
+      request: timer(10).pipe(map(() => ({ id: 1, name: 'B' }))),
+    }).subscribe();
+
+    coll.refresh({
+      item,
+      request: timer(30).pipe(map(() => ({ id: 1, name: 'C' }))),
+    }).subscribe();
+
+    expect(coll.$refreshingItems()).toStrictEqual([item]);
+    expect(coll.$isProcessing()).toBe(true);
+
+    jest.advanceTimersByTime(10);
+
+    expect(coll.$items()).toStrictEqual([{ id: 1, name: 'B' }]);
+    expect(coll.$refreshingItems()).toStrictEqual([item]);
+    expect(coll.$isProcessing()).toBe(true);
+
+    jest.advanceTimersByTime(20);
+
+    expect(coll.$items()).toStrictEqual([{ id: 1, name: 'C' }]);
+    expect(coll.$refreshingItems()).toStrictEqual([]);
+    expect(coll.$isProcessing()).toBe(false);
+  });
+
+  it('read should keep items when keepExistingOnError is true', () => {
+    const { coll } = setup();
+    const initial = [{ id: 1, name: 'A' }];
+
+    coll.read({
+      request: of({ items: initial, totalCount: 5 }),
+    }).subscribe();
+
+    expect(coll.$items()).toStrictEqual(initial);
+    expect(coll.$totalCountFetched()).toStrictEqual(5);
+
+    coll.read({
+      request: throwError(() => 'boom'),
+      keepExistingOnError: true,
+      context: 'ctx',
+      items: [{ id: 1 }],
+    }).subscribe();
+
+    expect(coll.$items()).toStrictEqual(initial);
+    expect(coll.$totalCountFetched()).toStrictEqual(5);
+    expect(coll.$lastReadError()?.errors).toEqual(['boom']);
+  });
+
+  it('read should report duplicates when allowFetchedDuplicates is true', () => {
+    const errReporter = jest.fn();
+    const coll = new Collection<Item>({
+      comparatorFields: ['id'],
+      errReporter,
+    });
+
+    coll.read({
+      request: of([{ id: 1, name: 'A' }, { id: 1, name: 'B' }]),
+    }).subscribe();
+
+    expect(coll.$items()).toStrictEqual([{ id: 1, name: 'A' }, { id: 1, name: 'B' }]);
+    expect(errReporter).toHaveBeenCalled();
+  });
+
+  it('readMany should report partial errors and set lastReadManyError', () => {
+    const { coll } = setup();
+    const item = { id: 1, name: 'A' };
+    let onErrorValue: unknown = undefined;
+
+    coll.readMany({
+      request: [emit(item), throwError(() => 'err')],
+      onError: (e) => onErrorValue = e,
+    }).subscribe();
+
+    jest.runOnlyPendingTimers();
+
+    expect(onErrorValue).toEqual(['err']);
+    expect(coll.$items()).toStrictEqual([item]);
+    expect(coll.$lastReadManyError()?.errors).toEqual(['err']);
+  });
+
+  it('refresh should clear refreshingItems on error', () => {
+    const { coll } = setup();
+    const item = { id: 1, name: 'A' };
+
+    coll.read({
+      request: of([item]),
+    }).subscribe();
+
+    coll.refresh({
+      item,
+      request: timer(1).pipe(switchMap(() => throwError(() => 'boom'))),
+    }).subscribe();
+
+    expect(coll.$refreshingItems()).toStrictEqual([item]);
+    jest.runOnlyPendingTimers();
+
+    expect(coll.$refreshingItems()).toStrictEqual([]);
+    expect(coll.$lastRefreshError()?.errors).toEqual(['boom']);
+    expect(coll.$isProcessing()).toBe(false);
+  });
+
+  it('update should use refreshRequest result and still run request', () => {
+    const { coll } = setup();
+    const item = { id: 1, name: 'A' };
+    let requestCalls = 0;
+    let onSuccessValue: Item | undefined = undefined;
+
+    coll.read({
+      request: of([item]),
+    }).subscribe();
+
+    coll.update({
+      item,
+      request: defer(() => {
+        requestCalls++;
+        return emit({ id: 1, name: 'B' });
+      }),
+      refreshRequest: emit({ id: 1, name: 'C' }),
+      onSuccess: (v) => onSuccessValue = v,
+    }).subscribe();
+
+    expect(coll.$items()).toStrictEqual([item]);
+    expect(coll.$updatingItems()).toStrictEqual([item]);
+
+    jest.runAllTimers();
+
+    expect(requestCalls).toBe(1);
+    expect(coll.$items()).toStrictEqual([{ id: 1, name: 'C' }]);
+    expect(onSuccessValue).toStrictEqual({ id: 1, name: 'C' });
+  });
+
+  it('updateMany should use refresh results and still run request', () => {
+    const { coll } = setup();
+    const item1 = { id: 1, name: 'A' };
+    const item2 = { id: 2, name: 'B' };
+    let requestCalls = 0;
+
+    coll.read({
+      request: of([item1, item2]),
+    }).subscribe();
+
+    coll.updateMany({
+      items: [item1, item2],
+      request: defer(() => {
+        requestCalls++;
+        return emit([{ id: 1, name: 'A1' }, { id: 2, name: 'B1' }]);
+      }),
+      refresh: {
+        items: [item1, item2],
+        request: emit([{ id: 1, name: 'A2' }, { id: 2, name: 'B2' }]),
+      },
+    }).subscribe();
+
+    expect(coll.$updatingItems()).toStrictEqual([item1, item2]);
+    jest.runAllTimers();
+
+    expect(requestCalls).toBe(1);
+    expect(coll.$items()).toStrictEqual([{ id: 1, name: 'A2' }, { id: 2, name: 'B2' }]);
+  });
+
+  it('delete should use readRequest and ignore decrementTotalCount', () => {
+    const { coll } = setup();
+    const item1 = { id: 1, name: 'A' };
+    const item2 = { id: 2, name: 'B' };
+
+    coll.read({
+      request: of({ items: [item1, item2], totalCount: 2 }),
+    }).subscribe();
+
+    coll.delete({
+      item: item1,
+      request: emit(null),
+      decrementTotalCount: true,
+      readRequest: emit({ items: [item2], totalCount: 10 }),
+    }).subscribe();
+
+    expect(coll.$items()).toStrictEqual([item1, item2]);
+    jest.runAllTimers();
+
+    expect(coll.$items()).toStrictEqual([item2]);
+    expect(coll.$totalCountFetched()).toStrictEqual(10);
+  });
+
+  it('deleteMany should use read and ignore decrementTotalCount', () => {
+    const { coll } = setup();
+    const item1 = { id: 1, name: 'A' };
+    const item2 = { id: 2, name: 'B' };
+    const item3 = { id: 3, name: 'C' };
+
+    coll.read({
+      request: of({ items: [item1, item2, item3], totalCount: 3 }),
+    }).subscribe();
+
+    coll.deleteMany({
+      items: [item1, item2],
+      request: emit(null),
+      decrementTotalCount: 2,
+      read: {
+        request: emit({ items: [item3], totalCount: 99 }),
+      },
+    }).subscribe();
+
+    jest.runAllTimers();
+
+    expect(coll.$items()).toStrictEqual([item3]);
+    expect(coll.$totalCountFetched()).toStrictEqual(99);
+  });
+
+  it('delete should ignore invalid decrementTotalCount string', () => {
+    const { coll } = setup();
+    const item1 = { id: 1, name: 'A' };
+    const item2 = { id: 2, name: 'B' };
+
+    coll.read({
+      request: of({ items: [item1, item2], totalCount: 5 }),
+    }).subscribe();
+
+    coll.delete({
+      item: item1,
+      request: of({ total: -1 }),
+      decrementTotalCount: 'missing',
+    }).subscribe();
+
+    expect(coll.$items()).toStrictEqual([item2]);
+    expect(coll.$totalCountFetched()).toStrictEqual(5);
+  });
+
+  it('fetchItem should error when no request is provided', (done) => {
+    const errReporter = jest.fn();
+    const coll = new Collection<Item>({
+      comparatorFields: ['id'],
+      errReporter,
+    });
+
+    coll.fetchItem({ id: 1 }).subscribe({
+      next: () => done.fail('Expected error'),
+      error: (err) => {
+        expect(err).toBe(404);
+        expect(errReporter).toHaveBeenCalledWith('Fetching request is not provided to fetchItem');
+        done();
+      },
+    });
+  });
+
+  it('readFrom should call onError when source errors', () => {
+    const { coll } = setup();
+    const source = new Subject<Item[]>();
+    const onError = jest.fn();
+
+    coll.readFrom({
+      source,
+      onError,
+    }).subscribe();
+
+    source.error('boom');
+
+    expect(onError).toHaveBeenCalledWith('boom');
+  });
+
+  it('should reflect completion order for overlapping create calls', () => {
+    const { coll } = setup();
+    const first = { id: 1, name: 'first' };
+    const second = { id: 2, name: 'second' };
+
+    coll.create({
+      request: timer(10).pipe(map(() => first)),
+    }).subscribe();
+
+    coll.create({
+      request: timer(1).pipe(map(() => second)),
+    }).subscribe();
+
+    jest.advanceTimersByTime(1);
+    expect(coll.$items()).toStrictEqual([second]);
+
+    jest.advanceTimersByTime(9);
+    expect(coll.$items()).toStrictEqual([second, first]);
   });
 });
