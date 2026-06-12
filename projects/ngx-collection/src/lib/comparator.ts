@@ -34,7 +34,9 @@ export class Comparator implements ObjectsComparator {
         if (typeof field === 'string') {
           const value1 = getObjectPathValue(obj1, field);
           const value2 = getObjectPathValue(obj2, field);
-          if (value1 !== undefined && value2 !== undefined) {
+          // `null` and `undefined` values mean "the field is not set",
+          // so the next field in the chain should be checked.
+          if (value1 != null && value2 != null) {
             if (fieldValuesAreNotEmptyAndEqual(obj1, obj2, field)) {
               return true;
             } else {

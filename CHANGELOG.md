@@ -1,3 +1,18 @@
+## 5.1.0
+Angular v22 is now supported.
+
+### Fixes
+* `update()` and `updateMany()`: when `refresh` (or the deprecated `refreshRequest`) is used, items now remain in `$updatingItems()` until both requests are completed, as documented;
+* `uniqueItems()` now deduplicates items using the comparator, not only by reference, so `$mutatingItems()` and `$processingItems()` will not contain the same logical item twice;
+* `setItemStatus()` and `deleteItemStatus()` no longer mutate the `Set` instances of the previous `$statuses()` values, so `computed()` chains reading a `Set` from this map are notified correctly;
+* `deleteMany()`: when an array of requests is mapped one-to-one to `items`, items whose requests have failed are no longer removed from the collection;
+* `deleteMany()`: a string `decrementTotalCount` now reads the field from the first response when multiple requests are used, as documented;
+* `readFrom` and `readManyFrom` now accept an `injector` in their params (the collection's `injector` option is used by default), so a Signal can be used as `source` outside of an injection context;
+* `Comparator`: fields with `null` values are now treated like fields with `undefined` values - the next field in the chain is checked (previously, `null` values were stopping the chain);
+* CRUD methods now register their processes (`$isCreating()`, `$isReading()`, and so on) on subscription instead of at call time: calling a method without subscribing no longer leaves the collection in a permanent "processing" state;
+* `createEffect()`: an error of an observable (or a rejected Promise) passed as a value is now routed to the `error` listener (and printed to the console in dev mode) instead of being reported as an unhandled RxJS error;
+* `createEffect()`: with default options, a pipeline that replays its input on subscription (`startWith()`, `toObservable()`, `shareReplay()`, a cold observable that ignores `origin$`) will no longer endlessly resend a failed request. The pipeline is retried instantly only if a new value was pushed into the effect since the last (re)subscription; otherwise, the retry is postponed until the next pushed value. Pass a `RetryConfig` object to `retryOnError` to override this behavior.
+
 ## 5.0.4
 Added LLM-generated documentation ;)
 

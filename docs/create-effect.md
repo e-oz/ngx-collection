@@ -143,6 +143,8 @@ save(product1); // Fails with a network error
 save(product2); // Still works — the effect recovered
 ```
 
+A failed request is not re-sent by the recovery: the pipeline is resubscribed instantly only if a new value was pushed into the effect since the last (re)subscription; otherwise, the resubscription is postponed until the next pushed value. This matters for pipelines that replay their input on subscription (`startWith()`, `toObservable()`, `shareReplay()`, a cold observable that ignores `origin$`) — without this guard, an unconditional retry would endlessly resubscribe to such a pipeline, re-sending the failed request. Pass a `RetryConfig` object to `retryOnError` if you need to control retries manually.
+
 To disable this:
 
 ```ts

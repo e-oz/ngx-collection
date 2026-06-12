@@ -1,7 +1,7 @@
 import { Component, input, signal } from "@angular/core";
 import { TestBed } from "@angular/core/testing";
 import { BrowserTestingModule, platformBrowserTesting } from "@angular/platform-browser/testing";
-import { EMPTY, isObservable, of, Subject, switchMap, take, tap, throwError } from "rxjs";
+import { defer, EMPTY, isObservable, of, startWith, Subject, switchMap, take, tap, throwError } from "rxjs";
 import { createEffect } from '../create-effect';
 
 // Initialize TestBed environment
@@ -276,6 +276,84 @@ describe('createEffect', () => {
       'onFinalize',
       'complete',
     ]));
+  });
+
+  it('should not endlessly resubscribe to a pipeline that fails without receiving new values', () => {
+    let attempts = 0;
+
+    TestBed.runInInjectionContext(() => {
+      const storm = createEffect<string>(() => defer(() => {
+        attempts++;
+        return throwError(() => 'fail');
+      }));
+
+      // the pipeline failed on the initial subscription;
+      // resubscription is postponed until the next pushed value
+      expect(attempts).toBe(1);
+
+      storm('a');
+      // one resubscription for the pushed value + one instant retry
+      expect(attempts).toBe(3);
+
+      storm('b');
+      expect(attempts).toBe(5);
+    });
+  });
+
+  it('should not endlessly resend a failed request when the pipeline replays its input', () => {
+    let requests = 0;
+
+    TestBed.runInInjectionContext(() => {
+      const search = createEffect<string>(origin$ => origin$.pipe(
+        startWith('initial'),
+        switchMap(() => defer(() => {
+          requests++;
+          return throwError(() => 'http-error');
+        })),
+      ));
+
+      expect(requests).toBe(1);
+
+      search('term');
+      expect(requests).toBe(3);
+    });
+  });
+
+  it('should not resend a failed request when the pipeline is driven by origin$ only', () => {
+    let requests = 0;
+    const results: string[] = [];
+
+    TestBed.runInInjectionContext(() => {
+      const eff = createEffect<string>(origin$ => origin$.pipe(
+        switchMap((v) => defer(() => {
+          requests++;
+          return v === 'fail' ? throwError(() => 'boom') : of(v);
+        })),
+        tap((v) => results.push(v)),
+      ));
+
+      eff('fail');
+      expect(requests).toBe(1);
+
+      // the effect is still alive after the error
+      eff('ok');
+      expect(requests).toBe(2);
+      expect(results).toStrictEqual(['ok']);
+    });
+  });
+
+  it('should use the provided RetryConfig as-is', () => {
+    let attempts = 0;
+
+    TestBed.runInInjectionContext(() => {
+      createEffect<string>(() => defer(() => {
+        attempts++;
+        return throwError(() => 'fail');
+      }), { retryOnError: { count: 2 } });
+
+      // initial subscription + 2 retries, then the effect stops retrying
+      expect(attempts).toBe(3);
+    });
   });
 
   it('should stop after error when retryOnError is false', () => {

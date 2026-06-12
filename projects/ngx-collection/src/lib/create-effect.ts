@@ -34,7 +34,37 @@ export function createEffect<
   const destroyRef = injector.get(DestroyRef);
   const origin$ = new Subject<ObservableType>();
   const retryOnError = options?.retryOnError ?? true;
-  const retryConfig = (typeof options?.retryOnError === 'object' && options?.retryOnError) ? options?.retryOnError : {} as RetryConfig;
+
+  const retrySignal = new Subject<void>();
+  let valueSinceLastRetry = false;
+  /**
+   * If the generator's pipeline replays its input on subscription
+   * (`startWith()`, `toObservable()`, `shareReplay()`, a cold observable that
+   * ignores `origin$`), an unconditional `retry()` would resubscribe instantly
+   * and endlessly resend a failed request.
+   * This config retries instantly only when a new value was pushed into the
+   * effect since the last (re)subscription; otherwise, resubscription is
+   * postponed until the next pushed value.
+   * Pass a `RetryConfig` object to `retryOnError` to override this behavior.
+   */
+  const defaultRetryConfig: RetryConfig = {
+    delay: () => {
+      if (valueSinceLastRetry) {
+        valueSinceLastRetry = false;
+        return of(0);
+      }
+      return retrySignal;
+    },
+  };
+  const retryConfig = (typeof options?.retryOnError === 'object' && options?.retryOnError) ? options?.retryOnError : defaultRetryConfig;
+
+  const pushValue = (value: ObservableType) => {
+    valueSinceLastRetry = true;
+    // Resubscribes the pipeline (synchronously) if it was paused after an
+    // error, so the value pushed below is not lost.
+    retrySignal.next();
+    origin$.next(value);
+  };
 
   const nextValue = new Subject<unknown>();
   const onSuccess = new Subject<unknown>();
@@ -108,7 +138,7 @@ export function createEffect<
     try {
       if (isSignal(value)) {
         firstSignalValue = value();
-        origin$.next(firstSignalValue);
+        pushValue(firstSignalValue);
       }
     } catch (_) {
       // Angular's `input.required()` will throw an error when a signal's
@@ -124,8 +154,18 @@ export function createEffect<
 
     return observable$.pipe(
       takeUntilDestroyed(destroyRef)
-    ).subscribe((value) => {
-      origin$.next(value as ObservableType);
+    ).subscribe({
+      next: (value) => {
+        pushValue(value as ObservableType);
+      },
+      // Without this handler, an error of the value source would be reported
+      // as an unhandled RxJS error.
+      error: (error) => {
+        nextError.next(error);
+        if (isDevMode()) {
+          console.error(error);
+        }
+      },
     });
   }) as ReturnType;
 
@@ -136,7 +176,7 @@ export function createEffect<
       try {
         if (isSignal(value)) {
           firstSignalValue = value();
-          origin$.next(firstSignalValue);
+          pushValue(firstSignalValue);
         }
       } catch (_) {
         // Angular's `input.required()` will throw an error when a signal's

@@ -167,6 +167,7 @@ Reactive `read()` from a source. See [CRUD Operations](crud-operations.md#reacti
 type ReadFromParams<T> = {
   source: Observable<FetchedItems<T> | T[]> | Signal<FetchedItems<T> | T[]>;
   isReading?: Signal<boolean>;
+  injector?: Injector;  // required if `source` is a Signal and the method is called outside an injection context
   onSuccess?: (items: T[]) => void;
   onError?: (error: unknown) => void;
   keepExistingOnError?: boolean;

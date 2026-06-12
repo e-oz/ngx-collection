@@ -238,11 +238,14 @@ export class Collection<T, UniqueStatus = unknown, Status = unknown>
    * Equals to an "INSERT" request.
    */
   public create(params: CreateParams<T>): Observable<T> {
-    const createProcessSymbol = Symbol('createProcess');
-    this.state.$createProcesses.update((processes) => [...processes, createProcessSymbol]);
+    return defer(() => {
+      const createProcessSymbol = Symbol('createProcess');
+      this.state.$createProcesses.update((processes) => [...processes, createProcessSymbol]);
 
-    return this.toObservableFirstValue(params.request).pipe(
-      finalize(() => this.state.$createProcesses.update((processes) => processes.filter(process => process !== createProcessSymbol))),
+      return this.toObservableFirstValue(params.request).pipe(
+        finalize(() => this.state.$createProcesses.update((processes) => processes.filter(process => process !== createProcessSymbol)))
+      );
+    }).pipe(
       tap((item) => {
         if (item != null) {
           let onSuccess: undefined | Function = undefined;
@@ -278,15 +281,18 @@ export class Collection<T, UniqueStatus = unknown, Status = unknown>
   }
 
   public createMany(params: CreateManyParams<T>): Observable<T[] | FetchedItems<T>> {
-    const createSymbol = Symbol('createManyProcess');
-    this.state.$createProcesses.update((processes) => [...processes, createSymbol]);
-
     const errors: unknown[] = [];
-    const request = Array.isArray(params.request) ?
-      this.forkJoinSafe(params.request, errors) :
-      this.toObservableFirstValue(params.request);
-    return request.pipe(
-      finalize(() => this.state.$createProcesses.update((processes) => processes.filter(process => process !== createSymbol))),
+    return defer(() => {
+      const createSymbol = Symbol('createManyProcess');
+      this.state.$createProcesses.update((processes) => [...processes, createSymbol]);
+
+      const request = Array.isArray(params.request) ?
+        this.forkJoinSafe(params.request, errors) :
+        this.toObservableFirstValue(params.request);
+      return request.pipe(
+        finalize(() => this.state.$createProcesses.update((processes) => processes.filter(process => process !== createSymbol)))
+      );
+    }).pipe(
       tap((fetched) => {
         if (params.onError && errors.length) {
           this.callCb(params.onError, errors);
@@ -333,20 +339,23 @@ export class Collection<T, UniqueStatus = unknown, Status = unknown>
   }
 
   public read(params: ReadParams<T>): Observable<T[] | FetchedItems<T>> {
-    const readToken = Symbol('readProcess');
-    this.state.$lastReadError.set(undefined);
+    return defer(() => {
+      const readToken = Symbol('readProcess');
+      this.state.$lastReadError.set(undefined);
 
-    const paramItems = params.items;
-    this.state.$readProcesses.update((processes) => [
-      ...processes,
-      { token: readToken, items: paramItems ? paramItems.slice() : [] }
-    ]);
+      const paramItems = params.items;
+      this.state.$readProcesses.update((processes) => [
+        ...processes,
+        { token: readToken, items: paramItems ? paramItems.slice() : [] }
+      ]);
 
-    return this.toObservableFirstValue(params.request).pipe(
-      finalize(() => {
-        this.state.$readProcesses.update((processes) => processes.filter(process => process.token !== readToken));
-        this.state.$isBeforeFirstRead.set(false);
-      }),
+      return this.toObservableFirstValue(params.request).pipe(
+        finalize(() => {
+          this.state.$readProcesses.update((processes) => processes.filter(process => process.token !== readToken));
+          this.state.$isBeforeFirstRead.set(false);
+        })
+      );
+    }).pipe(
       tap((fetched) => {
         const items = fetched == null ? ([] as T[]) : (Array.isArray(fetched) ? fetched : fetched.items).slice();
         if (items.length > 0) {
@@ -389,20 +398,23 @@ export class Collection<T, UniqueStatus = unknown, Status = unknown>
   }
 
   public readOne(params: ReadOneParams<T>): Observable<T> {
-    const readToken = Symbol('readOneProcess');
-    this.state.$lastReadOneError.set(undefined);
+    return defer(() => {
+      const readToken = Symbol('readOneProcess');
+      this.state.$lastReadOneError.set(undefined);
 
-    const paramItem = params.item;
-    this.state.$readProcesses.update((processes) => [
-      ...processes,
-      { token: readToken, items: paramItem ? [paramItem] : [] }
-    ]);
+      const paramItem = params.item;
+      this.state.$readProcesses.update((processes) => [
+        ...processes,
+        { token: readToken, items: paramItem ? [paramItem] : [] }
+      ]);
 
-    return this.toObservableFirstValue(params.request).pipe(
-      finalize(() => {
-        this.state.$readProcesses.update((processes) => processes.filter(process => process.token !== readToken));
-        this.state.$isBeforeFirstRead.set(false);
-      }),
+      return this.toObservableFirstValue(params.request).pipe(
+        finalize(() => {
+          this.state.$readProcesses.update((processes) => processes.filter(process => process.token !== readToken));
+          this.state.$isBeforeFirstRead.set(false);
+        })
+      );
+    }).pipe(
       tap((newItem) => {
         if (newItem != null) {
           let onSuccess: undefined | Function = undefined;
@@ -447,22 +459,25 @@ export class Collection<T, UniqueStatus = unknown, Status = unknown>
   }
 
   public readMany(params: ReadManyParams<T>): Observable<T[] | FetchedItems<T>> {
-    const readToken = Symbol('readManyProcess');
-    this.state.$lastReadManyError.set(undefined);
-
-    const paramItems = params.items;
-    this.state.$readProcesses.update((processes) => [
-      ...processes,
-      { token: readToken, items: paramItems ? paramItems.slice() : [] }
-    ]);
     const errors: unknown[] = [];
-    const request = Array.isArray(params.request) ? this.forkJoinSafe(params.request, errors) : this.toObservableFirstValue(params.request);
+    return defer(() => {
+      const readToken = Symbol('readManyProcess');
+      this.state.$lastReadManyError.set(undefined);
 
-    return request.pipe(
-      finalize(() => {
-        this.state.$readProcesses.update((processes) => processes.filter(process => process.token !== readToken));
-        this.state.$isBeforeFirstRead.set(false);
-      }),
+      const paramItems = params.items;
+      this.state.$readProcesses.update((processes) => [
+        ...processes,
+        { token: readToken, items: paramItems ? paramItems.slice() : [] }
+      ]);
+      const request = Array.isArray(params.request) ? this.forkJoinSafe(params.request, errors) : this.toObservableFirstValue(params.request);
+
+      return request.pipe(
+        finalize(() => {
+          this.state.$readProcesses.update((processes) => processes.filter(process => process.token !== readToken));
+          this.state.$isBeforeFirstRead.set(false);
+        })
+      );
+    }).pipe(
       tap((fetched) => {
         if (errors.length) {
           this.callCb(params.onError, errors);
@@ -520,7 +535,7 @@ export class Collection<T, UniqueStatus = unknown, Status = unknown>
 
   public readFrom(params: ReadFromParams<T>): Observable<FetchedItems<T> | T[]> {
     const s = params.source;
-    const p = isObservable(s) ? s : toObservable(s);
+    const p = isObservable(s) ? s : toObservable(s, { injector: params.injector });
     if (params.isReading) {
       const external = params.isReading;
       this.state.$isReadingFrom.update((externals) => [...externals, external]);
@@ -542,7 +557,7 @@ export class Collection<T, UniqueStatus = unknown, Status = unknown>
 
   public readManyFrom(params: ReadFromParams<T>): Observable<FetchedItems<T> | T[]> {
     const s = params.source;
-    const p = isObservable(s) ? s : toObservable(s);
+    const p = isObservable(s) ? s : toObservable(s, { injector: params.injector });
     if (params.isReading) {
       const external = params.isReading;
       this.state.$isReadingFrom.update((externals) => [...externals, external]);
@@ -563,15 +578,18 @@ export class Collection<T, UniqueStatus = unknown, Status = unknown>
   }
 
   public refresh(params: RefreshParams<T>): Observable<T> {
-    const refreshToken = Symbol('refreshProcess');
-    this.state.$refreshProcesses.update((processes) => [
-      ...processes,
-      { token: refreshToken, items: [params.item] }
-    ]);
-    this.state.$lastRefreshError.set(undefined);
+    return defer(() => {
+      const refreshToken = Symbol('refreshProcess');
+      this.state.$refreshProcesses.update((processes) => [
+        ...processes,
+        { token: refreshToken, items: [params.item] }
+      ]);
+      this.state.$lastRefreshError.set(undefined);
 
-    return this.toObservableFirstValue(params.request).pipe(
-      finalize(() => this.state.$refreshProcesses.update((processes) => processes.filter(process => process.token !== refreshToken))),
+      return this.toObservableFirstValue(params.request).pipe(
+        finalize(() => this.state.$refreshProcesses.update((processes) => processes.filter(process => process.token !== refreshToken)))
+      );
+    }).pipe(
       tap((newItem) => {
         if (newItem != null) {
           let onSuccess: undefined | Function = undefined;
@@ -623,17 +641,20 @@ export class Collection<T, UniqueStatus = unknown, Status = unknown>
       return EMPTY;
     }
 
-    const refreshToken = Symbol('refreshManyProcess');
-    this.state.$refreshProcesses.update((processes) => [
-      ...processes,
-      { token: refreshToken, items: params.items.slice() }
-    ]);
-    this.state.$lastRefreshError.set(undefined);
-
     const errors: unknown[] = [];
-    const request = Array.isArray(params.request) ? this.forkJoinSafe(params.request, errors) : this.toObservableFirstValue(params.request);
-    return request.pipe(
-      finalize(() => this.state.$refreshProcesses.update((processes) => processes.filter(process => process.token !== refreshToken))),
+    return defer(() => {
+      const refreshToken = Symbol('refreshManyProcess');
+      this.state.$refreshProcesses.update((processes) => [
+        ...processes,
+        { token: refreshToken, items: params.items.slice() }
+      ]);
+      this.state.$lastRefreshError.set(undefined);
+
+      const request = Array.isArray(params.request) ? this.forkJoinSafe(params.request, errors) : this.toObservableFirstValue(params.request);
+      return request.pipe(
+        finalize(() => this.state.$refreshProcesses.update((processes) => processes.filter(process => process.token !== refreshToken)))
+      );
+    }).pipe(
       tap((fetched) => {
         if (errors.length) {
           this.callCb(params.onError, errors);
@@ -692,63 +713,69 @@ export class Collection<T, UniqueStatus = unknown, Status = unknown>
   }
 
   public update(params: UpdateParams<T>): Observable<T> {
-    const updateToken = Symbol('updateProcess');
-    this.state.$updateProcesses.update((processes) => [
-      ...processes,
-      { token: updateToken, items: [params.item] }
-    ]);
-    return this.toObservableFirstValue(params.request).pipe(
-      finalize(() => this.state.$updateProcesses.update((processes) => processes.filter(process => process.token !== updateToken))),
-      take(1),
-      switchMap((newItem) => {
-        if (params.refreshRequest) {
-          return this.refresh({
-            request: params.refreshRequest,
-            item: params.item,
-            onSuccess: params.onSuccess,
-            onError: params.onError,
-          });
-        } else {
-          if (params.refresh) {
-            return this.refresh(params.refresh);
+    return defer(() => {
+      const updateToken = Symbol('updateProcess');
+      this.state.$updateProcesses.update((processes) => [
+        ...processes,
+        { token: updateToken, items: [params.item] }
+      ]);
+      return this.toObservableFirstValue(params.request).pipe(
+        take(1),
+        switchMap((newItem) => {
+          if (params.refreshRequest) {
+            return this.refresh({
+              request: params.refreshRequest,
+              item: params.item,
+              onSuccess: params.onSuccess,
+              onError: params.onError,
+            });
           } else {
-            if (newItem != null) {
-              let onSuccess: undefined | Function = undefined;
-              let onError: undefined | Function = undefined;
+            if (params.refresh) {
+              return this.refresh(params.refresh);
+            } else {
+              if (newItem != null) {
+                let onSuccess: undefined | Function = undefined;
+                let onError: undefined | Function = undefined;
 
-              this.state.$items.update((items) => {
-                const nextItems = items.slice();
-                if (this.upsertOne(newItem, nextItems) === 'duplicate') {
-                  onError = () => {
-                    this.duplicateNotAdded(newItem, items);
-                    this.callCb(params.onError, this.onDuplicateErrCallbackParam);
-                  };
-                  return items;
-                } else {
-                  onSuccess = () => {
-                    this.callCb(params.onSuccess, newItem);
-                    if (this.onUpdate.observed) {
-                      this.onUpdate.next([newItem]);
-                    }
-                  };
-                  return nextItems;
-                }
-              });
+                this.state.$items.update((items) => {
+                  const nextItems = items.slice();
+                  if (this.upsertOne(newItem, nextItems) === 'duplicate') {
+                    onError = () => {
+                      this.duplicateNotAdded(newItem, items);
+                      this.callCb(params.onError, this.onDuplicateErrCallbackParam);
+                    };
+                    return items;
+                  } else {
+                    onSuccess = () => {
+                      this.callCb(params.onSuccess, newItem);
+                      if (this.onUpdate.observed) {
+                        this.onUpdate.next([newItem]);
+                      }
+                    };
+                    return nextItems;
+                  }
+                });
 
-              // @ts-ignore old and dumb TS version TODO: Remove this line with TS 5.6+
-              onSuccess?.();
-              // @ts-ignore old and dumb TS version TODO: Remove this line with TS 5.6+
-              onError?.();
+                // @ts-ignore old and dumb TS version TODO: Remove this line with TS 5.6+
+                onSuccess?.();
+                // @ts-ignore old and dumb TS version TODO: Remove this line with TS 5.6+
+                onError?.();
+              }
+              return of(newItem);
             }
-            return of(newItem);
           }
-        }
-      }),
-      catchError((error) => {
-        this.callCb(params.onError, error);
-        return EMPTY;
-      })
-    );
+        }),
+        catchError((error) => {
+          this.callCb(params.onError, error);
+          return EMPTY;
+        }),
+        // finalize() should stay downstream of switchMap(): the item should be
+        // removed from `updatingItems` only after both the request and the
+        // consecutive refresh (if any) are finished - to prevent spinners from
+        // flickering.
+        finalize(() => this.state.$updateProcesses.update((processes) => processes.filter(process => process.token !== updateToken)))
+      );
+    });
   }
 
   public updateMany(params: UpdateManyParams<T>): Observable<T[] | FetchedItems<T>> {
@@ -759,80 +786,89 @@ export class Collection<T, UniqueStatus = unknown, Status = unknown>
       return EMPTY;
     }
 
-    const updateToken = Symbol('updateManyProcess');
-    this.state.$updateProcesses.update((processes) => [
-      ...processes,
-      { token: updateToken, items: params.items.slice() }
-    ]);
     const errors: unknown[] = [];
-    const request = Array.isArray(params.request) ? this.forkJoinSafe(params.request, errors) : this.toObservableFirstValue(params.request);
-    return request.pipe(
-      finalize(() => this.state.$updateProcesses.update((processes) => processes.filter(process => process.token !== updateToken))),
-      take(1),
-      switchMap((updatedItems) => {
-        if (params.onError && errors.length) {
-          this.callCb(params.onError, errors);
-        }
-        if (params.refreshRequest) {
-          return this.refreshMany({
-            request: params.refreshRequest,
-            items: params.items,
-            onSuccess: params.onSuccess,
-            onError: params.onError,
-          });
-        } else {
-          if (params.refresh) {
-            return this.refreshMany(params.refresh);
-          } else {
-            if (updatedItems != null) {
-              let onSuccess: undefined | Function = undefined;
-              let onError: undefined | Function = undefined;
-
-              this.state.$items.update((items) => {
-                const nextItems = items.slice();
-                const result = this.upsertMany(updatedItems, nextItems);
-                if (!Array.isArray(result) && result.duplicate) {
-                  onError = () => {
-                    this.duplicateNotAdded(result.duplicate, result.preExisting ? updatedItems : items);
-                    this.callCb(params.onError, this.onDuplicateErrCallbackParam);
-                  };
-                  return items;
-                } else {
-                  onSuccess = () => {
-                    this.callCb(params.onSuccess, updatedItems);
-                    if (this.onUpdate.observed) {
-                      this.onUpdate.next(updatedItems);
-                    }
-                  };
-                  return nextItems;
-                }
-              });
-
-              // @ts-ignore old and dumb TS version TODO: Remove this line with TS 5.6+
-              onSuccess?.();
-              // @ts-ignore old and dumb TS version TODO: Remove this line with TS 5.6+
-              onError?.();
-            }
-            return of(updatedItems);
+    return defer(() => {
+      const updateToken = Symbol('updateManyProcess');
+      this.state.$updateProcesses.update((processes) => [
+        ...processes,
+        { token: updateToken, items: params.items.slice() }
+      ]);
+      const request = Array.isArray(params.request) ? this.forkJoinSafe(params.request, errors) : this.toObservableFirstValue(params.request);
+      return request.pipe(
+        take(1),
+        switchMap((updatedItems) => {
+          if (params.onError && errors.length) {
+            this.callCb(params.onError, errors);
           }
-        }
-      }),
-      catchError((error) => {
-        this.callCb(params.onError, error);
-        return EMPTY;
-      })
-    );
+          if (params.refreshRequest) {
+            return this.refreshMany({
+              request: params.refreshRequest,
+              items: params.items,
+              onSuccess: params.onSuccess,
+              onError: params.onError,
+            });
+          } else {
+            if (params.refresh) {
+              return this.refreshMany(params.refresh);
+            } else {
+              if (updatedItems != null) {
+                let onSuccess: undefined | Function = undefined;
+                let onError: undefined | Function = undefined;
+
+                this.state.$items.update((items) => {
+                  const nextItems = items.slice();
+                  const result = this.upsertMany(updatedItems, nextItems);
+                  if (!Array.isArray(result) && result.duplicate) {
+                    onError = () => {
+                      this.duplicateNotAdded(result.duplicate, result.preExisting ? updatedItems : items);
+                      this.callCb(params.onError, this.onDuplicateErrCallbackParam);
+                    };
+                    return items;
+                  } else {
+                    onSuccess = () => {
+                      this.callCb(params.onSuccess, updatedItems);
+                      if (this.onUpdate.observed) {
+                        this.onUpdate.next(updatedItems);
+                      }
+                    };
+                    return nextItems;
+                  }
+                });
+
+                // @ts-ignore old and dumb TS version TODO: Remove this line with TS 5.6+
+                onSuccess?.();
+                // @ts-ignore old and dumb TS version TODO: Remove this line with TS 5.6+
+                onError?.();
+              }
+              return of(updatedItems);
+            }
+          }
+        }),
+        catchError((error) => {
+          this.callCb(params.onError, error);
+          return EMPTY;
+        }),
+        // finalize() should stay downstream of switchMap(): the items should be
+        // removed from `updatingItems` only after both the request and the
+        // consecutive refresh (if any) are finished - to prevent spinners from
+        // flickering.
+        finalize(() => this.state.$updateProcesses.update((processes) => processes.filter(process => process.token !== updateToken)))
+      );
+    });
   }
 
   public delete<R = unknown>(params: DeleteParams<T, R>): Observable<R> {
-    const deleteToken = Symbol('deleteProcess');
-    this.state.$deleteProcesses.update((processes) => [
-      ...processes,
-      { token: deleteToken, items: [params.item] }
-    ]);
-    const req = params.request ? this.toObservableFirstValue(params.request) : of(null as R);
-    return req.pipe(
-      finalize(() => this.state.$deleteProcesses.update((processes) => processes.filter(process => process.token !== deleteToken))),
+    return defer(() => {
+      const deleteToken = Symbol('deleteProcess');
+      this.state.$deleteProcesses.update((processes) => [
+        ...processes,
+        { token: deleteToken, items: [params.item] }
+      ]);
+      const req = params.request ? this.toObservableFirstValue(params.request) : of(null as R);
+      return req.pipe(
+        finalize(() => this.state.$deleteProcesses.update((processes) => processes.filter(process => process.token !== deleteToken)))
+      );
+    }).pipe(
       switchMap((response) => {
         if (params.readRequest) {
           return this.read({
@@ -876,17 +912,21 @@ export class Collection<T, UniqueStatus = unknown, Status = unknown>
       return EMPTY;
     }
 
-    const deleteToken = Symbol('deleteManyProcess');
-    this.state.$deleteProcesses.update((processes) => [
-      ...processes,
-      { token: deleteToken, items: params.items.slice() }
-    ]);
     const errors: unknown[] = [];
-    const requests = Array.isArray(params.request) ?
-      this.forkJoinSafe(params.request, errors)
-      : this.forkJoinSafe([params.request ?? of(null as R)], errors);
-    return requests.pipe(
-      finalize(() => this.state.$deleteProcesses.update((processes) => processes.filter(process => process.token !== deleteToken))),
+    const failedIndices = new Set<number>();
+    return defer(() => {
+      const deleteToken = Symbol('deleteManyProcess');
+      this.state.$deleteProcesses.update((processes) => [
+        ...processes,
+        { token: deleteToken, items: params.items.slice() }
+      ]);
+      const requests = Array.isArray(params.request) ?
+        this.forkJoinSafe(params.request, errors, failedIndices)
+        : this.forkJoinSafe([params.request ?? of(null as R)], errors);
+      return requests.pipe(
+        finalize(() => this.state.$deleteProcesses.update((processes) => processes.filter(process => process.token !== deleteToken)))
+      );
+    }).pipe(
       take(1),
       switchMap((response) => {
         if (params.onError && errors.length) {
@@ -904,16 +944,23 @@ export class Collection<T, UniqueStatus = unknown, Status = unknown>
               map(_ => response)
             );
           } else {
+            // When requests are mapped to items one-to-one, items whose
+            // requests have failed should not be removed from the collection.
+            const itemsToDelete = Array.isArray(params.request) && params.request.length === params.items.length ?
+              params.items.filter((_, index) => !failedIndices.has(index))
+              : params.items;
             this.state.$totalCountFetched.update((prevTotalCount) => this.getDecrementedTotalCount(
               response,
-              params.items.length,
+              itemsToDelete.length,
               prevTotalCount,
               params.decrementTotalCount
             ) ?? prevTotalCount);
-            this.state.$items.update((items) => items.filter(item => !this.hasItemIn(item, params.items)));
+            if (itemsToDelete.length > 0) {
+              this.state.$items.update((items) => items.filter(item => !this.hasItemIn(item, itemsToDelete)));
+            }
             this.callCb(params.onSuccess, response);
-            if (this.onDelete.observed) {
-              this.onDelete.next(params.items);
+            if (this.onDelete.observed && itemsToDelete.length > 0) {
+              this.onDelete.next(itemsToDelete);
             }
             return of(response);
           }
@@ -978,7 +1025,9 @@ export class Collection<T, UniqueStatus = unknown, Status = unknown>
       return;
     }
     const newMap = new Map(map);
-    const itemStatuses = newMap.get(item) ?? new Set<Status>();
+    // The Set is copied (and not mutated) to not modify previous values of
+    // the signal, and to let computed() chains detect the change.
+    const itemStatuses = new Set<Status>(newMap.get(item));
     itemStatuses.add(status);
     newMap.set(item, itemStatuses);
     this.state.$statuses.set(newMap);
@@ -987,16 +1036,16 @@ export class Collection<T, UniqueStatus = unknown, Status = unknown>
   public deleteItemStatus(item: T, status: Status) {
     const map = untracked(this.state.$statuses);
     const current = map.get(item);
-    if (current && !current.has(status)) {
+    if (!current || !current.has(status)) {
       return;
     }
     const newMap = new Map(map);
-    const itemStatuses = newMap.get(item);
-    if (itemStatuses) {
-      itemStatuses.delete(status);
-      newMap.set(item, itemStatuses);
-      this.state.$statuses.set(newMap);
-    }
+    // The Set is copied (and not mutated) to not modify previous values of
+    // the signal, and to let computed() chains detect the change.
+    const itemStatuses = new Set<Status>(current);
+    itemStatuses.delete(status);
+    newMap.set(item, itemStatuses);
+    this.state.$statuses.set(newMap);
   }
 
   public isItemDeleting(itemSource: Partial<T> | Signal<Partial<T> | undefined>): Signal<boolean> {
@@ -1163,10 +1212,10 @@ export class Collection<T, UniqueStatus = unknown, Status = unknown>
         this.onFirstItemsRequest = options.onFirstItemsRequest;
       }
       if (options.readFrom) {
-        this.subscribeTo(this.readFrom(options.readFrom), options.injector);
+        this.subscribeTo(this.readFrom({ injector: options.injector, ...options.readFrom }), options.injector);
       }
       if (options.readManyFrom) {
-        this.subscribeTo(this.readManyFrom(options.readManyFrom), options.injector);
+        this.subscribeTo(this.readManyFrom({ injector: options.injector, ...options.readManyFrom }), options.injector);
       }
       if (options.fetchItemRequestFactory) {
         this.fetchItemRequestFactory = options.fetchItemRequestFactory;
@@ -1178,9 +1227,12 @@ export class Collection<T, UniqueStatus = unknown, Status = unknown>
     if (!Array.isArray(items)) {
       return [];
     }
-    return items.filter((item, index) => items.indexOf(item) === index
-      || items.findIndex(i => this.comparator.equal(i, item)) == index
-    );
+    return items.filter((item, index) => {
+      const firstEqualIndex = items.findIndex(i => this.comparator.equal(i, item));
+      // A custom comparator might not recognize an item as equal to itself -
+      // in that case, deduplicate by reference.
+      return firstEqualIndex === index || (firstEqualIndex < 0 && items.indexOf(item) === index);
+    });
   }
 
   public getItemByPartial(partItem: Partial<T>, items?: T[]): T | undefined {
@@ -1226,6 +1278,10 @@ export class Collection<T, UniqueStatus = unknown, Status = unknown>
 
   /*** Internal Methods ***/
 
+  /**
+   * Not used internally, but can be used by subclasses:
+   * removing this method would be a breaking change.
+   */
   protected getWith(items: T[], item: Partial<T> | Partial<T>[]): T[] {
     const addItems = Array.isArray(item) ?
       item.map(i => this.getItemByPartial(i, items) ?? i as T)
@@ -1236,6 +1292,10 @@ export class Collection<T, UniqueStatus = unknown, Status = unknown>
     ]);
   }
 
+  /**
+   * Not used internally, but can be used by subclasses:
+   * removing this method would be a breaking change.
+   */
   protected getWithout(items: T[], item: Partial<T> | Partial<T>[]): T[] {
     if (Array.isArray(item)) {
       return items.filter(i => !this.hasItemIn(i, item));
@@ -1244,6 +1304,10 @@ export class Collection<T, UniqueStatus = unknown, Status = unknown>
     }
   }
 
+  /**
+   * Not used internally, but can be used by subclasses:
+   * removing this method would be a breaking change.
+   */
   protected getWithPartial(items: Partial<T>[], item: Partial<T> | Partial<T>[]): Partial<T>[] {
     const addItems = Array.isArray(item) ? item : [item];
     return this.uniqueItems([
@@ -1252,6 +1316,10 @@ export class Collection<T, UniqueStatus = unknown, Status = unknown>
     ]);
   }
 
+  /**
+   * Not used internally, but can be used by subclasses:
+   * removing this method would be a breaking change.
+   */
   protected getWithoutPartial(items: Partial<T>[], item: Partial<T> | Partial<T>[]): Partial<T>[] {
     if (Array.isArray(item)) {
       return items.filter(i => !this.hasItemIn(i, item));
@@ -1381,7 +1449,7 @@ export class Collection<T, UniqueStatus = unknown, Status = unknown>
         if (typeof decrementTotalCount === 'string') {
           if (response
             && Array.isArray(response)
-            && response.length === 1
+            && response.length >= 1
             && typeof response[0] === 'object'
             && response[0] != null
           ) {
@@ -1423,13 +1491,15 @@ export class Collection<T, UniqueStatus = unknown, Status = unknown>
 
   protected forkJoinSafe<Src>(
     sources: Observable<Src>[] | Signal<Src>[] | (Observable<Src> | Signal<Src>)[],
-    errors: unknown[]
+    errors: unknown[],
+    failedIndices?: Set<number>
   ): Observable<Src[]> {
-    const source = sources.map(s => this.toObservableFirstValue(s).pipe(
+    const source = sources.map((s, index) => this.toObservableFirstValue(s).pipe(
       map(v => ({ value: v, error: false })),
       defaultIfEmpty({ error: true, value: undefined }),
       catchError((e) => {
         errors.push(e);
+        failedIndices?.add(index);
         this.callErrReporter(e);
         return of({ error: true, value: undefined });
       })

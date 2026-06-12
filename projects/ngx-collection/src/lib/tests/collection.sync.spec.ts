@@ -1,4 +1,4 @@
-import { signal } from '@angular/core';
+import { computed, signal } from '@angular/core';
 import { defer, of } from 'rxjs';
 import { Collection } from '../collection';
 
@@ -42,6 +42,16 @@ describe('Collection Service (sync)', () => {
     }).subscribe();
 
     expect(coll.$items()).toStrictEqual([newItem, secondItem]);
+  });
+
+  it('create should not mark the collection as "creating" when the returned observable is not subscribed', () => {
+    const { coll } = setup();
+
+    // no .subscribe() - the request will not be executed
+    coll.create({ request: signal({ id: 1, name: 'A' }) });
+
+    expect(coll.$isCreating()).toBe(false);
+    expect(coll.$items()).toStrictEqual([]);
   });
 
   it('create many', () => {
@@ -860,6 +870,53 @@ describe('Collection Service (sync)', () => {
     expect(coll.$statuses().get(item)?.has('selected')).toBe(true);
   });
 
+  it('setItemStatus should not mutate the Set held by a previous $statuses snapshot', () => {
+    const { coll } = setup();
+    const item = { id: 1, name: 'A' };
+
+    coll.read({ request: signal([item]) }).subscribe();
+
+    coll.setItemStatus(item, 'selected');
+    const snapshotSet = coll.$statuses().get(item)!;
+    expect(snapshotSet.has('awesome')).toBe(false);
+
+    coll.setItemStatus(item, 'awesome');
+
+    expect(snapshotSet.has('awesome')).toBe(false);
+  });
+
+  it('setItemStatus should notify computed() chains that select the statuses Set', () => {
+    const { coll } = setup();
+    const item = { id: 1, name: 'A' };
+
+    coll.read({ request: signal([item]) }).subscribe();
+
+    const itemStatuses = computed(() => coll.$statuses().get(item));
+    const hasAwesome = computed(() => itemStatuses()?.has('awesome') ?? false);
+
+    coll.setItemStatus(item, 'selected');
+    expect(hasAwesome()).toBe(false);
+
+    coll.setItemStatus(item, 'awesome');
+    expect(hasAwesome()).toBe(true);
+  });
+
+  it('deleteItemStatus should notify computed() chains that select the statuses Set', () => {
+    const { coll } = setup();
+    const item = { id: 1, name: 'A' };
+
+    coll.read({ request: signal([item]) }).subscribe();
+
+    const itemStatuses = computed(() => coll.$statuses().get(item));
+    const hasSelected = computed(() => itemStatuses()?.has('selected') ?? false);
+
+    coll.setItemStatus(item, 'selected');
+    expect(hasSelected()).toBe(true);
+
+    coll.deleteItemStatus(item, 'selected');
+    expect(hasSelected()).toBe(false);
+  });
+
   it('should return undefined when field signal value is undefined', () => {
     const { coll } = setup();
     const item = { id: 1, name: 'A' };
@@ -880,6 +937,15 @@ describe('Collection Service (sync)', () => {
     expect(coll.uniqueItems(null as any)).toStrictEqual([]);
     expect(coll.hasItemIn({ id: 1 }, [])).toBe(false);
     expect(coll.hasItemIn({ id: 1 }, null as any)).toBe(false);
+  });
+
+  it('uniqueItems should deduplicate items by comparator, not by reference', () => {
+    const { coll } = setup();
+
+    const a = { id: 1, name: 'A' };
+    const b = { id: 1, name: 'B' }; // same identity (id), different reference
+
+    expect(coll.uniqueItems([a, b])).toStrictEqual([a]);
   });
 
   it('deleteMany should noop when items array is empty', () => {

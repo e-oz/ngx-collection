@@ -49,6 +49,13 @@ export type ReadManyParams<T> = {
 export type ReadFromParams<T> = Omit<ReadParams<T>, 'request'> & {
   readonly source: Observable<FetchedItems<T> | T[]> | Signal<FetchedItems<T> | T[]>;
   readonly isReading?: Signal<boolean>;
+  /**
+   * Required if `source` is a Signal and `readFrom()`/`readManyFrom()` is
+   * called outside of an injection context.
+   * When `readFrom`/`readManyFrom` are passed as constructor options, the
+   * `injector` option of the collection is used by default.
+   */
+  readonly injector?: Injector;
 };
 
 

@@ -1,4 +1,4 @@
-import { signal } from '@angular/core';
+import { Injector, signal } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import { BrowserTestingModule, platformBrowserTesting } from '@angular/platform-browser/testing';
 import { defer, map, of, Subject, switchMap, throwError, timer } from 'rxjs';
@@ -1369,6 +1369,27 @@ describe('Collection Service (async)', () => {
     });
   });
 
+  it('readFrom (constructor option) with a Signal source should work outside injection context when injector is provided', () => {
+    TestBed.resetTestingModule();
+    TestBed.configureTestingModule({});
+    const injector = TestBed.inject(Injector);
+    const source = signal<Item[]>([{ id: 1, name: 'A' }]);
+
+    let coll: Collection<Item> | undefined = undefined;
+
+    expect(() => {
+      coll = new Collection<Item>({
+        comparatorFields: ['id'],
+        injector,
+        readFrom: { source },
+      });
+    }).not.toThrow();
+
+    TestBed.tick(); // flush effects so toObservable() emits
+
+    expect(coll!.$items()).toStrictEqual([{ id: 1, name: 'A' }]);
+  });
+
   it('create should use the first emitted value only', () => {
     const { coll } = setup();
     const item1 = { id: 1, name: 'A' };
@@ -1593,6 +1614,30 @@ describe('Collection Service (async)', () => {
     expect(coll.$isProcessing()).toBe(false);
   });
 
+  it('$mutatingItems should not contain the same logical item twice', () => {
+    const { coll } = setup();
+    const item = { id: 1, name: 'A' };
+
+    coll.read({ request: of([item]) }).subscribe();
+
+    coll.update({
+      item: { id: 1, name: 'A' }, // distinct reference, same identity
+      request: timer(10).pipe(map(() => ({ id: 1, name: 'B' }))),
+    }).subscribe();
+
+    coll.delete({
+      item: { id: 1, name: 'A' }, // distinct reference, same identity
+      request: timer(10).pipe(map(() => null)),
+    }).subscribe();
+
+    expect(coll.$updatingItems().length).toBe(1);
+    expect(coll.$deletingItems().length).toBe(1);
+    expect(coll.$mutatingItems().length).toBe(1);
+    expect(coll.$processingItems().length).toBe(1);
+
+    jest.runAllTimers();
+  });
+
   it('read should keep items when keepExistingOnError is true', () => {
     const { coll } = setup();
     const initial = [{ id: 1, name: 'A' }];
@@ -1697,6 +1742,41 @@ describe('Collection Service (async)', () => {
     expect(requestCalls).toBe(1);
     expect(coll.$items()).toStrictEqual([{ id: 1, name: 'C' }]);
     expect(onSuccessValue).toStrictEqual({ id: 1, name: 'C' });
+  });
+
+  it('update with refresh should keep the item in $updatingItems until the refresh completes', () => {
+    const { coll } = setup();
+    const item = { id: 1, name: 'A' };
+
+    coll.read({ request: of([item]) }).subscribe();
+
+    coll.update({
+      item,
+      request: timer(10).pipe(map(() => ({ id: 1, name: 'B' }))),
+      refresh: {
+        item,
+        request: timer(10).pipe(map(() => ({ id: 1, name: 'C' }))),
+      },
+    }).subscribe();
+
+    expect(coll.$updatingItems()).toStrictEqual([item]);
+    expect(coll.$isUpdating()).toBe(true);
+
+    // the mutation request is completed, the refresh request is in flight
+    jest.advanceTimersByTime(10);
+
+    expect(coll.$refreshingItems()).toStrictEqual([item]);
+    expect(coll.$updatingItems()).toStrictEqual([item]);
+    expect(coll.$mutatingItems()).toStrictEqual([item]);
+    expect(coll.$isUpdating()).toBe(true);
+    expect(coll.$isMutating()).toBe(true);
+
+    jest.advanceTimersByTime(10);
+
+    expect(coll.$items()).toStrictEqual([{ id: 1, name: 'C' }]);
+    expect(coll.$updatingItems()).toStrictEqual([]);
+    expect(coll.$refreshingItems()).toStrictEqual([]);
+    expect(coll.$isUpdating()).toBe(false);
   });
 
   it('updateMany should use refresh results and still run request', () => {
@@ -3063,6 +3143,47 @@ describe('Collection Service (async)', () => {
     jest.runAllTimers();
 
     expect(onError).toHaveBeenCalledWith(['partial-delete-err']);
+  });
+
+  it('deleteMany should not remove items whose delete requests failed', () => {
+    const { coll } = setup();
+    const item1 = { id: 1, name: 'A' };
+    const item2 = { id: 2, name: 'B' };
+    const onError = jest.fn();
+
+    coll.read({ request: of([item1, item2]) }).subscribe();
+
+    coll.deleteMany({
+      request: [emit('ok'), timer(1).pipe(map(() => { throw 'delete-failed'; }))],
+      items: [item1, item2],
+      onError,
+    }).subscribe();
+
+    jest.runAllTimers();
+
+    expect(onError).toHaveBeenCalledWith(['delete-failed']);
+    expect(coll.$items()).toStrictEqual([item2]);
+  });
+
+  it('deleteMany with multiple requests should use the first response for string decrementTotalCount', () => {
+    const { coll } = setup();
+    const item1 = { id: 1, name: 'A' };
+    const item2 = { id: 2, name: 'B' };
+
+    coll.read({
+      request: of({ items: [item1, item2], totalCount: 200 }),
+    }).subscribe();
+
+    coll.deleteMany({
+      request: [emit({ total: 10 }), emit({ total: 10 })],
+      items: [item1, item2],
+      decrementTotalCount: 'total',
+    }).subscribe();
+
+    jest.runAllTimers();
+
+    expect(coll.$items()).toStrictEqual([]);
+    expect(coll.$totalCountFetched()).toBe(10);
   });
 
   it('deleteMany with empty items should return EMPTY and call onError', () => {
