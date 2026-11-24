@@ -739,7 +739,10 @@ export class Collection<T, UniqueStatus = unknown, Status = unknown>
 
                 this.state.$items.update((items) => {
                   const nextItems = items.slice();
-                  if (this.upsertOne(newItem, nextItems) === 'duplicate') {
+                  const result = params.upsert === false ?
+                    this.replaceOne(newItem, nextItems)
+                    : this.upsertOne(newItem, nextItems);
+                  if (result === 'duplicate') {
                     onError = () => {
                       this.duplicateNotAdded(newItem, items);
                       this.callCb(params.onError, this.onDuplicateErrCallbackParam);
@@ -787,16 +790,18 @@ export class Collection<T, UniqueStatus = unknown, Status = unknown>
     }
 
     const errors: unknown[] = [];
+    const failures = new Map<number, unknown>();
     return defer(() => {
       const updateToken = Symbol('updateManyProcess');
       this.state.$updateProcesses.update((processes) => [
         ...processes,
         { token: updateToken, items: params.items.slice() }
       ]);
-      const request = Array.isArray(params.request) ? this.forkJoinSafe(params.request, errors) : this.toObservableFirstValue(params.request);
+      const request = Array.isArray(params.request) ? this.forkJoinSafe(params.request, errors, failures) : this.toObservableFirstValue(params.request);
       return request.pipe(
         take(1),
         switchMap((updatedItems) => {
+          this.callOnItemError(params.onItemError, params.request, params.items, failures);
           if (params.onError && errors.length) {
             this.callCb(params.onError, errors);
           }
@@ -817,7 +822,9 @@ export class Collection<T, UniqueStatus = unknown, Status = unknown>
 
                 this.state.$items.update((items) => {
                   const nextItems = items.slice();
-                  const result = this.upsertMany(updatedItems, nextItems);
+                  const result = params.upsert === false ?
+                    this.replaceMany(updatedItems, nextItems)
+                    : this.upsertMany(updatedItems, nextItems);
                   if (!Array.isArray(result) && result.duplicate) {
                     onError = () => {
                       this.duplicateNotAdded(result.duplicate, result.preExisting ? updatedItems : items);
@@ -913,7 +920,7 @@ export class Collection<T, UniqueStatus = unknown, Status = unknown>
     }
 
     const errors: unknown[] = [];
-    const failedIndices = new Set<number>();
+    const failures = new Map<number, unknown>();
     return defer(() => {
       const deleteToken = Symbol('deleteManyProcess');
       this.state.$deleteProcesses.update((processes) => [
@@ -921,7 +928,7 @@ export class Collection<T, UniqueStatus = unknown, Status = unknown>
         { token: deleteToken, items: params.items.slice() }
       ]);
       const requests = Array.isArray(params.request) ?
-        this.forkJoinSafe(params.request, errors, failedIndices)
+        this.forkJoinSafe(params.request, errors, failures)
         : this.forkJoinSafe([params.request ?? of(null as R)], errors);
       return requests.pipe(
         finalize(() => this.state.$deleteProcesses.update((processes) => processes.filter(process => process.token !== deleteToken)))
@@ -929,6 +936,7 @@ export class Collection<T, UniqueStatus = unknown, Status = unknown>
     }).pipe(
       take(1),
       switchMap((response) => {
+        this.callOnItemError(params.onItemError, params.request, params.items, failures);
         if (params.onError && errors.length) {
           this.callCb(params.onError, errors);
         }
@@ -947,7 +955,7 @@ export class Collection<T, UniqueStatus = unknown, Status = unknown>
             // When requests are mapped to items one-to-one, items whose
             // requests have failed should not be removed from the collection.
             const itemsToDelete = Array.isArray(params.request) && params.request.length === params.items.length ?
-              params.items.filter((_, index) => !failedIndices.has(index))
+              params.items.filter((_, index) => !failures.has(index))
               : params.items;
             this.state.$totalCountFetched.update((prevTotalCount) => this.getDecrementedTotalCount(
               response,
@@ -1393,6 +1401,37 @@ export class Collection<T, UniqueStatus = unknown, Status = unknown>
     return toItems;
   }
 
+  /**
+   * Like `upsertOne()`, but an item that has no match in `items` is not added.
+   * Mutates `items`!
+   */
+  protected replaceOne(item: T, items: T[]): T[] | 'duplicate' {
+    if (!this.hasItemIn(item, items)) {
+      return items;
+    }
+    return this.upsertOne(item, items);
+  }
+
+  /**
+   * Like `upsertMany()`, but items that have no match in `toItems` are not added.
+   * Mutates `toItems`!
+   */
+  protected replaceMany(items: T[], toItems: T[]): T[] | {
+    duplicate: T,
+    preExisting?: boolean
+  } {
+    const hasDuplicates = this.hasDuplicates(items);
+    if (hasDuplicates) {
+      return { duplicate: hasDuplicates, preExisting: true };
+    }
+    for (let i = 0; i < items.length; i++) {
+      if (this.replaceOne(items[i], toItems) === 'duplicate') {
+        return { duplicate: items[i] };
+      }
+    }
+    return toItems;
+  }
+
   protected duplicateNotAdded(item: T, items: T[]) {
     if (this.throwOnDuplicates) {
       throw new Error(this.throwOnDuplicates);
@@ -1410,6 +1449,28 @@ export class Collection<T, UniqueStatus = unknown, Status = unknown>
     if (cb != null) {
       try {
         cb(param);
+      } catch (e) {
+        this.reportRuntimeError(e);
+      }
+    }
+  }
+
+  /**
+   * Calls `onItemError` once per failed request, in index order, when the requests are mapped to `items` one-to-one.
+   */
+  protected callOnItemError(
+    onItemError: ((error: unknown, item: Partial<T>) => void) | undefined,
+    request: unknown,
+    items: Partial<T>[],
+    failures: Map<number, unknown>
+  ) {
+    if (onItemError == null || !Array.isArray(request) || request.length !== items.length) {
+      return;
+    }
+    const indices = Array.from(failures.keys()).sort((a, b) => a - b);
+    for (const index of indices) {
+      try {
+        onItemError(failures.get(index), items[index]);
       } catch (e) {
         this.reportRuntimeError(e);
       }
@@ -1492,14 +1553,14 @@ export class Collection<T, UniqueStatus = unknown, Status = unknown>
   protected forkJoinSafe<Src>(
     sources: Observable<Src>[] | Signal<Src>[] | (Observable<Src> | Signal<Src>)[],
     errors: unknown[],
-    failedIndices?: Set<number>
+    failures?: Map<number, unknown>
   ): Observable<Src[]> {
     const source = sources.map((s, index) => this.toObservableFirstValue(s).pipe(
       map(v => ({ value: v, error: false })),
       defaultIfEmpty({ error: true, value: undefined }),
       catchError((e) => {
         errors.push(e);
-        failedIndices?.add(index);
+        failures?.set(index, e);
         this.callErrReporter(e);
         return of({ error: true, value: undefined });
       })

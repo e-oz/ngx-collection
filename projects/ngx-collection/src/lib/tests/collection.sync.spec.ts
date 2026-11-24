@@ -1,5 +1,5 @@
 import { computed, signal } from '@angular/core';
-import { defer, of } from 'rxjs';
+import { defer, of, throwError } from 'rxjs';
 import { Collection } from '../collection';
 
 type Item = {
@@ -1021,5 +1021,196 @@ describe('Collection Service (sync)', () => {
     expect(coll.$items()).toStrictEqual([item]);
     expect(onError).toHaveBeenCalled();
     consoleSpy.mockRestore();
+  });
+
+  it('update with upsert: false should replace an item already in the collection', () => {
+    const { coll } = setup();
+    const item1 = { id: 1, name: 'A' };
+    const item2 = { id: 2, name: 'B' };
+    const newItem2 = { id: 2, name: 'B2' };
+
+    coll.read({ request: signal([item1, item2]) }).subscribe();
+
+    coll.update({
+      request: signal(newItem2),
+      item: item2,
+      upsert: false,
+    }).subscribe();
+
+    expect(coll.$items()).toStrictEqual([item1, newItem2]);
+  });
+
+  it('update with upsert: false should not add an absent item, and should still report the successful request', () => {
+    const { coll } = setup();
+    const item1 = { id: 1, name: 'A' };
+    const item2 = { id: 2, name: 'B' };
+    const onSuccess = jest.fn();
+    const updated: Item[][] = [];
+
+    coll.read({ request: signal([item1]) }).subscribe();
+    coll.listenForUpdate().subscribe((items) => updated.push(items));
+
+    coll.update({
+      request: signal(item2),
+      item: item2,
+      upsert: false,
+      onSuccess,
+    }).subscribe();
+
+    expect(coll.$items()).toStrictEqual([item1]);
+    expect(onSuccess).toHaveBeenCalledWith(item2);
+    expect(updated).toStrictEqual([[item2]]);
+  });
+
+  it('update with upsert: false should not replace an item that has duplicates in the collection', () => {
+    const coll = new Collection<Item>({ comparatorFields: ['id'] });
+    const itemA = { id: 1, name: 'A' };
+    const itemB = { id: 1, name: 'B' };
+    const onSuccess = jest.fn();
+    const onError = jest.fn();
+
+    coll.read({ request: signal([itemA, itemB]) }).subscribe();
+
+    coll.update({
+      request: signal({ id: 1, name: 'C' }),
+      item: itemA,
+      upsert: false,
+      onSuccess,
+      onError,
+    }).subscribe();
+
+    expect(coll.$items()).toStrictEqual([itemA, itemB]);
+    expect(onSuccess).not.toHaveBeenCalled();
+    expect(onError).toHaveBeenCalled();
+  });
+
+  it('updateMany with upsert: false should replace present items and not add absent ones', () => {
+    const { coll } = setup();
+    const item1 = { id: 1, name: 'A' };
+    const item2 = { id: 2, name: 'B' };
+    const item3 = { id: 3, name: 'C' };
+    const newItem1 = { id: 1, name: 'A2' };
+    const onSuccess = jest.fn();
+
+    coll.read({ request: signal([item1, item2]) }).subscribe();
+
+    coll.updateMany({
+      request: [of(newItem1), of(item3)],
+      items: [item1, item3],
+      upsert: false,
+      onSuccess,
+    }).subscribe();
+
+    expect(coll.$items()).toStrictEqual([newItem1, item2]);
+    expect(onSuccess).toHaveBeenCalledWith([newItem1, item3]);
+  });
+
+  it('updateMany should call onItemError with the item of a failed request, before onError', () => {
+    const { coll } = setup();
+    const item1 = { id: 1, name: 'A' };
+    const item2 = { id: 2, name: 'B' };
+    const item3 = { id: 3, name: 'C' };
+    const calls: unknown[][] = [];
+
+    coll.read({ request: signal([item1, item2, item3]) }).subscribe();
+
+    coll.updateMany({
+      request: [of({ id: 1, name: 'A2' }), throwError(() => 'update-err'), of({ id: 3, name: 'C2' })],
+      items: [item1, item2, item3],
+      onItemError: (error, item) => calls.push(['onItemError', error, item]),
+      onError: (errors) => calls.push(['onError', errors]),
+    }).subscribe();
+
+    expect(calls).toStrictEqual([
+      ['onItemError', 'update-err', item2],
+      ['onError', ['update-err']],
+    ]);
+    expect(coll.$items()).toStrictEqual([{ id: 1, name: 'A2' }, item2, { id: 3, name: 'C2' }]);
+  });
+
+  it('updateMany should not call onItemError when the requests array and items have different lengths', () => {
+    const { coll } = setup();
+    const item1 = { id: 1, name: 'A' };
+    const item2 = { id: 2, name: 'B' };
+    const item3 = { id: 3, name: 'C' };
+    const onItemError = jest.fn();
+    const onError = jest.fn();
+
+    coll.read({ request: signal([item1, item2, item3]) }).subscribe();
+
+    coll.updateMany({
+      request: [of({ id: 1, name: 'A2' }), throwError(() => 'update-err')],
+      items: [item1, item2, item3],
+      onItemError,
+      onError,
+    }).subscribe();
+
+    expect(onItemError).not.toHaveBeenCalled();
+    expect(onError).toHaveBeenCalledWith(['update-err']);
+  });
+
+  it('updateMany should not call onItemError for a single request', () => {
+    const { coll } = setup();
+    const item1 = { id: 1, name: 'A' };
+    const onItemError = jest.fn();
+    const onError = jest.fn();
+
+    coll.read({ request: signal([item1]) }).subscribe();
+
+    coll.updateMany({
+      request: throwError(() => 'update-err'),
+      items: [item1],
+      onItemError,
+      onError,
+    }).subscribe();
+
+    expect(onItemError).not.toHaveBeenCalled();
+    expect(onError).toHaveBeenCalledWith('update-err');
+  });
+
+  it('updateMany should report an exception thrown by onItemError and still call onError', () => {
+    const { coll } = setup();
+    const item1 = { id: 1, name: 'A' };
+    const onError = jest.fn();
+    const consoleSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
+
+    coll.read({ request: signal([item1]) }).subscribe();
+
+    coll.updateMany({
+      request: [throwError(() => 'update-err')],
+      items: [item1],
+      onItemError: () => {
+        throw 'callback-err';
+      },
+      onError,
+    }).subscribe();
+
+    expect(consoleSpy).toHaveBeenCalledWith('callback-err');
+    expect(onError).toHaveBeenCalledWith(['update-err']);
+    consoleSpy.mockRestore();
+  });
+
+  it('deleteMany should call onItemError with the item of a failed request, before onError, and keep that item', () => {
+    const { coll } = setup();
+    const item1 = { id: 1, name: 'A' };
+    const item2 = { id: 2, name: 'B' };
+    const item3 = { id: 3, name: 'C' };
+    const onItemError = jest.fn();
+    const onError = jest.fn();
+
+    coll.read({ request: signal([item1, item2, item3]) }).subscribe();
+
+    coll.deleteMany({
+      request: [of('ok'), throwError(() => 'delete-err'), of('ok')],
+      items: [item1, item2, item3],
+      onItemError,
+      onError,
+    }).subscribe();
+
+    expect(onItemError).toHaveBeenCalledTimes(1);
+    expect(onItemError).toHaveBeenCalledWith('delete-err', item2);
+    expect(onError).toHaveBeenCalledWith(['delete-err']);
+    expect(onItemError.mock.invocationCallOrder[0]).toBeLessThan(onError.mock.invocationCallOrder[0]);
+    expect(coll.$items()).toStrictEqual([item2]);
   });
 });

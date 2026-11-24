@@ -218,6 +218,7 @@ type UpdateParams<T> = {
   item: Partial<T>;
   refresh?: RefreshParams<T>;
   refreshRequest?: Observable<T> | Signal<T>;  // deprecated
+  upsert?: boolean;  // default: true; false - a response that matches no item is not added
   onSuccess?: (item: T) => void;
   onError?: (error: unknown) => void;
   context?: unknown;
@@ -234,8 +235,10 @@ type UpdateManyParams<T> = {
   items: Partial<T>[];
   refresh?: RefreshManyParams<T>;
   refreshRequest?: Observable<FetchedItems<T> | T[]> | Signal<FetchedItems<T> | T[]>;  // deprecated
+  upsert?: boolean;  // default: true; false - responses that match no item are not added
   onSuccess?: (items: T[]) => void;
   onError?: (error: unknown) => void;
+  onItemError?: (error: unknown, item: Partial<T>) => void;  // per failed request, when `request` is an array as long as `items`
   context?: unknown;
 }
 ```
@@ -270,6 +273,7 @@ type DeleteManyParams<T, R = unknown> = {
   readRequest?: Observable<FetchedItems<T> | T[]> | Signal<FetchedItems<T> | T[]>;  // deprecated
   onSuccess?: (response: R[]) => void;
   onError?: (error: unknown) => void;
+  onItemError?: (error: unknown, item: Partial<T>) => void;  // per failed request, when `request` is an array as long as `items`
   context?: unknown;
 }
 ```

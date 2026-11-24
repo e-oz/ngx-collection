@@ -139,6 +139,21 @@ collection.readMany({
 
 When given a **single request** (not an array), the behavior is the same as any other method — a failure fails the entire operation.
 
+### Which item failed: `onItemError`
+
+`onError` receives the errors without telling which request each came from. `updateMany()` and `deleteMany()` also accept `onItemError(error, item)`: when `request` is an array as long as `items` (request `i` is for `items[i]`), it is called once per failed request with that request's error and item, in index order, before `onError`:
+
+```ts
+collection.deleteMany({
+  request: products.map((p) => this.http.delete(`/api/products/${p.id}`)),
+  items: products,
+  onItemError: (error, product) => failed.set(product.id, error),
+  onError: (errors) => this.toast.error(`${errors.length} products were not deleted`),
+});
+```
+
+`onItemError` is not called for a single request, or for an array of requests whose length differs from `items` (the requests can't be matched to the items). An exception thrown by `onItemError` is reported (see `errReporter`) and does not stop the other calls or `onError`. In `deleteMany()`, an item whose request failed stays in the collection.
+
 ## Duplicate detection
 
 The collection prevents duplicate items (items with the same identity according to the [comparator](comparator.md)). When a duplicate is detected:

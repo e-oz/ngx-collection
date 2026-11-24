@@ -239,7 +239,21 @@ collection.update({
 
 - The item appears in `$updatingItems()` during the operation.
 - `$isUpdating()` is `true`.
-- The response replaces the existing item (or adds it if not found).
+- The response replaces the existing item (or adds it if not found — unless `upsert: false` is set, see below).
+
+**Updating only items that are already in the collection:**
+
+By default, `update()` upserts: a response that matches no item in the collection is added to it. Set `upsert: false` when the updated item may not be in the list (for example, it was selected on another page) and must not be added:
+
+```ts
+collection.update({
+  request: this.http.put<Product>(`/api/products/${id}`, data),
+  item: { id },
+  upsert: false,
+});
+```
+
+With `upsert: false`, the response replaces only an item already in the collection; when none matches, `$items()` is left unchanged. The request still counts as successful: `onSuccess` is called and `listenForUpdate()` emits. `upsert` applies to the direct strategy; `refresh` keeps its own behavior.
 
 **Three update strategies:**
 
@@ -281,6 +295,22 @@ collection.updateMany({
 ```
 
 Supports the same three update strategies as `update()`. When using `refresh`, the refresh runs as `refreshMany()`.
+
+`upsert: false` works as in `update()`: items already in the collection are replaced, the others are not added.
+
+When `request` is an array of requests as long as `items` (one request per item), `onItemError` tells which item a failed request belongs to. It is called once per failed request, in index order, before `onError`:
+
+```ts
+collection.updateMany({
+  request: products.map((p) => this.http.put<Product>(`/api/products/${p.id}`, changes)),
+  items: products,
+  upsert: false,
+  onItemError: (error, product) => this.toast.error(`${product.name}: update failed`),
+  onError: (errors) => console.error(`${errors.length} updates failed`),
+});
+```
+
+`onItemError` is not called for a single request or for an array of requests whose length differs from `items`. See [Error Handling](error-handling.md#partial-errors).
 
 ---
 
@@ -351,6 +381,16 @@ collection.deleteMany({
   items: [{ id: 1 }, { id: 2 }],
   onSuccess: () => this.toast.success('Deleted'),
   decrementTotalCount: true,
+});
+```
+
+When `request` is an array as long as `items` (one request per item), an item whose request failed stays in the collection, and `onItemError` (as in `updateMany()`) is called with the error and that item, once per failed request, in index order, before `onError`:
+
+```ts
+collection.deleteMany({
+  request: products.map((p) => this.http.delete(`/api/products/${p.id}`)),
+  items: products,
+  onItemError: (error, product) => this.toast.error(`${product.name}: delete failed`),
 });
 ```
 

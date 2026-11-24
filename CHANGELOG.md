@@ -1,3 +1,7 @@
+## 5.2.0
+* `update()` and `updateMany()`: new `upsert` param. `true` (default) keeps the current behavior: a response that matches no item in the collection is added to it. With `upsert: false`, only items already in the collection are replaced, and `$items()` is left unchanged for the others (`onSuccess` and `listenForUpdate()` still report the successful request). Applies to the direct update strategy; `refresh` keeps its own behavior;
+* `updateMany()` and `deleteMany()`: new `onItemError(error, item)` callback. When `request` is an array as long as `items`, it is called once per failed request with the error and the item of that request, in index order, before `onError`. It is not called for a single request or for arrays of another length.
+
 ## 5.1.0
 Angular v22 is now supported.
 

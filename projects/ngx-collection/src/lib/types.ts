@@ -72,6 +72,13 @@ export type UpdateParams<T> = {
    */
   readonly refreshRequest?: Observable<T> | Signal<T>;
   readonly item: Partial<T>;
+  /**
+   * `true` (default): the response replaces the matching item, or is added when no item matches.
+   * `false`: the response replaces only an item already in the collection; when none matches, `$items` is left unchanged
+   * (`onSuccess` and `listenForUpdate()` still report the successful request). Applies to the direct strategy;
+   * `refresh` keeps its own behavior.
+   */
+  readonly upsert?: boolean;
   readonly onSuccess?: (item: T) => void;
   readonly onError?: (error: unknown) => void;
   readonly context?: unknown;
@@ -85,8 +92,20 @@ export type UpdateManyParams<T> = {
    */
   readonly refreshRequest?: Observable<FetchedItems<T> | T[]> | Signal<FetchedItems<T> | T[]>;
   readonly items: Partial<T>[];
+  /**
+   * `true` (default): the response replaces the matching item, or is added when no item matches.
+   * `false`: the response replaces only an item already in the collection; when none matches, `$items` is left unchanged
+   * (`onSuccess` and `listenForUpdate()` still report the successful request). Applies to the direct strategy;
+   * `refresh` keeps its own behavior.
+   */
+  readonly upsert?: boolean;
   readonly onSuccess?: (item: T[]) => void;
   readonly onError?: (error: unknown) => void;
+  /**
+   * Called once per failed request, in index order and before `onError`, when `request` is an array as long as `items`:
+   * `item` is `items[index]` of the failed request. Not called for a single request or arrays of another length.
+   */
+  readonly onItemError?: (error: unknown, item: Partial<T>) => void;
   readonly context?: unknown;
 }
 
@@ -135,6 +154,11 @@ export type DeleteManyParams<T, R = unknown> = {
   readonly readRequest?: Observable<FetchedItems<T> | T[]> | Signal<FetchedItems<T> | T[]>;
   readonly onSuccess?: (response: R[]) => void;
   readonly onError?: (error: unknown) => void;
+  /**
+   * Called once per failed request, in index order and before `onError`, when `request` is an array as long as `items`:
+   * `item` is `items[index]` of the failed request. Not called for a single request or arrays of another length.
+   */
+  readonly onItemError?: (error: unknown, item: Partial<T>) => void;
   readonly context?: unknown;
 }
 
@@ -302,13 +326,15 @@ export type CollectionInterface<T, UniqueStatus = unknown, Status = unknown> = {
   refreshMany(params: RefreshManyParams<T>): Observable<T[] | FetchedItems<T>>;
 
   /**
-   * This method replaces the existing item with the new one. If no existing item is found, a new one will be added.
+   * This method replaces the existing item with the new one. If no existing item is found, a new one will be added,
+   * unless `upsert: false` is set - then the collection is left unchanged.
    */
   update(params: UpdateParams<T>): Observable<T>;
 
   /**
    * Like `update()`, but for multiple items. Requests will run in parallel.
    * Consecutive `refreshRequest` (if set) will be executed using `refreshMany()`.
+   * With `upsert: false`, only items already in the collection are replaced; the others are not added.
    */
   updateMany(params: UpdateManyParams<T>): Observable<T[] | FetchedItems<T>>;
 

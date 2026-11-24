@@ -3222,4 +3222,34 @@ describe('Collection Service (async)', () => {
     expect(onSuccess).toHaveBeenCalled();
     expect(coll.$items()).toStrictEqual([{ id: 3, name: 'C' }]);
   });
+
+  it('updateMany should call onItemError in index order when requests fail out of order', () => {
+    const { coll } = setup();
+    const item1 = { id: 1, name: 'A' };
+    const item2 = { id: 2, name: 'B' };
+    const item3 = { id: 3, name: 'C' };
+    const calls: unknown[][] = [];
+
+    coll.read({ request: of([item1, item2, item3]) }).subscribe();
+
+    coll.updateMany({
+      request: [
+        timer(5).pipe(switchMap(() => throwError(() => 'late-err'))),
+        emit({ id: 2, name: 'B2' }),
+        timer(1).pipe(switchMap(() => throwError(() => 'early-err'))),
+      ],
+      items: [item1, item2, item3],
+      onItemError: (error, item) => calls.push(['onItemError', error, item]),
+      onError: (errors) => calls.push(['onError', errors]),
+    }).subscribe();
+
+    jest.runAllTimers();
+
+    expect(calls).toStrictEqual([
+      ['onItemError', 'late-err', item1],
+      ['onItemError', 'early-err', item3],
+      ['onError', ['early-err', 'late-err']],
+    ]);
+    expect(coll.$items()).toStrictEqual([item1, { id: 2, name: 'B2' }, item3]);
+  });
 });
